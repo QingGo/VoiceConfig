@@ -26,6 +26,7 @@ import com.voiceconfig.core.scheduler.TaskScheduler
 import com.voiceconfig.app.agent.AgentMessage
 import com.voiceconfig.app.agent.AgentStreamEvent
 import com.voiceconfig.app.agent.AgentSession
+import com.voiceconfig.app.agent.AgentSkillStore
 import com.voiceconfig.app.agent.AgentStepUi
 import com.voiceconfig.app.agent.SensitiveActionRequest
 import com.voiceconfig.app.ai.ApiKeyStore
@@ -81,6 +82,7 @@ class MainViewModel @Inject constructor(
     private val aiDebugLogRepository: AiDebugLogRepository,
     private val agentHistoryRepository: AgentHistoryRepository,
     private val agentSession: AgentSession,
+    private val agentSkillStore: AgentSkillStore,
 ) : ViewModel() {
 
     init {
@@ -739,8 +741,10 @@ class MainViewModel @Inject constructor(
                     _selectedAgentSessionId.value = sessionId
                 }
                 val targetSessionId: Long = sessionId
+                val relevantSkills = agentSkillStore.relevant(text)
                 val result = agentSession.send(
                     text,
+                    skills = relevantSkills,
                     onSensitiveAction = { request -> confirmSensitiveAction(request) },
                     onStep = { step ->
                         _agentSteps.update { current ->
@@ -794,6 +798,9 @@ class MainViewModel @Inject constructor(
                     now = System.currentTimeMillis(),
                     messageCount = result.history.count { it.imageBase64 == null },
                 )
+                if (result.ok) {
+                    agentSkillStore.record(text, result.toolCalls, result.ok)
+                }
             } finally {
                 _isAgentBusy.value = false
             }

@@ -1,5 +1,6 @@
 package com.voiceconfig.app.agent
 
+import com.voiceconfig.app.service.AgentAccessibilityService
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -24,7 +25,16 @@ class TapTextTool @Inject constructor(
         }
         if (texts.isEmpty()) return ToolResult.failure("缺少参数 text 或 texts")
         if (!shizuku.isAvailable()) {
-            return ToolResult.failure("tap_text 需要 Shizuku 授权")
+            for (candidate in texts) {
+                val clicked = AgentAccessibilityService.clickText(candidate)
+                if (clicked == true) {
+                    return ToolResult.success(
+                        "已通过无障碍服务按文字“$candidate”点击",
+                        mapOf("text" to candidate, "texts" to texts, "source" to "accessibility"),
+                    )
+                }
+            }
+            return ToolResult.failure("tap_text 需要 Shizuku 授权或开启无障碍服务")
         }
         val dumpFile = "/data/local/tmp/voiceconfig_tap_text.xml"
         val dump = shizuku.execute("uiautomator", "dump", dumpFile)

@@ -45,6 +45,7 @@ class AgentSession @Inject constructor(
     suspend fun send(
         userText: String,
         maxRounds: Int = 60,
+        skills: List<AgentSkill> = emptyList(),
         onStreamEvent: (AgentStreamEvent) -> Unit = {},
         onMessage: suspend (AgentMessage) -> Unit = {},
         onSensitiveAction: suspend (SensitiveActionRequest) -> Boolean = { false },
@@ -56,9 +57,10 @@ class AgentSession @Inject constructor(
         onMessage(history.last())
         trace.log("user_input", mapOf("text" to userText))
 
-        val systemPrompt = buildSystemPrompt()
+        val systemPrompt = buildSystemPrompt(skills)
         val allToolCalls = mutableListOf<ToolCall>()
         val allSteps = mutableListOf<StepExecution>()
+        var consecutiveFailures = 0
         var latestScreenBase64: String? = null
         var latestScreenWidth: Int? = null
         var latestScreenHeight: Int? = null
@@ -211,6 +213,7 @@ class AgentSession @Inject constructor(
                         message = result.message,
                     ),
                 )
+                if (result.ok) consecutiveFailures = 0 else consecutiveFailures++
                 trace.log(
                     "tool_result",
                     mapOf(
@@ -260,6 +263,12 @@ class AgentSession @Inject constructor(
                     history += AgentMessage("assistant", "已停止")
                     return AgentTurnResult(ok = false, message = "已停止", toolCalls = allToolCalls, history = historySnapshot())
                 }
+            }
+
+            if (consecutiveFailures >= 3) {
+                val guidance = "检测到连续 ${consecutiveFailures} 次工具失败。请停止重复尝试相同操作，改用其他入口（如搜索、返回上一页、换一种方式），或者直接向用户说明并询问下一步。"
+                history += AgentMessage("user", guidance)
+                onMessage(history.last())
             }
 
             latestScreenBase64?.let { image ->
@@ -330,12 +339,24 @@ class AgentSession @Inject constructor(
         return messages.filterIndexed { index, _ -> index !in drop }
     }
 
-    private fun buildSystemPrompt(): String {
+    private fun buildSystemPrompt(skills: List<AgentSkill> = emptyList()): String {
         val toolDesc = toolRegistry.descriptions()
+        val skillText = if (skills.isEmpty()) {
+            ""
+        } else {
+            buildString {
+                appendLine()
+                appendLine("历史成功路径参考（仅作参考，必须结合当前界面重新验证）：")
+                skills.forEachIndexed { index, skill ->
+                    appendLine("${index + 1}. 用户原话：${skill.text}")
+                    appendLine("   成功步骤：${skill.steps.joinToString(" -> ") { it.toolName + "(" + it.args.take(120) + ")" }}")
+                }
+            }
+        }
         return """
             你是“言控”手机自动化 Agent。根据用户指令选择并调用工具。
             可用工具：
-            $toolDesc
+            $toolDesc$skillText
 
             规则：
             - 如果需要调用工具，使用 function calling 返回 tool_calls；一轮可以返回多个工具调用。

@@ -1,3 +1,4 @@
 <resources>
     <string name="app_name">言控</string>
+    <string name="accessibility_service_description">言控无障碍服务：在没有 Shizuku 时读取当前屏幕并模拟点击，用于 Agent 手机自动化。</string>
 </resources>

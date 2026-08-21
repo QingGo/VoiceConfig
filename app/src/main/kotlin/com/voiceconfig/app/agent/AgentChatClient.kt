@@ -46,7 +46,10 @@ interface AgentToolChat {
 open class AgentChatClient @Inject constructor(
     private val apiKeyStore: ApiKeyStore,
     private val aiDebugLogRepository: AiDebugLogRepository,
-) : AgentChat, AgentToolChat {
+) : AgentChat, AgentToolChat, AgentModelBackend {
+    override val modelId: String get() = apiKeyStore.deepSeekModel
+    override val supportsVision: Boolean get() = modelId.contains("vision", ignoreCase = true)
+
 
     @Volatile
     override var lastError: String? = null

@@ -1,5 +1,6 @@
 package com.voiceconfig.app.agent
 
+import com.voiceconfig.app.service.AgentAccessibilityService
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -19,7 +20,11 @@ class ReadUiTool @Inject constructor(
 
     override suspend fun execute(args: Map<String, Any?>): ToolResult {
         if (!shizuku.isAvailable()) {
-            return ToolResult.failure("read_ui 需要 Shizuku 授权")
+            val a11y = AgentAccessibilityService.currentSnapshot()
+            if (!a11y.isNullOrBlank()) {
+                return ToolResult.success("已通过无障碍服务读取当前界面：\n$a11y", mapOf("source" to "accessibility"))
+            }
+            return ToolResult.failure("read_ui 需要 Shizuku 授权或开启无障碍服务")
         }
         val maxNodes = (args["maxNodes"] as? Number)?.toInt()?.coerceIn(10, 500) ?: 120
 

@@ -23,6 +23,7 @@ scenarios.json 格式:
 """
 
 import argparse
+import collections
 import json
 import os
 import subprocess
@@ -131,6 +132,28 @@ def analyze_trace(path):
     return summaries
 
 
+def compute_metrics(summaries):
+    total = len(summaries)
+    passed = sum(1 for r in summaries if r["ok"])
+    avg_steps = round(sum(r["tool_count"] for r in summaries) / total, 2) if total else 0
+    failed_reasons = collections.Counter()
+    declined = 0
+    for r in summaries:
+        if not r["ok"]:
+            reason = (r.get("message") or "unknown")[:200]
+            failed_reasons[reason] += 1
+        declined += r.get("declined", 0)
+    return {
+        "total": total,
+        "passed": passed,
+        "success_rate": round(passed / total * 100, 1) if total else 0,
+        "avg_tool_count": avg_steps,
+        "declined_sensitive_count": declined,
+        "human_intervention_rate": round(declined / total * 100, 1) if total else 0,
+        "top_failure_reasons": [{"reason": k, "count": v} for k, v in failed_reasons.most_common(10)],
+    }
+
+
 def run_and_evaluate(serial, text, timeout=90):
     local = os.path.join(tempfile.gettempdir(), "voiceconfig_agent_trace_eval.log")
     before = Path(local).read_text(encoding="utf-8") if Path(local).exists() else ""
@@ -175,6 +198,9 @@ def main():
     p_analyze = sub.add_parser("analyze", help="分析本地 trace")
     p_analyze.add_argument("--trace", required=True)
 
+    p_metrics = sub.add_parser("metrics", help="分析 trace 并输出汇总指标")
+    p_metrics.add_argument("--trace", required=True)
+
     p_pull = sub.add_parser("pull", help="从设备拉取 trace")
     p_pull.add_argument("--output", default=None, help="输出文件路径，默认临时目录")
     p_pull.add_argument("--analyze", action="store_true")
@@ -203,6 +229,12 @@ def main():
     if args.command == "analyze":
         summaries = analyze_trace(args.trace)
         print(json.dumps(summaries, ensure_ascii=False, indent=2))
+        return 0
+
+    if args.command == "metrics":
+        summaries = analyze_trace(args.trace)
+        metrics = compute_metrics(summaries)
+        print(json.dumps(metrics, ensure_ascii=False, indent=2))
         return 0
 
     if args.command == "pull":
