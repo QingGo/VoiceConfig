@@ -24,8 +24,10 @@ scenarios.json 格式:
 
 import argparse
 import json
+import os
 import subprocess
 import sys
+import tempfile
 import time
 from pathlib import Path
 
@@ -130,7 +132,7 @@ def analyze_trace(path):
 
 
 def run_and_evaluate(serial, text, timeout=90):
-    local = "agent_trace_eval.log"
+    local = os.path.join(tempfile.gettempdir(), "voiceconfig_agent_trace_eval.log")
     before = Path(local).read_text(encoding="utf-8") if Path(local).exists() else ""
     before_count = len(before.splitlines())
     send_scenario(serial, text)
@@ -174,7 +176,7 @@ def main():
     p_analyze.add_argument("--trace", required=True)
 
     p_pull = sub.add_parser("pull", help="从设备拉取 trace")
-    p_pull.add_argument("--output", default="agent_trace_eval.log")
+    p_pull.add_argument("--output", default=None, help="输出文件路径，默认临时目录")
     p_pull.add_argument("--analyze", action="store_true")
 
     args = parser.parse_args()
@@ -207,7 +209,8 @@ def main():
         if not args.serial:
             print("pull 需要 --serial")
             return 1
-        path = pull_trace(args.serial, args.output)
+        output = args.output or os.path.join(tempfile.gettempdir(), "voiceconfig_agent_trace_eval.log")
+        path = pull_trace(args.serial, output)
         print(f"pulled to {path}")
         if args.analyze:
             summaries = analyze_trace(path)
