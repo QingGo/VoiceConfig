@@ -54,6 +54,12 @@ class ApiKeyStore @Inject constructor(
             prefs.edit().putString(KEY_AGENT_REASONING_EFFORT, value).apply()
         }
 
+    var agentAutoConfirmSensitiveActions: Boolean
+        get() = prefs.getBoolean(KEY_AGENT_AUTO_CONFIRM, false)
+        set(value) {
+            prefs.edit().putBoolean(KEY_AGENT_AUTO_CONFIRM, value).apply()
+        }
+
     companion object {
         private const val KEY_API_KEY = "deepseek_api_key"
         private const val KEY_MODEL = "deepseek_model"
@@ -61,6 +67,7 @@ class ApiKeyStore @Inject constructor(
         private const val KEY_REASONING_EFFORT = "deepseek_reasoning_effort"
         private const val KEY_AGENT_THINKING_ENABLED = "agent_deepseek_thinking_enabled"
         private const val KEY_AGENT_REASONING_EFFORT = "agent_deepseek_reasoning_effort"
+        private const val KEY_AGENT_AUTO_CONFIRM = "agent_auto_confirm_sensitive_actions"
         const val DEFAULT_MODEL = "deepseek-v4-flash-vision-exp"
 
         fun normalizeModel(value: String?): String {

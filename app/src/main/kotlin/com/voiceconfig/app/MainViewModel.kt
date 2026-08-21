@@ -26,6 +26,7 @@ import com.voiceconfig.core.scheduler.TaskScheduler
 import com.voiceconfig.app.agent.AgentMessage
 import com.voiceconfig.app.agent.AgentStreamEvent
 import com.voiceconfig.app.agent.AgentSession
+import com.voiceconfig.app.agent.SensitiveActionRequest
 import com.voiceconfig.app.ai.ApiKeyStore
 import com.voiceconfig.app.ai.DeepSeekNlpParser
 import com.voiceconfig.app.scheduler.TriggerRuleScheduler
@@ -44,6 +45,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import org.json.JSONArray
 import java.time.ZoneId
 import javax.inject.Inject
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.withContext
@@ -179,6 +181,12 @@ class MainViewModel @Inject constructor(
 
     private val _agentDeepSeekReasoningEffort = MutableStateFlow(apiKeyStore.agentDeepSeekReasoningEffort)
     val agentDeepSeekReasoningEffort: StateFlow<String> = _agentDeepSeekReasoningEffort.asStateFlow()
+
+    private val _agentAutoConfirmSensitiveActions = MutableStateFlow(apiKeyStore.agentAutoConfirmSensitiveActions)
+    val agentAutoConfirmSensitiveActions: StateFlow<Boolean> = _agentAutoConfirmSensitiveActions.asStateFlow()
+
+    private val _pendingAgentConfirmation = MutableStateFlow<PendingAgentConfirmation?>(null)
+    val pendingAgentConfirmation: StateFlow<PendingAgentConfirmation?> = _pendingAgentConfirmation.asStateFlow()
 
     fun onInputChange(value: String) {
         _uiState.update {
@@ -728,6 +736,7 @@ class MainViewModel @Inject constructor(
                 val targetSessionId: Long = sessionId
                 val result = agentSession.send(
                     text,
+                    onSensitiveAction = { request -> confirmSensitiveAction(request) },
                     onStreamEvent = { event ->
                         when (event) {
                             is AgentStreamEvent.Content -> _agentStreamText.value += event.text
@@ -909,6 +918,27 @@ class MainViewModel @Inject constructor(
         _agentDeepSeekReasoningEffort.value = effort
     }
 
+    fun setAgentAutoConfirmSensitiveActions(enabled: Boolean) {
+        apiKeyStore.agentAutoConfirmSensitiveActions = enabled
+        _agentAutoConfirmSensitiveActions.value = enabled
+    }
+
+    suspend fun confirmSensitiveAction(request: SensitiveActionRequest): Boolean {
+        if (apiKeyStore.agentAutoConfirmSensitiveActions) return true
+        val deferred = CompletableDeferred<Boolean>()
+        _pendingAgentConfirmation.value = PendingAgentConfirmation(
+            request = request,
+            deferred = deferred,
+        )
+        return deferred.await()
+    }
+
+    fun resolveAgentConfirmation(approved: Boolean) {
+        val pending = _pendingAgentConfirmation.value ?: return
+        pending.deferred.complete(approved)
+        _pendingAgentConfirmation.value = null
+    }
+
     fun setParseMessage(message: String) {
         _uiState.update { it.copy(parseMessage = message) }
     }
@@ -1078,4 +1108,10 @@ data class MainUiState(
     val lastAiError: String? = null,
     val lastAiRawResponse: String? = null,
     val lastAiParseError: String? = null,
+)
+
+
+data class PendingAgentConfirmation(
+    val request: SensitiveActionRequest,
+    val deferred: CompletableDeferred<Boolean>,
 )

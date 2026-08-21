@@ -3,6 +3,7 @@ package com.voiceconfig.app
 import android.content.BroadcastReceiver
 import android.content.ClipData
 import android.content.ClipboardManager
+import android.content.pm.ApplicationInfo
 import android.content.pm.PackageManager
 import android.content.Context
 import android.content.Intent
@@ -148,14 +149,17 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            registerReceiver(
-                debugAgentReceiver,
-                IntentFilter("com.voiceconfig.app.DEBUG_AGENT_INPUT"),
-                Context.RECEIVER_EXPORTED,
-            )
-        } else {
-            registerReceiver(debugAgentReceiver, IntentFilter("com.voiceconfig.app.DEBUG_AGENT_INPUT"))
+        val isDebuggable = (applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE) != 0
+        if (isDebuggable) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                registerReceiver(
+                    debugAgentReceiver,
+                    IntentFilter("com.voiceconfig.app.DEBUG_AGENT_INPUT"),
+                    Context.RECEIVER_EXPORTED,
+                )
+            } else {
+                registerReceiver(debugAgentReceiver, IntentFilter("com.voiceconfig.app.DEBUG_AGENT_INPUT"))
+            }
         }
         setContent {
             VoiceConfigTheme {
@@ -187,6 +191,8 @@ fun MainScreen(viewModel: MainViewModel) {
     val deepSeekReasoningEffort by viewModel.deepSeekReasoningEffort.collectAsState()
     val agentDeepSeekThinkingEnabled by viewModel.agentDeepSeekThinkingEnabled.collectAsState()
     val agentDeepSeekReasoningEffort by viewModel.agentDeepSeekReasoningEffort.collectAsState()
+    val agentAutoConfirmSensitiveActions by viewModel.agentAutoConfirmSensitiveActions.collectAsState()
+    val pendingAgentConfirmation by viewModel.pendingAgentConfirmation.collectAsState()
     val aiDebugLogs by viewModel.aiDebugLogs.collectAsState()
     val triggerRules by viewModel.triggerRules.collectAsState()
     val agentSessions by viewModel.agentSessions.collectAsState()
@@ -203,6 +209,7 @@ fun MainScreen(viewModel: MainViewModel) {
     var draftReasoningEffort by remember { mutableStateOf("low") }
     var draftAgentThinkingEnabled by remember { mutableStateOf(true) }
     var draftAgentReasoningEffort by remember { mutableStateOf("max") }
+    var draftAgentAutoConfirmSensitiveActions by remember { mutableStateOf(false) }
     var showAgentPage by remember { mutableStateOf(false) }
     var agentInitialTab by remember { mutableIntStateOf(0) }
     var agentTabIndex by remember { mutableIntStateOf(0) }
@@ -502,6 +509,7 @@ fun MainScreen(viewModel: MainViewModel) {
                             draftReasoningEffort = deepSeekReasoningEffort
                             draftAgentThinkingEnabled = agentDeepSeekThinkingEnabled
                             draftAgentReasoningEffort = agentDeepSeekReasoningEffort
+                            draftAgentAutoConfirmSensitiveActions = agentAutoConfirmSensitiveActions
                         },
                         onOpenAgent = {
                             agentInitialTab = 0
@@ -642,6 +650,28 @@ fun MainScreen(viewModel: MainViewModel) {
         modifier = Modifier.align(Alignment.BottomCenter),
     )
     }
+    pendingAgentConfirmation?.let { pending ->
+        AlertDialog(
+            onDismissRequest = { viewModel.resolveAgentConfirmation(false) },
+            title = { Text("敏感操作确认") },
+            text = {
+                Text(
+                    "Agent 请求执行：\n${pending.request.toolName}(${pending.request.args})\n\n是否允许？",
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = { viewModel.resolveAgentConfirmation(true) }) {
+                    Text("允许")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { viewModel.resolveAgentConfirmation(false) }) {
+                    Text("拒绝")
+                }
+            },
+        )
+    }
     if (showAiSettings) {
         AlertDialog(
             onDismissRequest = { showAiSettings = false },
@@ -742,6 +772,21 @@ fun MainScreen(viewModel: MainViewModel) {
                                 Text("最大", style = MaterialTheme.typography.bodyMedium)
                             }
                         }
+                    }
+                    HorizontalDivider()
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(text = "敏感操作自动执行", style = MaterialTheme.typography.bodyLarge)
+                            Text(
+                                text = "开启后 Agent 不再弹出确认，直接执行发送/支付/删除等操作；建议仅测试或信任场景使用",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                        Switch(
+                            checked = draftAgentAutoConfirmSensitiveActions,
+                            onCheckedChange = { draftAgentAutoConfirmSensitiveActions = it },
+                        )
                     }
                     HorizontalDivider()
                     var showDebugSection by remember { mutableStateOf(false) }
@@ -1042,6 +1087,7 @@ fun MainScreen(viewModel: MainViewModel) {
                         viewModel.setDeepSeekReasoningEffort(draftReasoningEffort)
                         viewModel.setAgentDeepSeekThinkingEnabled(draftAgentThinkingEnabled)
                         viewModel.setAgentDeepSeekReasoningEffort(draftAgentReasoningEffort)
+                        viewModel.setAgentAutoConfirmSensitiveActions(draftAgentAutoConfirmSensitiveActions)
                         showAiSettings = false
                     },
                 ) {

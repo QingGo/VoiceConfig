@@ -17,6 +17,8 @@ class AgentSession @Inject constructor(
     private val chatClient: AgentToolChat,
     private val trace: AgentTrace,
 ) {
+    private val safety = AgentSafety()
+
     /** 可替换的工具参数解析器，便于测试。 */
     var argumentParser: (String) -> Map<String, Any?> = { JsonToolCallParser.parseArguments(it) }
 
@@ -45,6 +47,7 @@ class AgentSession @Inject constructor(
         maxRounds: Int = 60,
         onStreamEvent: (AgentStreamEvent) -> Unit = {},
         onMessage: suspend (AgentMessage) -> Unit = {},
+        onSensitiveAction: suspend (SensitiveActionRequest) -> Boolean = { false },
     ): AgentTurnResult {
         if (userText.isBlank()) return AgentTurnResult(ok = false, message = "输入为空", toolCalls = emptyList(), history = historySnapshot())
         cancelled = false
@@ -156,6 +159,27 @@ class AgentSession @Inject constructor(
                     continue
                 }
                 val args = runCatching { argumentParser(toolCall.arguments) }.getOrDefault(emptyMap())
+                val sensitiveRequest = SensitiveActionRequest(tool.name, args)
+                if (safety.requiresConfirmation(tool.name, args) && !onSensitiveAction(sensitiveRequest)) {
+                    val declined = "用户未确认敏感操作，已取消：${safety.describe(tool.name, args)}"
+                    trace.log("tool_declined", mapOf("tool" to toolCall.name, "args" to args, "reason" to "user_denied"))
+                    history += AgentMessage(
+                        role = "tool",
+                        content = declined,
+                        toolCallId = toolCall.id,
+                        toolName = toolCall.name,
+                        toolArgs = toolCall.arguments,
+                        toolResultOk = false,
+                    )
+                    onMessage(history.last())
+                    allToolCalls += ToolCall(toolCall.name, args)
+                    allSteps += StepExecution(
+                        index = allSteps.size,
+                        call = ToolCall(toolCall.name, args),
+                        result = ToolResult.failure(declined),
+                    )
+                    continue
+                }
                 trace.log("tool_call", mapOf("tool" to toolCall.name, "args" to args))
                 val result = runCatching { tool.execute(args) }
                     .getOrElse { ToolResult.failure(it.message ?: it.javaClass.simpleName) }
@@ -190,6 +214,20 @@ class AgentSession @Inject constructor(
                     val path = trace.saveScreenshot(image, toolCall.name)
                     trace.log("image_seen", mapOf("tool" to toolCall.name, "path" to path, "base64_length" to image.length))
                 }
+
+                // Phase 0 动作验证循环：对改变界面的操作自动截屏，模型下一轮会看到执行后的真实屏幕。
+                if (result.data["image_base64"] == null && shouldAutoVerify(toolCall.name)) {
+                    val verify = runCatching { toolRegistry.get("read_screen")?.execute(emptyMap()) }.getOrNull()
+                    val verifyImage = verify?.data?.get("image_base64") as? String
+                    if (verify?.ok == true && !verifyImage.isNullOrBlank()) {
+                        latestScreenBase64 = verifyImage
+                        latestScreenWidth = (verify.data["width"] as? Number)?.toInt()
+                        latestScreenHeight = (verify.data["height"] as? Number)?.toInt()
+                        val path = trace.saveScreenshot(verifyImage, "auto_verify_${toolCall.name}")
+                        trace.log("auto_verify", mapOf("tool" to toolCall.name, "path" to path, "base64_length" to verifyImage.length))
+                    }
+                }
+
                 if (cancelled) {
                     history += AgentMessage("assistant", "已停止")
                     return AgentTurnResult(ok = false, message = "已停止", toolCalls = allToolCalls, history = historySnapshot())
@@ -249,6 +287,12 @@ class AgentSession @Inject constructor(
         }
     }
 
+    private fun shouldAutoVerify(toolName: String): Boolean = toolName in AUTO_VERIFY_TOOLS
+
+    private companion object {
+        val AUTO_VERIFY_TOOLS = setOf("tap", "tap_text", "input_text", "press_key", "swipe", "open_app", "run_shell")
+    }
+
     private fun pruneImageHistory(messages: List<AgentMessage>): List<AgentMessage> {
         val imageIndices = messages.mapIndexedNotNull { index, msg ->
             if (msg.imageBase64 != null) index else null
@@ -269,7 +313,8 @@ class AgentSession @Inject constructor(
             - 如果需要调用工具，使用 function calling 返回 tool_calls；一轮可以返回多个工具调用。
             - 执行完工具后，根据工具结果继续判断是否需要更多工具，直到目标完成。
             - 查找应用时优先使用 find_app，不要用 run_shell 列举全部包名。
-            - 对于需要“看屏幕”的任务（如微信小程序下单、App 内操作），优先调用 read_screen 获取当前画面，再根据画面调用 tap/input_text/swipe/wait。
+            - 对于需要“看屏幕”的任务（如 App 内操作），优先调用 get_screen_state 同时获取 UI 元素和截图；仅需截图时用 read_screen，仅需 UI 树时用 read_ui。
+            - 如果 get_screen_state 不可用或失败，再使用 read_screen 或 read_ui 分别获取画面/UI 树。
             - 点击有明确文字的按钮时，优先使用 tap_text，并传入当前界面实际看到的文字（可用 texts 传多个候选，例如发送按钮可能是“发送/Send/发送消息”）；如果按钮是纯图标没有文字，用 review_tap 预览后 tap。
             - 点击前如果不确定坐标，先调用 review_tap 查看标记位置，再决定是否调整或执行 tap。
             - 每次操作后应继续 read_screen 确认页面变化，再决定下一步，不要一次性盲目点击。
