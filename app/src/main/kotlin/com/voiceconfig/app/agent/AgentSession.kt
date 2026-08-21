@@ -48,6 +48,7 @@ class AgentSession @Inject constructor(
         onStreamEvent: (AgentStreamEvent) -> Unit = {},
         onMessage: suspend (AgentMessage) -> Unit = {},
         onSensitiveAction: suspend (SensitiveActionRequest) -> Boolean = { false },
+        onStep: (AgentStepUi) -> Unit = {},
     ): AgentTurnResult {
         if (userText.isBlank()) return AgentTurnResult(ok = false, message = "输入为空", toolCalls = emptyList(), history = historySnapshot())
         cancelled = false
@@ -159,9 +160,27 @@ class AgentSession @Inject constructor(
                     continue
                 }
                 val args = runCatching { argumentParser(toolCall.arguments) }.getOrDefault(emptyMap())
+                val stepIndex = allSteps.size
+                onStep(
+                    AgentStepUi(
+                        index = stepIndex,
+                        toolName = toolCall.name,
+                        argsText = args.toString(),
+                        status = AgentStepStatus.RUNNING,
+                    ),
+                )
                 val sensitiveRequest = SensitiveActionRequest(tool.name, args)
                 if (safety.requiresConfirmation(tool.name, args) && !onSensitiveAction(sensitiveRequest)) {
                     val declined = "用户未确认敏感操作，已取消：${safety.describe(tool.name, args)}"
+                    onStep(
+                        AgentStepUi(
+                            index = stepIndex,
+                            toolName = toolCall.name,
+                            argsText = args.toString(),
+                            status = AgentStepStatus.DECLINED,
+                            message = declined,
+                        ),
+                    )
                     trace.log("tool_declined", mapOf("tool" to toolCall.name, "args" to args, "reason" to "user_denied"))
                     history += AgentMessage(
                         role = "tool",
@@ -183,6 +202,15 @@ class AgentSession @Inject constructor(
                 trace.log("tool_call", mapOf("tool" to toolCall.name, "args" to args))
                 val result = runCatching { tool.execute(args) }
                     .getOrElse { ToolResult.failure(it.message ?: it.javaClass.simpleName) }
+                onStep(
+                    AgentStepUi(
+                        index = stepIndex,
+                        toolName = toolCall.name,
+                        argsText = args.toString(),
+                        status = if (result.ok) AgentStepStatus.SUCCESS else AgentStepStatus.FAILED,
+                        message = result.message,
+                    ),
+                )
                 trace.log(
                     "tool_result",
                     mapOf(
@@ -333,3 +361,19 @@ data class AgentTurnResult(
     val toolCalls: List<ToolCall>,
     val history: List<AgentMessage>,
 )
+
+
+data class AgentStepUi(
+    val index: Int,
+    val toolName: String,
+    val argsText: String,
+    val status: AgentStepStatus,
+    val message: String = "",
+)
+
+enum class AgentStepStatus {
+    RUNNING,
+    SUCCESS,
+    FAILED,
+    DECLINED,
+}

@@ -26,6 +26,7 @@ import com.voiceconfig.core.scheduler.TaskScheduler
 import com.voiceconfig.app.agent.AgentMessage
 import com.voiceconfig.app.agent.AgentStreamEvent
 import com.voiceconfig.app.agent.AgentSession
+import com.voiceconfig.app.agent.AgentStepUi
 import com.voiceconfig.app.agent.SensitiveActionRequest
 import com.voiceconfig.app.ai.ApiKeyStore
 import com.voiceconfig.app.ai.DeepSeekNlpParser
@@ -187,6 +188,9 @@ class MainViewModel @Inject constructor(
 
     private val _pendingAgentConfirmation = MutableStateFlow<PendingAgentConfirmation?>(null)
     val pendingAgentConfirmation: StateFlow<PendingAgentConfirmation?> = _pendingAgentConfirmation.asStateFlow()
+
+    private val _agentSteps = MutableStateFlow<List<AgentStepUi>>(emptyList())
+    val agentSteps: StateFlow<List<AgentStepUi>> = _agentSteps.asStateFlow()
 
     fun onInputChange(value: String) {
         _uiState.update {
@@ -726,6 +730,7 @@ class MainViewModel @Inject constructor(
             _isAgentBusy.value = true
             _agentStreamText.value = ""
             _agentReasoningText.value = ""
+            _agentSteps.value = emptyList()
             try {
                 val now = System.currentTimeMillis()
                 var sessionId = _selectedAgentSessionId.value
@@ -737,6 +742,16 @@ class MainViewModel @Inject constructor(
                 val result = agentSession.send(
                     text,
                     onSensitiveAction = { request -> confirmSensitiveAction(request) },
+                    onStep = { step ->
+                        _agentSteps.update { current ->
+                            val index = current.indexOfFirst { it.index == step.index }
+                            if (index >= 0) {
+                                current.toMutableList().apply { set(index, step) }
+                            } else {
+                                current + step
+                            }
+                        }
+                    },
                     onStreamEvent = { event ->
                         when (event) {
                             is AgentStreamEvent.Content -> _agentStreamText.value += event.text

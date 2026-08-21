@@ -197,6 +197,7 @@ fun MainScreen(viewModel: MainViewModel) {
     val triggerRules by viewModel.triggerRules.collectAsState()
     val agentSessions by viewModel.agentSessions.collectAsState()
     val agentMessages by viewModel.agentMessages.collectAsState()
+    val agentSteps by viewModel.agentSteps.collectAsState()
     val taskEvents by viewModel.taskEvents.collectAsState()
     val selectedAgentSessionId by viewModel.selectedAgentSessionId.collectAsState()
     val isAgentBusy by viewModel.isAgentBusy.collectAsState()
@@ -580,6 +581,7 @@ fun MainScreen(viewModel: MainViewModel) {
                         onTabChange = { agentTabIndex = it },
                         sessions = agentSessions,
                         messages = agentMessages,
+                        agentSteps = agentSteps,
                         taskEvents = taskEvents,
                         recentLogs = recentLogs,
                         tasks = tasks,

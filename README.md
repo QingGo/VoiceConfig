@@ -76,6 +76,7 @@ VoiceConfig 不是“只会聊天”的助手，而是把语言理解、手机�
 - 实时消息持久化
 - 思维链可视化
 - Agent 轨迹日志与截图留存
+- 执行步骤时间线：实时展示正在执行/成功/失败/被拒绝的工具步骤
 - 敏感操作确认，默认需用户允许；可开启自动模式
 
 ### 4. 执行通道
@@ -207,6 +208,19 @@ scripts/emulator_smoke.sh emulator-5554
 python scripts/smoke_test.py emulator-5554
 ```
 
+Agent 场景回放 / 评测：
+
+```bash
+# 运行单个场景
+python scripts/agent_scenario_eval.py --serial emulator-5554 run --text "帮我打开设置"
+
+# 运行一组场景
+python scripts/agent_scenario_eval.py --serial emulator-5554 suite --scenarios scripts/scenarios.example.json
+
+# 从设备拉取并分析 trace
+python scripts/agent_scenario_eval.py --serial emulator-5554 pull --analyze
+```
+
 无线真机调试连接：
 
 ```bash
@@ -239,7 +253,7 @@ scripts/adb_connect.sh 192.168.1.100 42889
 - [x] 真机多步 App 操作验证
 - [x] 屏幕感知包（UI 树 + 截图 + 坐标，结构化基础版）
 - [x] 代码级敏感操作安全策略（默认确认 + 可开启自动模式）
-- [ ] 场景 Replay / 自动化评测框架
+- [x] 场景 Replay / 自动化评测框架（scripts/agent_scenario_eval.py）
 - [ ] 悬浮球与连续语音
 - [ ] 技能库与分享市场
 

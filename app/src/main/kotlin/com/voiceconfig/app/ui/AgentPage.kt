@@ -50,6 +50,8 @@ import com.voiceconfig.core.model.Task
 import com.voiceconfig.data.local.entity.AgentMessageEntity
 import com.voiceconfig.data.local.entity.AgentSessionEntity
 import com.voiceconfig.data.local.entity.TaskEventEntity
+import com.voiceconfig.app.agent.AgentStepUi
+import com.voiceconfig.app.agent.AgentStepStatus
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
@@ -64,6 +66,7 @@ fun AgentPage(
     onTabChange: (Int) -> Unit,
     sessions: List<AgentSessionEntity>,
     messages: List<AgentMessageEntity>,
+    agentSteps: List<AgentStepUi> = emptyList(),
     taskEvents: List<TaskEventEntity>,
     recentLogs: List<ExecutionLog>,
     tasks: List<Task>,
@@ -143,6 +146,7 @@ fun AgentPage(
             0 -> ConversationTab(
                 sessions = sessions,
                 messages = messages,
+                agentSteps = agentSteps,
                 selectedSessionId = selectedSessionId,
                 isAgentBusy = isAgentBusy,
                 streamText = streamText,
@@ -278,6 +282,7 @@ private fun SessionHistoryDialog(
 private fun ConversationTab(
     sessions: List<AgentSessionEntity>,
     messages: List<AgentMessageEntity>,
+    agentSteps: List<AgentStepUi> = emptyList(),
     selectedSessionId: Long?,
     isAgentBusy: Boolean,
     streamText: String,
@@ -359,6 +364,7 @@ private fun ConversationTab(
             ConversationMessages(
                 modifier = Modifier.weight(1f),
                 messages = messages,
+                agentSteps = agentSteps,
                 isAgentBusy = isAgentBusy,
                 streamText = streamText,
                 reasoningText = reasoningText,
@@ -520,6 +526,7 @@ private fun SessionCard(
 private fun ConversationMessages(
     modifier: Modifier = Modifier,
     messages: List<AgentMessageEntity>,
+    agentSteps: List<AgentStepUi> = emptyList(),
     isAgentBusy: Boolean,
     streamText: String,
     reasoningText: String,
@@ -553,6 +560,11 @@ private fun ConversationMessages(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(top = 12.dp),
                 )
+            }
+        }
+        if (agentSteps.isNotEmpty()) {
+            item {
+                AgentStepTimeline(steps = agentSteps)
             }
         }
         items(visibleMessages, key = { it.id }) { msg ->
@@ -595,6 +607,48 @@ private fun ConversationMessages(
             }
         }
     }
+}
+
+@Composable
+private fun AgentStepTimeline(steps: List<AgentStepUi>) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant,
+        ),
+    ) {
+        Column(Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text("执行时间线", style = MaterialTheme.typography.labelLarge)
+            steps.takeLast(30).forEach { step ->
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    Text(
+                        text = "${step.index + 1}. ${stepStatusIcon(step.status)} ${step.toolName}",
+                        style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier.weight(1f),
+                    )
+                    if (step.message.isNotBlank()) {
+                        Text(
+                            text = step.message,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1,
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+private fun stepStatusIcon(status: AgentStepStatus): String = when (status) {
+    AgentStepStatus.RUNNING -> "⏳"
+    AgentStepStatus.SUCCESS -> "✅"
+    AgentStepStatus.FAILED -> "❌"
+    AgentStepStatus.DECLINED -> "⛔"
 }
 
 @Composable
