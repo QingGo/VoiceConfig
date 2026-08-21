@@ -1,0 +1,68 @@
+# Gradle
+.gradle/
+**/build/
+build/
+local.properties
+
+# Android Studio / IntelliJ
+.idea/
+*.iml
+captures/
+.externalNativeBuild/
+.cxx/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Android artifacts
+*.apk
+*.aab
+*.ap_
+*.jks
+*.keystore
+*.pem
+*.key
+*.env
+
+# Logs and debug dumps
+*.log
+agent_trace/
+*.db
+*.sqlite
+*.hprof
+
+# Local machine / private data
+.android/
+.agents/
+.kotlin/
+.tmp_thumb/
+localsend-*.json
+pip-zeroconf.log
+voice_config_tmp.xml
+smoke_ui.xml
+shizuku.apk
+test_audio/
+test_models/
+skills-lock.json
+
+# Only README screenshots are tracked; dev screenshots stay local
+screenshots/*
+!screenshots/readme_home.png
+!screenshots/readme_agent.png
+!screenshots/readme_settings.png
+!screenshots/readme_templates.png
+
+# Python
+__pycache__/
+*.py[cod]
+
+# Signing / secrets
+keystore.properties
+secrets.properties
+
+# Local ADB host (do not commit)
+scripts/adb_host.local
+
+# Internal product / planning docs (not open-source by default)
+docs/

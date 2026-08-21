@@ -1,0 +1,1934 @@
+package com.voiceconfig.app
+
+import android.content.BroadcastReceiver
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.pm.PackageManager
+import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
+import android.os.Build
+import android.os.Bundle
+import android.speech.RecognitionListener
+import android.speech.RecognizerIntent
+import android.speech.SpeechRecognizer
+import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.compose.setContent
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.activity.viewModels
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.requiredSize
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.text.selection.SelectionContainer
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.List
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.RadioButton
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Tab
+import androidx.compose.material3.TabRow
+import androidx.compose.material3.Switch
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.window.DialogProperties
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
+import androidx.compose.ui.unit.dp
+import com.voiceconfig.app.agent.AgentSession
+import com.voiceconfig.app.ai.InstalledAppProvider
+import com.voiceconfig.app.ai.LocalAsrManager
+import com.voiceconfig.app.service.VoiceConfigService
+import com.voiceconfig.app.ui.theme.SuccessGreen
+import com.voiceconfig.app.ui.AgentNavigation
+import com.voiceconfig.app.ui.AgentPage
+import com.voiceconfig.app.ui.theme.VoiceConfigTheme
+import com.voiceconfig.app.ui.theme.WarningOrange
+import com.voiceconfig.core.model.ActionType
+import com.voiceconfig.core.model.ExecutionLog
+import com.voiceconfig.core.model.ExecutionMode
+import com.voiceconfig.core.model.ExecutionStatus
+import com.voiceconfig.core.model.Task
+import com.voiceconfig.core.model.Template
+import com.voiceconfig.core.model.TaskDraft
+import com.voiceconfig.core.model.ScheduleSpec
+import dagger.hilt.android.AndroidEntryPoint
+import javax.inject.Inject
+import kotlin.math.roundToInt
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+
+@AndroidEntryPoint
+class MainActivity : ComponentActivity() {
+
+    @Inject lateinit var localAsrManager: LocalAsrManager
+    @Inject lateinit var installedAppProvider: InstalledAppProvider
+    @Inject lateinit var agentSession: AgentSession
+
+    private val viewModel: MainViewModel by viewModels()
+
+    private val debugAgentReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            val text = intent?.getStringExtra("text")?.takeIf { it.isNotBlank() } ?: return
+            val send = intent.getBooleanExtra("send", false)
+            val newSession = intent.getBooleanExtra("newSession", false)
+            AgentTestBridge.submit(AgentTestBridge.Command(text = text, send = send, newSession = newSession))
+        }
+    }
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            registerReceiver(
+                debugAgentReceiver,
+                IntentFilter("com.voiceconfig.app.DEBUG_AGENT_INPUT"),
+                Context.RECEIVER_EXPORTED,
+            )
+        } else {
+            registerReceiver(debugAgentReceiver, IntentFilter("com.voiceconfig.app.DEBUG_AGENT_INPUT"))
+        }
+        setContent {
+            VoiceConfigTheme {
+                Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
+                    MainScreen(viewModel = viewModel)
+                }
+            }
+        }
+        window.decorView.post {
+            VoiceConfigService.start(this)
+        }
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        runCatching { unregisterReceiver(debugAgentReceiver) }
+    }
+}
+
+@Composable
+fun MainScreen(viewModel: MainViewModel) {
+    val uiState by viewModel.uiState.collectAsState()
+    val tasks by viewModel.tasks.collectAsState()
+    val templates by viewModel.templates.collectAsState()
+    val recentLogs by viewModel.recentLogs.collectAsState()
+    val deepSeekApiKey by viewModel.deepSeekApiKey.collectAsState()
+    val deepSeekModel by viewModel.deepSeekModel.collectAsState()
+    val deepSeekThinkingEnabled by viewModel.deepSeekThinkingEnabled.collectAsState()
+    val deepSeekReasoningEffort by viewModel.deepSeekReasoningEffort.collectAsState()
+    val agentDeepSeekThinkingEnabled by viewModel.agentDeepSeekThinkingEnabled.collectAsState()
+    val agentDeepSeekReasoningEffort by viewModel.agentDeepSeekReasoningEffort.collectAsState()
+    val aiDebugLogs by viewModel.aiDebugLogs.collectAsState()
+    val triggerRules by viewModel.triggerRules.collectAsState()
+    val agentSessions by viewModel.agentSessions.collectAsState()
+    val agentMessages by viewModel.agentMessages.collectAsState()
+    val taskEvents by viewModel.taskEvents.collectAsState()
+    val selectedAgentSessionId by viewModel.selectedAgentSessionId.collectAsState()
+    val isAgentBusy by viewModel.isAgentBusy.collectAsState()
+    val agentStreamText by viewModel.agentStreamText.collectAsState()
+    val agentReasoningText by viewModel.agentReasoningText.collectAsState()
+    var showAiSettings by remember { mutableStateOf(false) }
+    var draftApiKey by remember { mutableStateOf("") }
+    var draftModel by remember { mutableStateOf("") }
+    var draftThinkingEnabled by remember { mutableStateOf(false) }
+    var draftReasoningEffort by remember { mutableStateOf("low") }
+    var draftAgentThinkingEnabled by remember { mutableStateOf(true) }
+    var draftAgentReasoningEffort by remember { mutableStateOf("max") }
+    var showAgentPage by remember { mutableStateOf(false) }
+    var agentInitialTab by remember { mutableIntStateOf(0) }
+    var agentTabIndex by remember { mutableIntStateOf(0) }
+    var agentLogTaskId by remember { mutableStateOf<Long?>(null) }
+    var agentInput by remember { mutableStateOf("") }
+    val debugCommand by AgentTestBridge.command.collectAsState()
+    var showCreatePanel by remember { mutableStateOf(false) }
+    val snackbarHostState = remember { SnackbarHostState() }
+    LaunchedEffect(uiState.parseMessage) {
+        val message = uiState.parseMessage
+        if (!message.isNullOrBlank() && (
+                message.startsWith("任务已创建") ||
+                message.startsWith("已保存为模板") ||
+                message.startsWith("已创建")
+            )
+        ) {
+            showCreatePanel = false
+            snackbarHostState.showSnackbar(message)
+        }
+    }
+    LaunchedEffect(debugCommand) {
+        val command = debugCommand ?: return@LaunchedEffect
+        if (command.text.isNotBlank()) {
+            if (command.newSession) {
+                viewModel.clearSelectedAgentSession()
+                agentTabIndex = AgentNavigation.TAB_CONVERSATION
+            }
+            agentInput = command.text
+            if (command.send) {
+                viewModel.sendAgentMessage(command.text.trim())
+                agentInput = ""
+            }
+        }
+        AgentTestBridge.clear()
+    }
+    var micOffsetX by remember { mutableStateOf(0f) }
+    var micOffsetY by remember { mutableStateOf(0f) }
+    var triggerType by remember { mutableStateOf("wifi") }
+    var triggerName by remember { mutableStateOf("") }
+    var triggerSsid by remember { mutableStateOf("") }
+    var triggerPackage by remember { mutableStateOf("") }
+    var triggerLevel by remember { mutableStateOf(20) }
+    var triggerLat by remember { mutableStateOf("31.2304") }
+    var triggerLng by remember { mutableStateOf("121.4737") }
+    var triggerRadius by remember { mutableStateOf("100") }
+    var triggerTap by remember { mutableStateOf("") }
+    var triggerInput by remember { mutableStateOf("") }
+    val notificationPermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission(),
+    ) { /* 用户拒绝时通过权限体检页引导 */ }
+    val locationPermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission(),
+    ) { /* 用户拒绝时提示到设置页开启 */ }
+    LaunchedEffect(Unit) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            notificationPermissionLauncher.launch(android.Manifest.permission.POST_NOTIFICATIONS)
+        }
+    }
+    val context = LocalContext.current
+    val localAsrManager = (context as? MainActivity)?.localAsrManager
+    val installedAppProvider = (context as? MainActivity)?.installedAppProvider
+    val agentSession = (context as? MainActivity)?.agentSession
+    var installedAppLabels by remember { mutableStateOf<Map<String, String>>(emptyMap()) }
+    LaunchedEffect(installedAppProvider) {
+        installedAppLabels = withContext(Dispatchers.Default) {
+            installedAppProvider?.installedApps?.associate { it.packageName to it.label } ?: emptyMap()
+        }
+    }
+    var asrSelectedId by remember { mutableStateOf(localAsrManager?.selectedModel()?.id ?: "") }
+    var asrDownloadingId by remember { mutableStateOf<String?>(null) }
+    var asrDownloadProgress by remember { mutableStateOf(0f) }
+    var asrErrors by remember { mutableStateOf<Map<String, String>>(emptyMap()) }
+    val scope = rememberCoroutineScope()
+    LaunchedEffect(Unit) {
+        localAsrManager?.warmUp()
+    }
+    var speechRecognizer by remember { mutableStateOf<SpeechRecognizer?>(null) }
+    fun ensureSpeechRecognizer(): SpeechRecognizer? {
+        if (speechRecognizer == null) {
+            speechRecognizer = runCatching { SpeechRecognizer.createSpeechRecognizer(context) }.getOrNull()
+        }
+        return speechRecognizer
+    }
+    var isListening by remember { mutableStateOf(false) }
+    var isPreparing by remember { mutableStateOf(false) }
+    DisposableEffect(Unit) {
+        onDispose {
+            speechRecognizer?.destroy()
+        }
+    }
+
+    var activeSpeechConsumer by remember { mutableStateOf<(String) -> Unit>({ viewModel.onInputChange(it) }) }
+    var pendingSpeechConsumer by remember { mutableStateOf<(String) -> Unit>({ viewModel.onInputChange(it) }) }
+
+    val speechLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.StartActivityForResult(),
+    ) { result ->
+        if (result.resultCode == android.app.Activity.RESULT_OK) {
+            val text = result.data
+                ?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)
+                ?.firstOrNull()
+            if (!text.isNullOrBlank()) {
+                activeSpeechConsumer(text)
+            }
+        }
+    }
+
+    fun startListening(
+        onResult: (String) -> Unit = { viewModel.onInputChange(it) },
+        onError: (String) -> Unit = { viewModel.setParseMessage(it) },
+    ) {
+        activeSpeechConsumer = onResult
+        if (localAsrManager?.isModelAvailable() == true) {
+            // 立即进入聆听状态并开始录音，避免等待模型预热时丢失开头语音。
+            isPreparing = false
+            isListening = true
+            localAsrManager?.recognize(
+                onPartialResult = onResult,
+                onResult = { text ->
+                    isListening = false
+                    onResult(text)
+                },
+                onError = { message ->
+                    isListening = false
+                    if (message != "已取消") {
+                        onError(message)
+                    }
+                },
+            )
+            return
+        }
+        val recognizer = ensureSpeechRecognizer()
+        if (recognizer == null || !SpeechRecognizer.isRecognitionAvailable(context)) {
+            val fallbackIntent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+                putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+                putExtra(RecognizerIntent.EXTRA_LANGUAGE, "zh-CN")
+                putExtra(RecognizerIntent.EXTRA_PROMPT, "请说出你要创建的自动化任务")
+            }
+            runCatching { speechLauncher.launch(fallbackIntent) }
+                .onFailure { onError("无法启动系统语音识别") }
+            return
+        }
+        val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+            putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+            putExtra(RecognizerIntent.EXTRA_LANGUAGE, "zh-CN")
+            putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
+        }
+        recognizer.setRecognitionListener(object : RecognitionListener {
+            override fun onReadyForSpeech(params: Bundle?) {}
+            override fun onBeginningOfSpeech() {}
+            override fun onRmsChanged(rmsdB: Float) {}
+            override fun onBufferReceived(buffer: ByteArray?) {}
+            override fun onEndOfSpeech() {}
+            override fun onError(error: Int) {
+                isListening = false
+                val message = when (error) {
+                    SpeechRecognizer.ERROR_NO_MATCH -> "没有听清，请再说一次"
+                    SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS -> "需要录音权限"
+                    SpeechRecognizer.ERROR_NETWORK -> "语音识别网络错误"
+                    SpeechRecognizer.ERROR_RECOGNIZER_BUSY -> "语音识别忙，请稍后再试"
+                    else -> "语音识别失败（$error）"
+                }
+                onError(message)
+            }
+            override fun onResults(results: Bundle?) {
+                isListening = false
+                val text = results
+                    ?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
+                    ?.firstOrNull()
+                if (!text.isNullOrBlank()) {
+                    onResult(text)
+                }
+            }
+            override fun onPartialResults(partialResults: Bundle?) {
+                val text = partialResults
+                    ?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
+                    ?.firstOrNull()
+                if (!text.isNullOrBlank()) {
+                    onResult(text)
+                }
+            }
+            override fun onEvent(eventType: Int, params: Bundle?) {}
+        })
+        isListening = true
+        recognizer.startListening(intent)
+    }
+
+    val audioPermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission(),
+    ) { granted ->
+        if (granted) {
+            startListening(onResult = pendingSpeechConsumer)
+        }
+    }
+
+    val onMicClick: () -> Unit = {
+        if (!uiState.isParsing && !isPreparing) {
+            if (isListening) {
+                localAsrManager?.cancel()
+                speechRecognizer?.stopListening()
+                isListening = false
+            } else {
+                pendingSpeechConsumer = { viewModel.onInputChange(it) }
+                val granted = Build.VERSION.SDK_INT < Build.VERSION_CODES.M ||
+                    context.checkSelfPermission(android.Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
+                if (granted) {
+                    startListening(onResult = pendingSpeechConsumer)
+                } else {
+                    audioPermissionLauncher.launch(android.Manifest.permission.RECORD_AUDIO)
+                }
+            }
+        }
+    }
+
+    val onAgentMicClick: () -> Unit = {
+        agentTabIndex = AgentNavigation.TAB_CONVERSATION
+        if (!isAgentBusy && !isPreparing) {
+            if (isListening) {
+                localAsrManager?.cancel()
+                speechRecognizer?.stopListening()
+                isListening = false
+            } else {
+                pendingSpeechConsumer = { text -> agentInput = text }
+                val granted = Build.VERSION.SDK_INT < Build.VERSION_CODES.M ||
+                    context.checkSelfPermission(android.Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
+                if (granted) {
+                    startListening(
+                        onResult = pendingSpeechConsumer,
+                        onError = { viewModel.setParseMessage(it) },
+                    )
+                } else {
+                    audioPermissionLauncher.launch(android.Manifest.permission.RECORD_AUDIO)
+                }
+            }
+        }
+    }
+
+    val onParseClick: () -> Unit = {
+        if (isListening) {
+            localAsrManager?.cancel()
+            speechRecognizer?.stopListening()
+            isListening = false
+        }
+        viewModel.parse()
+    }
+
+    val pagerState = rememberPagerState { 2 }
+    LaunchedEffect(pagerState.currentPage) {
+        showAgentPage = pagerState.currentPage == 1
+        if (showAgentPage) {
+            viewModel.openAgentPage()
+        }
+    }
+
+    Box(modifier = Modifier.fillMaxSize()) {
+    Column(modifier = Modifier.fillMaxSize()) {
+        TabRow(selectedTabIndex = pagerState.currentPage) {
+            Tab(
+                selected = pagerState.currentPage == 0,
+                onClick = {
+                    scope.launch { pagerState.animateScrollToPage(0) }
+                },
+                text = { Text("自动化") },
+            )
+            Tab(
+                selected = pagerState.currentPage == 1,
+                onClick = {
+                    agentInitialTab = 0
+                    agentTabIndex = agentInitialTab
+                    agentLogTaskId = null
+                    scope.launch { pagerState.animateScrollToPage(1) }
+                },
+                text = { Text("高级能力") },
+            )
+        }
+        Box(
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxWidth(),
+        ) {
+            HorizontalPager(
+                state = pagerState,
+                modifier = Modifier.fillMaxSize(),
+            ) { page ->
+                when (page) {
+                    0 -> MainScreenContent(
+                        uiState = uiState,
+                        installedAppLabels = installedAppLabels,
+                        isListening = isListening,
+                        isPreparing = isPreparing,
+                        onMicClick = onMicClick,
+                        onOpenAiSettings = {
+                            showAiSettings = true
+                            draftApiKey = deepSeekApiKey
+                            draftModel = deepSeekModel
+                            draftThinkingEnabled = deepSeekThinkingEnabled
+                            draftReasoningEffort = deepSeekReasoningEffort
+                            draftAgentThinkingEnabled = agentDeepSeekThinkingEnabled
+                            draftAgentReasoningEffort = agentDeepSeekReasoningEffort
+                        },
+                        onOpenAgent = {
+                            agentInitialTab = 0
+                            agentTabIndex = 0
+                            agentLogTaskId = null
+                            scope.launch { pagerState.animateScrollToPage(1) }
+                        },
+                        onOpenAgentLogs = { task ->
+                            agentInitialTab = 2
+                            agentTabIndex = 2
+                            agentLogTaskId = task.id
+                            scope.launch { pagerState.animateScrollToPage(1) }
+                        },
+                        showCreatePanel = showCreatePanel,
+                        onCreatePanelChange = { showCreatePanel = it },
+                        tasks = tasks,
+                        templates = templates,
+                        recentLogs = recentLogs,
+                        onInputChange = viewModel::onInputChange,
+                        onManualPackageChange = viewModel::onManualPackageChange,
+                        onManualDeepLinkChange = viewModel::onManualDeepLinkChange,
+                        onParse = onParseClick,
+                        onConfirmCreate = viewModel::confirmCreate,
+                        onClearResult = viewModel::clearResult,
+                        onToggleTask = viewModel::toggleTask,
+                        onDeleteTask = viewModel::deleteTask,
+                        onCopyTask = viewModel::copyTaskToInput,
+                        onRunNow = viewModel::runNow,
+                        onSummarizeLogs = viewModel::summarizeLogs,
+                        onSaveTemplate = viewModel::saveCurrentAsTemplate,
+                        onDeleteTemplate = viewModel::deleteTemplate,
+                        onExportTemplates = {
+                            val text = templates.joinToString("\n") { template ->
+                                "${template.name}|${template.description}|${template.category}|${template.configJson}"
+                            }
+                            val sendIntent = Intent(Intent.ACTION_SEND).apply {
+                                type = "text/plain"
+                                putExtra(Intent.EXTRA_TEXT, text)
+                            }
+                            context.startActivity(Intent.createChooser(sendIntent, "导出全部模板"))
+                        },
+                        onImportTemplates = {
+                            val clipboard = context.getSystemService(ClipboardManager::class.java)
+                            val clip = clipboard?.primaryClip
+                            val text = clip?.takeIf { it.itemCount > 0 }
+                                ?.getItemAt(0)
+                                ?.coerceToText(context)
+                                ?.toString()
+                            if (!text.isNullOrBlank()) {
+                                text.lineSequence().forEach { line ->
+                                    val parts = line.split("|", limit = 4)
+                                    if (parts.size == 4 && parts[3].isNotBlank()) {
+                                        viewModel.importTemplate(
+                                            name = parts[0],
+                                            description = parts[1],
+                                            category = parts[2],
+                                            configJson = parts[3],
+                                        )
+                                    }
+                                }
+                            }
+                        },
+                        onTemplateSelected = viewModel::onTemplateSelected,
+                    )
+                    else -> AgentPage(
+                        initialTabIndex = agentInitialTab,
+                        tabIndex = agentTabIndex,
+                        onTabChange = { agentTabIndex = it },
+                        sessions = agentSessions,
+                        messages = agentMessages,
+                        taskEvents = taskEvents,
+                        recentLogs = recentLogs,
+                        tasks = tasks,
+                        selectedSessionId = selectedAgentSessionId,
+                        isAgentBusy = isAgentBusy,
+                        streamText = agentStreamText,
+                        reasoningText = agentReasoningText,
+                        input = agentInput,
+                        onInputChange = { agentInput = it },
+                        initialLogTaskId = agentLogTaskId,
+                        agentThinkingEnabled = agentDeepSeekThinkingEnabled,
+                        agentReasoningEffort = agentDeepSeekReasoningEffort,
+                        onAgentThinkingEnabledChange = viewModel::setAgentDeepSeekThinkingEnabled,
+                        onAgentReasoningEffortChange = viewModel::setAgentDeepSeekReasoningEffort,
+                        onBack = {
+                            scope.launch { pagerState.animateScrollToPage(0) }
+                        },
+                        onSelectSession = viewModel::selectAgentSession,
+                        onSend = viewModel::sendAgentMessage,
+                        onNewSession = {
+                            agentInput = ""
+                            viewModel.newAgentSession()
+                        },
+                        onShowSessions = {
+                            agentInput = ""
+                            viewModel.clearSelectedAgentSession()
+                        },
+                        onStop = viewModel::stopAgent,
+                        onRenameSession = viewModel::renameAgentSession,
+                        onDeleteSession = viewModel::deleteAgentSession,
+                        onClearSession = viewModel::clearAgentSession,
+                        onOpenTask = { taskId ->
+                            scope.launch { pagerState.animateScrollToPage(0) }
+                        },
+                    )
+                }
+            }
+
+            FloatingMicButton(
+                isListening = isListening,
+                isPreparing = isPreparing,
+                onClick = {
+                    if (showAgentPage) {
+                        onAgentMicClick()
+                    } else {
+                        showCreatePanel = true
+                        onMicClick()
+                    }
+                },
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(
+                        end = 20.dp,
+                        bottom = 180.dp,
+                    )
+                    .offset { IntOffset(micOffsetX.roundToInt(), micOffsetY.roundToInt()) },
+                offsetX = micOffsetX,
+                offsetY = micOffsetY,
+                onOffsetChange = { x, y ->
+                    micOffsetX = x
+                    micOffsetY = y
+                },
+            )
+        }
+    }
+    SnackbarHost(
+        hostState = snackbarHostState,
+        modifier = Modifier.align(Alignment.BottomCenter),
+    )
+    }
+    if (showAiSettings) {
+        AlertDialog(
+            onDismissRequest = { showAiSettings = false },
+            properties = DialogProperties(usePlatformDefaultWidth = false),
+            title = { Text("设置") },
+            text = {
+                var showRawAi by remember { mutableStateOf(false) }
+                var showApiKey by remember { mutableStateOf(false) }
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(max = 600.dp)
+                        .verticalScroll(rememberScrollState())
+                        .padding(bottom = 96.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    Text(text = "DeepSeek AI", style = MaterialTheme.typography.titleSmall)
+                    OutlinedTextField(
+                        value = draftApiKey,
+                        onValueChange = { draftApiKey = it },
+                        modifier = Modifier.fillMaxWidth(),
+                        label = { Text("DeepSeek API Key") },
+                        singleLine = true,
+                        visualTransformation = if (showApiKey) VisualTransformation.None else PasswordVisualTransformation(),
+                        trailingIcon = {
+                            TextButton(onClick = { showApiKey = !showApiKey }) {
+                                Text(if (showApiKey) "隐藏" else "显示")
+                            }
+                        },
+                    )
+                    OutlinedTextField(
+                        value = draftModel,
+                        onValueChange = { draftModel = it },
+                        modifier = Modifier.fillMaxWidth(),
+                        label = { Text("模型（默认 deepseek-v4-flash-vision-exp）") },
+                        singleLine = true,
+                    )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(text = "DeepSeek 思考模式", style = MaterialTheme.typography.bodyLarge)
+                            Text(
+                                text = "默认关闭；开启后更准确但生成更慢",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                        Switch(
+                            checked = draftThinkingEnabled,
+                            onCheckedChange = { draftThinkingEnabled = it },
+                        )
+                    }
+                    if (draftThinkingEnabled) {
+                        Text(text = "思考强度", style = MaterialTheme.typography.bodyMedium)
+                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                                RadioButton(selected = draftReasoningEffort == "low", onClick = { draftReasoningEffort = "low" })
+                                Text("低", style = MaterialTheme.typography.bodyMedium)
+                                RadioButton(selected = draftReasoningEffort == "medium", onClick = { draftReasoningEffort = "medium" })
+                                Text("中", style = MaterialTheme.typography.bodyMedium)
+                            }
+                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                                RadioButton(selected = draftReasoningEffort == "high", onClick = { draftReasoningEffort = "high" })
+                                Text("高", style = MaterialTheme.typography.bodyMedium)
+                                RadioButton(selected = draftReasoningEffort == "max", onClick = { draftReasoningEffort = "max" })
+                                Text("最大", style = MaterialTheme.typography.bodyMedium)
+                            }
+                        }
+                    }
+                    HorizontalDivider()
+                    Text(text = "Agent 页面（独立）", style = MaterialTheme.typography.titleSmall)
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(text = "Agent 思维链", style = MaterialTheme.typography.bodyLarge)
+                            Text(
+                                text = "默认开启，强度 max；仅影响 Agent 页面",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                        Switch(
+                            checked = draftAgentThinkingEnabled,
+                            onCheckedChange = { draftAgentThinkingEnabled = it },
+                        )
+                    }
+                    if (draftAgentThinkingEnabled) {
+                        Text(text = "Agent 思考强度", style = MaterialTheme.typography.bodyMedium)
+                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                                RadioButton(selected = draftAgentReasoningEffort == "low", onClick = { draftAgentReasoningEffort = "low" })
+                                Text("低", style = MaterialTheme.typography.bodyMedium)
+                                RadioButton(selected = draftAgentReasoningEffort == "medium", onClick = { draftAgentReasoningEffort = "medium" })
+                                Text("中", style = MaterialTheme.typography.bodyMedium)
+                            }
+                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                                RadioButton(selected = draftAgentReasoningEffort == "high", onClick = { draftAgentReasoningEffort = "high" })
+                                Text("高", style = MaterialTheme.typography.bodyMedium)
+                                RadioButton(selected = draftAgentReasoningEffort == "max", onClick = { draftAgentReasoningEffort = "max" })
+                                Text("最大", style = MaterialTheme.typography.bodyMedium)
+                            }
+                        }
+                    }
+                    HorizontalDivider()
+                    var showDebugSection by remember { mutableStateOf(false) }
+                    TextButton(onClick = { showDebugSection = !showDebugSection }) {
+                        Text(if (showDebugSection) "收起开发者调试" else "展开开发者调试")
+                    }
+                    if (showDebugSection) {
+                        SelectionContainer {
+                            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                uiState.lastAiError?.let { error ->
+                                    Text(
+                                        text = "最近 AI 错误：$error",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.error,
+                                    )
+                                }
+                                uiState.lastAiParseError?.let { parseError ->
+                                    Text(
+                                        text = "JSON 解析错误：$parseError",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.error,
+                                    )
+                                }
+                                uiState.lastAiRawResponse?.let { raw ->
+                                    if (showRawAi) {
+                                        Text(
+                                            text = raw,
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                        uiState.lastAiRawResponse?.let { raw ->
+                            TextButton(onClick = { showRawAi = !showRawAi }) {
+                                Text(if (showRawAi) "隐藏原始返回" else "查看原始返回")
+                            }
+                        }
+                        Text(
+                            text = "AI 错误日志（${aiDebugLogs.size} 条）",
+                            style = MaterialTheme.typography.titleSmall,
+                        )
+                        TextButton(
+                            onClick = {
+                                val report = viewModel.buildAiDebugLogReport(aiDebugLogs)
+                                val clipboard = context.getSystemService(ClipboardManager::class.java)
+                                clipboard?.setPrimaryClip(ClipData.newPlainText("AI错误日志", report))
+                            },
+                        ) {
+                            Text("复制为 GitHub Issue 文本")
+                        }
+                        TextButton(
+                            onClick = {
+                                val report = viewModel.buildAiDebugLogReport(aiDebugLogs)
+                                val sendIntent = Intent(Intent.ACTION_SEND).apply {
+                                    type = "text/plain"
+                                    putExtra(Intent.EXTRA_TEXT, report)
+                                }
+                                context.startActivity(Intent.createChooser(sendIntent, "导出 AI 错误日志"))
+                            },
+                        ) {
+                            Text("分享错误日志")
+                        }
+                    }
+                    HorizontalDivider()
+                    Text(text = "语音识别引擎", style = MaterialTheme.typography.titleSmall)
+                    if (localAsrManager != null) {
+                        localAsrManager.availableModels().forEach { model ->
+                            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    RadioButton(
+                                        selected = asrSelectedId == model.id,
+                                        onClick = {
+                                            if (localAsrManager.isDownloaded(model)) {
+                                                localAsrManager.selectModel(model.id)
+                                                asrSelectedId = model.id
+                                            }
+                                        },
+                                    )
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(text = model.displayName, style = MaterialTheme.typography.bodyMedium)
+                                        Text(
+                                            text = "${localAsrManager.modelSizeText(model)} · ${model.description}",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        )
+                                    }
+                                    if (model.builtin || localAsrManager.isDownloaded(model)) {
+                                        TextButton(
+                                            onClick = {
+                                                localAsrManager.selectModel(model.id)
+                                                asrSelectedId = model.id
+                                            },
+                                            enabled = asrSelectedId != model.id,
+                                        ) {
+                                            Text(if (asrSelectedId == model.id) "使用中" else "使用")
+                                        }
+                                    } else {
+                                        if (asrDownloadingId == model.id) {
+                                            Column(
+                                                modifier = Modifier.width(110.dp),
+                                                horizontalAlignment = Alignment.CenterHorizontally,
+                                                verticalArrangement = Arrangement.spacedBy(2.dp),
+                                            ) {
+                                                LinearProgressIndicator(
+                                                    progress = { asrDownloadProgress },
+                                                    modifier = Modifier.fillMaxWidth(),
+                                                )
+                                                Text(
+                                                    text = "下载中 ${(asrDownloadProgress * 100).toInt()}%",
+                                                    style = MaterialTheme.typography.labelSmall,
+                                                )
+                                            }
+                                        } else {
+                                            Button(
+                                                onClick = {
+                                                    scope.launch {
+                                                        asrDownloadingId = model.id
+                                                        asrErrors = asrErrors - model.id
+                                                        runCatching {
+                                                            localAsrManager.downloadModel(model) { progress ->
+                                                                asrDownloadProgress = progress
+                                                            }
+                                                        }.onFailure { e ->
+                                                            asrErrors = asrErrors + (model.id to (e.message ?: "下载失败"))
+                                                        }
+                                                        asrDownloadingId = null
+                                                        asrSelectedId = model.id
+                                                    }
+                                                },
+                                            ) {
+                                                Text("下载")
+                                            }
+                                        }
+                                    }
+                                }
+                                asrErrors[model.id]?.let { error ->
+                                    if (asrDownloadingId != model.id) {
+                                        Text(
+                                            text = error,
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.error,
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    HorizontalDivider()
+                    Text(text = "条件触发器", style = MaterialTheme.typography.titleSmall)
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            RadioButton(
+                                selected = triggerType == "wifi",
+                                onClick = { triggerType = "wifi" },
+                            )
+                            Text("Wi-Fi")
+                        }
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            RadioButton(
+                                selected = triggerType == "battery",
+                                onClick = { triggerType = "battery" },
+                            )
+                            Text("低电量")
+                        }
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            RadioButton(
+                                selected = triggerType == "location",
+                                onClick = { triggerType = "location" },
+                            )
+                            Text("位置")
+                        }
+                    }
+                    OutlinedTextField(
+                        value = triggerName,
+                        onValueChange = { triggerName = it },
+                        modifier = Modifier.fillMaxWidth(),
+                        label = { Text("触发器名称（可选）") },
+                        singleLine = true,
+                    )
+                    when (triggerType) {
+                        "wifi" -> OutlinedTextField(
+                            value = triggerSsid,
+                            onValueChange = { triggerSsid = it },
+                            modifier = Modifier.fillMaxWidth(),
+                            label = { Text("Wi-Fi 名称（SSID）") },
+                            singleLine = true,
+                        )
+                        "battery" -> OutlinedTextField(
+                            value = triggerLevel.toString(),
+                            onValueChange = { triggerLevel = it.toIntOrNull() ?: 20 },
+                            modifier = Modifier.fillMaxWidth(),
+                            label = { Text("低电量阈值 %（1-100）") },
+                            singleLine = true,
+                        )
+                        else -> {
+                            OutlinedTextField(
+                                value = triggerLat,
+                                onValueChange = { triggerLat = it },
+                                modifier = Modifier.fillMaxWidth(),
+                                label = { Text("纬度（如 31.2304）") },
+                                singleLine = true,
+                            )
+                            OutlinedTextField(
+                                value = triggerLng,
+                                onValueChange = { triggerLng = it },
+                                modifier = Modifier.fillMaxWidth(),
+                                label = { Text("经度（如 121.4737）") },
+                                singleLine = true,
+                            )
+                            OutlinedTextField(
+                                value = triggerRadius,
+                                onValueChange = { triggerRadius = it },
+                                modifier = Modifier.fillMaxWidth(),
+                                label = { Text("半径（米，10-5000）") },
+                                singleLine = true,
+                            )
+                        }
+                    }
+                    OutlinedTextField(
+                        value = triggerPackage,
+                        onValueChange = { triggerPackage = it },
+                        modifier = Modifier.fillMaxWidth(),
+                        label = { Text("目标包名（如 com.tencent.wework）") },
+                        singleLine = true,
+                    )
+                    OutlinedTextField(
+                        value = triggerTap,
+                        onValueChange = { triggerTap = it },
+                        modifier = Modifier.fillMaxWidth(),
+                        label = { Text("点击坐标（可选，格式 x,y）") },
+                        singleLine = true,
+                    )
+                    OutlinedTextField(
+                        value = triggerInput,
+                        onValueChange = { triggerInput = it },
+                        modifier = Modifier.fillMaxWidth(),
+                        label = { Text("输入文本（可选）") },
+                        singleLine = true,
+                    )
+                    Button(
+                        onClick = {
+                            if (triggerType == "location" &&
+                                context.checkSelfPermission(android.Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED
+                            ) {
+                                locationPermissionLauncher.launch(android.Manifest.permission.ACCESS_FINE_LOCATION)
+                            } else {
+                                when (triggerType) {
+                                    "wifi" -> viewModel.addWifiTrigger(triggerName, triggerSsid, triggerPackage, triggerTap, triggerInput)
+                                    "battery" -> viewModel.addBatteryTrigger(triggerName, triggerLevel, triggerPackage, triggerTap, triggerInput)
+                                    else -> viewModel.addLocationTrigger(
+                                        triggerName,
+                                        triggerLat.toDoubleOrNull() ?: 0.0,
+                                        triggerLng.toDoubleOrNull() ?: 0.0,
+                                        triggerRadius.toIntOrNull() ?: 100,
+                                        triggerPackage,
+                                        triggerTap,
+                                        triggerInput,
+                                    )
+                                }
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Text("创建触发器")
+                    }
+                    triggerRules.forEach { rule ->
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            Text(
+                                text = "${if (rule.enabled) "🟢" else "⚪️"} ${rule.name} · ${rule.condition.type}",
+                                modifier = Modifier.weight(1f),
+                                style = MaterialTheme.typography.bodySmall,
+                            )
+                            Switch(
+                                checked = rule.enabled,
+                                onCheckedChange = { viewModel.toggleTriggerRule(rule) },
+                            )
+                            TextButton(onClick = { viewModel.deleteTriggerRule(rule) }) {
+                                Text("删除")
+                            }
+                        }
+                    }
+                    HorizontalDivider()
+                    PermissionCheckSection(modifier = Modifier.fillMaxWidth())
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        viewModel.setDeepSeekApiKey(draftApiKey)
+                        viewModel.setDeepSeekModel(draftModel)
+                        viewModel.setDeepSeekThinkingEnabled(draftThinkingEnabled)
+                        viewModel.setDeepSeekReasoningEffort(draftReasoningEffort)
+                        viewModel.setAgentDeepSeekThinkingEnabled(draftAgentThinkingEnabled)
+                        viewModel.setAgentDeepSeekReasoningEffort(draftAgentReasoningEffort)
+                        showAiSettings = false
+                    },
+                ) {
+                    Text("保存")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showAiSettings = false }) {
+                    Text("关闭")
+                }
+            },
+        )
+    }
+
+
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+fun MainScreenContent(
+    uiState: MainUiState,
+    installedAppLabels: Map<String, String>,
+    tasks: List<Task>,
+    templates: List<Template>,
+    recentLogs: List<ExecutionLog>,
+    onInputChange: (String) -> Unit,
+    isListening: Boolean,
+    isPreparing: Boolean,
+    onMicClick: () -> Unit,
+    onOpenAiSettings: () -> Unit,
+    onOpenAgent: () -> Unit,
+    onOpenAgentLogs: (Task) -> Unit,
+    showCreatePanel: Boolean,
+    onCreatePanelChange: (Boolean) -> Unit,
+    onManualPackageChange: (String) -> Unit,
+    onManualDeepLinkChange: (String) -> Unit,
+    onParse: () -> Unit,
+    onConfirmCreate: () -> Unit,
+    onClearResult: () -> Unit,
+    onToggleTask: (Task) -> Unit,
+    onDeleteTask: (Task) -> Unit,
+    onCopyTask: (Task) -> Unit,
+    onRunNow: (Task) -> Unit,
+    onSummarizeLogs: () -> Unit,
+    onSaveTemplate: (String) -> Unit,
+    onDeleteTemplate: (Template) -> Unit,
+    onExportTemplates: () -> Unit,
+    onImportTemplates: () -> Unit,
+    onTemplateSelected: (Template) -> Unit,
+) {
+    var manageTemplates by remember { mutableStateOf(false) }
+    var templatesExpanded by remember { mutableStateOf(false) }
+    var showLogs by remember { mutableStateOf(false) }
+    var showSaveTemplate by remember { mutableStateOf(false) }
+    var draftTemplateName by remember { mutableStateOf("") }
+    val sortedTemplates = templates.sortedByDescending { it.usageCount }
+    BackHandler(enabled = showCreatePanel) {
+        onCreatePanelChange(false)
+    }
+    BackHandler(enabled = templatesExpanded) {
+        templatesExpanded = false
+    }
+    Box(modifier = Modifier.fillMaxSize()) {
+    LazyColumn(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(start = 16.dp, top = 16.dp, end = 16.dp)
+            .padding(bottom = if (showCreatePanel) 240.dp else 110.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        item {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = "自动化",
+                    modifier = Modifier.weight(1f),
+                    style = MaterialTheme.typography.titleLarge,
+                )
+                TextButton(onClick = { templatesExpanded = true }) {
+                    Text("模板")
+                }
+                IconButton(onClick = onOpenAiSettings) {
+                    Icon(
+                        imageVector = Icons.Default.Settings,
+                        contentDescription = "设置",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+        }
+        item {
+            Text(
+                text = "首页适合简单定时任务；复杂指令 / 工具调用 / 调试请用「高级能力」。",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        uiState.parseMessage?.let {
+            item {
+                Text(text = it, style = MaterialTheme.typography.bodyMedium)
+            }
+        }
+        uiState.parsedDraft?.let { draft ->
+            item {
+                var showDetails by remember { mutableStateOf(false) }
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        Text(text = "任务预览", style = MaterialTheme.typography.titleMedium)
+                        val previewAction = when (draft.actionType) {
+                            ActionType.NOTIFY -> "提醒"
+                            ActionType.OPEN_DEEPLINK -> "打开${draft.deepLink ?: "页面"}"
+                            else -> "打开${displayAppName(draft.targetPackage, installedAppLabels)}"
+                        }
+                        Text(
+                            text = previewAction,
+                            style = MaterialTheme.typography.bodyLarge,
+                        )
+                        draft.schedule?.let {
+                            Text(
+                                text = formatScheduleText(it),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                        TextButton(onClick = { showDetails = !showDetails }) {
+                            Text(if (showDetails) "隐藏详细参数" else "查看详细参数")
+                        }
+                        if (showDetails) {
+                            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                Text(text = "动作：${draft.actionType}", style = MaterialTheme.typography.bodySmall)
+                                Text(text = "目标包名：${draft.targetPackage ?: "无"}", style = MaterialTheme.typography.bodySmall)
+                                Text(text = "调度：${draft.schedule ?: "无"}", style = MaterialTheme.typography.bodySmall)
+                                Text(text = "置信度：${draft.confidence}", style = MaterialTheme.typography.bodySmall)
+                            }
+                        }
+                        if (draft.actionType == ActionType.OPEN_APP && draft.targetPackage.isNullOrBlank()) {
+                            OutlinedTextField(
+                                value = uiState.manualPackage,
+                                onValueChange = onManualPackageChange,
+                                modifier = Modifier.fillMaxWidth(),
+                                label = { Text("目标App包名（手动填写）") },
+                            )
+                        }
+                        if (draft.actionType == ActionType.OPEN_DEEPLINK && draft.deepLink.isNullOrBlank()) {
+                            OutlinedTextField(
+                                value = uiState.manualDeepLink,
+                                onValueChange = onManualDeepLinkChange,
+                                modifier = Modifier.fillMaxWidth(),
+                                label = { Text("Deep Link（手动填写）") },
+                            )
+                        }
+                        Button(onClick = onConfirmCreate, modifier = Modifier.fillMaxWidth()) {
+                            Text("确认创建")
+                        }
+                        OutlinedButton(
+                            onClick = {
+                                draftTemplateName = ""
+                                showSaveTemplate = true
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                        ) {
+                            Text("保存为模板")
+                        }
+                        TextButton(onClick = onClearResult) {
+                            Text("取消")
+                        }
+                    }
+                }
+            }
+        }
+        item {
+            HorizontalDivider()
+        }
+        if (tasks.isEmpty()) {
+            item {
+                Text(text = "我的任务（0）", style = MaterialTheme.typography.titleMedium)
+            }
+            item {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        Text(
+                            text = "还没有创建任务",
+                            style = MaterialTheme.typography.titleMedium,
+                        )
+                        Text(
+                            text = "试试说：“每天早上8点25分打开企业微信”",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        Button(onClick = { onCreatePanelChange(true) }) {
+                            Text("立即创建")
+                        }
+                    }
+                }
+            }
+        } else {
+            item {
+                Text(text = "我的任务（${tasks.size}）", style = MaterialTheme.typography.titleMedium)
+            }
+            items(tasks, key = { "task_${it.id}" }) { task ->
+                TaskRow(
+                    task = task,
+                    installedAppLabels = installedAppLabels,
+                    onToggle = { onToggleTask(task) },
+                    onDelete = { onDeleteTask(task) },
+                    onCopy = { onCopyTask(task) },
+                    onRunNow = { onRunNow(task) },
+                    onOpenLogs = { onOpenAgentLogs(task) },
+                )
+            }
+        }
+        item {
+            HorizontalDivider()
+        }
+        if (recentLogs.isNotEmpty()) {
+            item {
+                val successCount = recentLogs.count {
+                    it.status == ExecutionStatus.SUCCESS || it.status == ExecutionStatus.FALLBACK
+                }
+                val successRate = successCount * 100 / recentLogs.size
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = "执行记录",
+                        style = MaterialTheme.typography.titleMedium,
+                    )
+                    Text(
+                        text = "近20次成功率 $successRate%",
+                        modifier = Modifier.padding(start = 8.dp),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Spacer(modifier = Modifier.weight(1f))
+                    TextButton(onClick = { showLogs = !showLogs }) {
+                        Text(if (showLogs) "收起" else "展开")
+                    }
+                    TextButton(
+                        onClick = onSummarizeLogs,
+                        enabled = !uiState.isSummarizing,
+                    ) {
+                        Text(if (uiState.isSummarizing) "总结中..." else "AI总结")
+                    }
+                }
+            }
+            if (showLogs) {
+                items(recentLogs, key = { "log_${it.id}" }) { log ->
+                    ExecutionLogRow(log = log, tasks = tasks, installedAppLabels = installedAppLabels)
+                }
+                uiState.logSummary?.let { summary ->
+                    item {
+                        Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                ) {
+                            Text(
+                                text = summary,
+                                modifier = Modifier.padding(12.dp),
+                                style = MaterialTheme.typography.bodyMedium,
+                            )
+                        }
+                    }
+                }
+            }
+        } else {
+            item {
+                Text(text = "执行记录", style = MaterialTheme.typography.titleMedium)
+            }
+            item {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                ) {
+                    Text(
+                        text = "暂无执行记录，创建并执行任务后会显示在这里",
+                        modifier = Modifier.padding(16.dp),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+        }
+    }
+
+        if (templatesExpanded) {
+            TemplatesOverlay(
+                templates = templates,
+                manageTemplates = manageTemplates,
+                onManageTemplatesChange = { manageTemplates = it },
+                onBack = { templatesExpanded = false },
+                onNewTemplate = {
+                    draftTemplateName = ""
+                    showSaveTemplate = true
+                },
+                onSelectTemplate = { template ->
+                    onTemplateSelected(template)
+                    templatesExpanded = false
+                    onCreatePanelChange(true)
+                },
+                onDeleteTemplate = onDeleteTemplate,
+                onExportTemplates = onExportTemplates,
+                onImportTemplates = onImportTemplates,
+            )
+        }
+
+        if (showCreatePanel) {
+            Surface(
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .fillMaxWidth()
+                    .padding(start = 16.dp, end = 88.dp, bottom = 88.dp),
+                shape = MaterialTheme.shapes.large,
+                shadowElevation = 8.dp,
+                color = MaterialTheme.colorScheme.surface,
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+            ) {
+                Column(
+                    modifier = Modifier.padding(12.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    OutlinedTextField(
+                        value = uiState.input,
+                        onValueChange = onInputChange,
+                        modifier = Modifier.fillMaxWidth(),
+                        placeholder = {
+                            Text(
+                                when {
+                                    isPreparing -> "正在准备语音模型..."
+                                    isListening -> "正在聆听..."
+                                    else -> "例：每天8:25打开企业微信"
+                                },
+                            )
+                        },
+                        minLines = 1,
+                        maxLines = 2,
+                    )
+                    Button(
+                        onClick = onParse,
+                        modifier = Modifier.fillMaxWidth(),
+                        enabled = !uiState.isParsing,
+                    ) {
+                        if (uiState.isParsing) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(18.dp),
+                                strokeWidth = 2.dp,
+                                color = MaterialTheme.colorScheme.onPrimary,
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("生成中...")
+                        } else {
+                            Text("生成任务")
+                        }
+                    }
+                }
+            }
+        }
+
+    }
+
+    if (showSaveTemplate) {
+        AlertDialog(
+            onDismissRequest = { showSaveTemplate = false },
+            title = { Text("保存为模板") },
+            text = {
+                OutlinedTextField(
+                    value = draftTemplateName,
+                    onValueChange = { draftTemplateName = it },
+                    modifier = Modifier.fillMaxWidth(),
+                    label = { Text("模板名称") },
+                    placeholder = { Text("例如：上班打卡") },
+                    singleLine = true,
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        onSaveTemplate(draftTemplateName)
+                        showSaveTemplate = false
+                    },
+                ) {
+                    Text("保存")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showSaveTemplate = false }) {
+                    Text("取消")
+                }
+            },
+        )
+    }
+}
+
+@Composable
+private fun TaskRow(
+    task: Task,
+    installedAppLabels: Map<String, String>,
+    onToggle: () -> Unit,
+    onDelete: () -> Unit,
+    onCopy: () -> Unit,
+    onRunNow: () -> Unit,
+    onOpenLogs: () -> Unit,
+) {
+    Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                ) {
+        var taskMenuExpanded by remember { mutableStateOf(false) }
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = formatTaskTitle(task, installedAppLabels),
+                    style = MaterialTheme.typography.bodyLarge,
+                )
+                Text(
+                    text = formatScheduleText(task.schedule),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                task.nextRunAtEpochMillis?.let { nextRun ->
+                    Text(
+                        text = "下次执行：${formatLogTime(nextRun)}",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.primary,
+                    )
+                }
+            }
+            Switch(checked = task.enabled, onCheckedChange = { onToggle() })
+            Box {
+                IconButton(onClick = { taskMenuExpanded = true }) {
+                    Icon(
+                        imageVector = Icons.Default.MoreVert,
+                        contentDescription = "更多",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                DropdownMenu(
+                    expanded = taskMenuExpanded,
+                    onDismissRequest = { taskMenuExpanded = false },
+                ) {
+                    DropdownMenuItem(
+                        text = { Text("立即执行") },
+                        onClick = {
+                            taskMenuExpanded = false
+                            onRunNow()
+                        },
+                    )
+                    DropdownMenuItem(
+                        text = { Text("复制") },
+                        onClick = {
+                            taskMenuExpanded = false
+                            onCopy()
+                        },
+                    )
+                    DropdownMenuItem(
+                        text = { Text("查看运行日志") },
+                        onClick = {
+                            taskMenuExpanded = false
+                            onOpenLogs()
+                        },
+                    )
+                    DropdownMenuItem(
+                        text = { Text("删除") },
+                        onClick = {
+                            taskMenuExpanded = false
+                            onDelete()
+                        },
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ExecutionLogRow(log: ExecutionLog, tasks: List<Task>, installedAppLabels: Map<String, String>) {
+    val task = tasks.firstOrNull { it.id == log.taskId }
+    Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                val statusColor = when (log.status) {
+                    ExecutionStatus.SUCCESS -> SuccessGreen
+                    ExecutionStatus.FALLBACK -> WarningOrange
+                    ExecutionStatus.FAILED -> MaterialTheme.colorScheme.error
+                    else -> MaterialTheme.colorScheme.onSurfaceVariant
+                }
+                Text(
+                    text = formatExecutionSummary(log, task, installedAppLabels),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = statusColor,
+                )
+                Text(
+                    text = formatLogTime(log.scheduledAtEpochMillis),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                log.message?.let {
+                    Text(
+                        text = it,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+        }
+    }
+}
+
+private fun formatExecutionSummary(log: ExecutionLog, task: Task?, installedAppLabels: Map<String, String>): String {
+    val action = task?.let { formatTaskTitle(it, installedAppLabels) } ?: "任务"
+    val via = when (log.executionMode) {
+        ExecutionMode.SHIZUKU -> "Shizuku"
+        ExecutionMode.NOTIFICATION -> "通知"
+        ExecutionMode.DEEP_LINK -> "深链"
+        ExecutionMode.AUTO -> "自动"
+        ExecutionMode.ACCESSIBILITY -> "无障碍"
+        ExecutionMode.AGENT -> "智能代理"
+        null -> ""
+    }
+    return when (log.status) {
+        ExecutionStatus.SUCCESS -> "成功$action"
+        ExecutionStatus.FALLBACK -> if (via.isBlank()) "已降级执行$action" else "已通过$via 执行$action"
+        ExecutionStatus.FAILED -> "失败$action"
+        ExecutionStatus.SKIPPED -> "已跳过$action"
+        ExecutionStatus.EXECUTING -> "正在执行$action"
+        ExecutionStatus.SCHEDULED -> "已排定$action"
+    }
+}
+
+private fun formatLogTime(epochMillis: Long): String {
+    val dateTime = java.time.Instant.ofEpochMilli(epochMillis)
+        .atZone(java.time.ZoneId.systemDefault())
+        .toLocalDateTime()
+    val today = java.time.LocalDate.now()
+    val date = dateTime.toLocalDate()
+    val time = String.format("%02d:%02d", dateTime.hour, dateTime.minute)
+    return when (date) {
+        today -> "今天 $time"
+        today.minusDays(1) -> "昨天 $time"
+        else -> String.format("%04d-%02d-%02d %s", dateTime.year, dateTime.monthValue, dateTime.dayOfMonth, time)
+    }
+}
+
+private fun displayAppName(packageName: String?, installedAppLabels: Map<String, String> = emptyMap()): String {
+    if (packageName == null) return "提醒"
+    val known = when (packageName) {
+        "com.tencent.wework" -> "企业微信"
+        "com.tencent.mm" -> "微信"
+        "com.ss.android.lark" -> "飞书"
+        "com.alibaba.android.rimet" -> "钉钉"
+        "com.eg.android.AlipayGphone" -> "支付宝"
+        "com.autonavi.minimap" -> "高德地图"
+        "com.baidu.BaiduMap" -> "百度地图"
+        "com.taobao.taobao" -> "淘宝"
+        "com.jingdong.app.mall" -> "京东"
+        "com.ss.android.ugc.aweme" -> "抖音"
+        "com.sina.weibo" -> "微博"
+        "com.tencent.mobileqq" -> "QQ"
+        else -> null
+    }
+    if (known != null) return known
+    installedAppLabels[packageName]?.let { return it }
+    return packageName
+}
+
+private fun formatScheduleText(schedule: ScheduleSpec?): String {
+    if (schedule == null) return "未设置时间"
+    val time = schedule.time?.let { String.format("%02d:%02d", it.hour, it.minute) } ?: ""
+    return when (schedule.type) {
+        ScheduleSpec.ScheduleType.DAILY -> "每天 $time"
+        ScheduleSpec.ScheduleType.WEEKLY -> {
+            val days = schedule.daysOfWeek.sortedBy { it.value }
+            val workdays = setOf(
+                java.time.DayOfWeek.MONDAY,
+                java.time.DayOfWeek.TUESDAY,
+                java.time.DayOfWeek.WEDNESDAY,
+                java.time.DayOfWeek.THURSDAY,
+                java.time.DayOfWeek.FRIDAY,
+            )
+            val dayNames = when {
+                days.containsAll(workdays) && days.size == 5 -> "工作日"
+                days.size == 7 -> "每天"
+                else -> days.joinToString("、") { day ->
+                    when (day) {
+                        java.time.DayOfWeek.MONDAY -> "周一"
+                        java.time.DayOfWeek.TUESDAY -> "周二"
+                        java.time.DayOfWeek.WEDNESDAY -> "周三"
+                        java.time.DayOfWeek.THURSDAY -> "周四"
+                        java.time.DayOfWeek.FRIDAY -> "周五"
+                        java.time.DayOfWeek.SATURDAY -> "周六"
+                        else -> "周日"
+                    }
+                }
+            }
+            if (dayNames == "每天") "每天 $time" else "每周$dayNames $time"
+        }
+        ScheduleSpec.ScheduleType.ONCE -> {
+            val date = schedule.date ?: java.time.LocalDate.now()
+            val dateText = when (date) {
+                java.time.LocalDate.now() -> "今天"
+                java.time.LocalDate.now().plusDays(1) -> "明天"
+                else -> date.toString()
+            }
+            "$dateText $time"
+        }
+        ScheduleSpec.ScheduleType.INTERVAL -> {
+            val minutes = schedule.intervalMinutes ?: return "间隔执行"
+            if (minutes % 60 == 0L) "每 ${minutes / 60} 小时" else "每 $minutes 分钟"
+        }
+    }
+}
+
+private fun formatTaskTitle(task: Task, installedAppLabels: Map<String, String> = emptyMap()): String {
+    return when (task.actionType) {
+        ActionType.NOTIFY -> {
+            val index = task.title.indexOf("提醒")
+            if (index >= 0) {
+                "提醒${task.title.substring(index + 2).trim()}"
+            } else {
+                "提醒"
+            }
+        }
+        ActionType.OPEN_DEEPLINK -> "打开${task.deepLink ?: "页面"}"
+        else -> "打开${displayAppName(task.targetPackage, installedAppLabels)}"
+    }
+}
+
+
+@Composable
+private fun TemplatesOverlay(
+    templates: List<Template>,
+    manageTemplates: Boolean,
+    onManageTemplatesChange: (Boolean) -> Unit,
+    onBack: () -> Unit,
+    onNewTemplate: () -> Unit,
+    onSelectTemplate: (Template) -> Unit,
+    onDeleteTemplate: (Template) -> Unit,
+    onExportTemplates: () -> Unit,
+    onImportTemplates: () -> Unit,
+) {
+    var menuExpanded by remember { mutableStateOf(false) }
+    Surface(
+        modifier = Modifier.fillMaxSize(),
+        color = MaterialTheme.colorScheme.background,
+    ) {
+        Column(modifier = Modifier.fillMaxSize()) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 4.dp, vertical = 4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                TextButton(onClick = onBack) {
+                    Text("← 返回")
+                }
+                Text(
+                    text = "模板库",
+                    modifier = Modifier.weight(1f),
+                    style = MaterialTheme.typography.titleLarge,
+                )
+                if (manageTemplates) {
+                    TextButton(onClick = { onManageTemplatesChange(false) }) {
+                        Text("完成")
+                    }
+                } else {
+                    TextButton(onClick = onNewTemplate) {
+                        Text("存为模板")
+                    }
+                }
+                Box {
+                    IconButton(onClick = { menuExpanded = true }) {
+                        Icon(
+                            imageVector = Icons.Default.MoreVert,
+                            contentDescription = "更多",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    DropdownMenu(
+                        expanded = menuExpanded,
+                        onDismissRequest = { menuExpanded = false },
+                    ) {
+                        DropdownMenuItem(
+                            text = { Text(if (manageTemplates) "完成管理" else "管理模板") },
+                            onClick = {
+                                menuExpanded = false
+                                onManageTemplatesChange(!manageTemplates)
+                            },
+                        )
+                        DropdownMenuItem(
+                            text = { Text("导出全部") },
+                            onClick = {
+                                menuExpanded = false
+                                onExportTemplates()
+                            },
+                        )
+                        DropdownMenuItem(
+                            text = { Text("导入") },
+                            onClick = {
+                                menuExpanded = false
+                                onImportTemplates()
+                            },
+                        )
+                    }
+                }
+            }
+            if (templates.isEmpty()) {
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Text("暂无模板")
+                }
+            } else {
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(12.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    items(templates.sortedByDescending { it.usageCount }, key = { it.id }) { template ->
+                        Card(
+                            onClick = { onSelectTemplate(template) },
+                            modifier = Modifier.fillMaxWidth(),
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(12.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(template.name, style = MaterialTheme.typography.bodyLarge)
+                                    template.description.takeIf { it.isNotBlank() }?.let {
+                                        Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    }
+                                    Surface(
+                                        color = MaterialTheme.colorScheme.secondaryContainer,
+                                        shape = MaterialTheme.shapes.small,
+                                        modifier = Modifier.padding(top = 4.dp),
+                                    ) {
+                                        Text(
+                                            template.category,
+                                            style = MaterialTheme.typography.labelSmall,
+                                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
+                                        )
+                                    }
+                                }
+                                if (manageTemplates) {
+                                    TextButton(onClick = { onDeleteTemplate(template) }) {
+                                        Text("删除", color = MaterialTheme.colorScheme.error)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun FloatingMicButton(
+    isListening: Boolean,
+    isPreparing: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    offsetX: Float,
+    offsetY: Float,
+    onOffsetChange: (Float, Float) -> Unit,
+) {
+    val currentX by rememberUpdatedState(offsetX)
+    val currentY by rememberUpdatedState(offsetY)
+    FloatingActionButton(
+        onClick = onClick,
+        modifier = modifier
+            .size(60.dp)
+            .pointerInput(Unit) {
+                detectVerticalDragGestures { change, dragAmount ->
+                    change.consume()
+                    onOffsetChange(currentX, currentY + dragAmount)
+                }
+            },
+        shape = CircleShape,
+        containerColor = MaterialTheme.colorScheme.primary,
+        contentColor = MaterialTheme.colorScheme.onPrimary,
+    ) {
+        when {
+            isPreparing -> CircularProgressIndicator(
+                modifier = Modifier.size(24.dp),
+                strokeWidth = 2.dp,
+                color = MaterialTheme.colorScheme.onPrimary,
+            )
+            isListening -> Box(
+                modifier = Modifier
+                    .requiredSize(20.dp)
+                    .background(
+                        color = MaterialTheme.colorScheme.onPrimary,
+                        shape = RoundedCornerShape(4.dp),
+                    ),
+            )
+            else -> Image(
+                painter = painterResource(R.drawable.ic_mic),
+                contentDescription = "说话",
+                modifier = Modifier.requiredSize(32.dp),
+                contentScale = ContentScale.Fit,
+            )
+        }
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+fun MainScreenContentPreview() {
+    VoiceConfigTheme {
+        MainScreenContent(
+            uiState = MainUiState(
+                input = "每天早上8点25分打开企业微信",
+                parsedDraft = TaskDraft(
+                    rawText = "每天早上8点25分打开企业微信",
+                    schedule = null,
+                    actionType = ActionType.OPEN_APP,
+                    targetPackage = "com.tencent.wework",
+                ),
+                parseMessage = "解析成功，请确认任务",
+            ),
+            installedAppLabels = emptyMap(),
+            tasks = emptyList(),
+            templates = emptyList(),
+            recentLogs = emptyList(),
+            onInputChange = {},
+            isListening = false,
+            isPreparing = false,
+            onMicClick = {},
+            onOpenAiSettings = {},
+            onOpenAgent = {},
+            onOpenAgentLogs = {},
+            showCreatePanel = false,
+            onCreatePanelChange = {},
+            onManualPackageChange = {},
+            onManualDeepLinkChange = {},
+            onParse = {},
+            onConfirmCreate = {},
+            onClearResult = {},
+            onToggleTask = {},
+            onDeleteTask = {},
+            onCopyTask = {},
+            onRunNow = {},
+            onSummarizeLogs = {},
+            onSaveTemplate = { _ -> },
+            onDeleteTemplate = {},
+            onExportTemplates = {},
+            onImportTemplates = {},
+            onTemplateSelected = {},
+        )
+    }
+}

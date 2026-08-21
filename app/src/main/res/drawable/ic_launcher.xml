@@ -1,0 +1,37 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- 品牌底色：沿用内页紫色 -->
+    <path
+        android:fillColor="#6750A4"
+        android:pathData="M0,0h108v108h-108z" />
+    <!-- 麦克风主体 -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M48,28h12a7,7 0 0 1 7,7v11a13,13 0 0 1 -26,0v-11a7,7 0 0 1 7,-7z" />
+    <!-- 麦克风支架 -->
+    <path
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="5"
+        android:strokeLineCap="round"
+        android:pathData="M54,60v11" />
+    <!-- 麦克风底座 -->
+    <path
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="5"
+        android:strokeLineCap="round"
+        android:pathData="M45,71h18" />
+    <!-- 完成/定时徽标 -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M76,60a18,18 0 1 0 0,36a18,18 0 1 0 0,-36z" />
+    <!-- 对勾 -->
+    <path
+        android:strokeColor="#6750A4"
+        android:strokeWidth="5"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="M69,78l6,6l11,-13" />
+</vector>
