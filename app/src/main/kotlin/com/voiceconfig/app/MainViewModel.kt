@@ -674,6 +674,7 @@ class MainViewModel @Inject constructor(
 
     fun selectAgentSession(sessionId: Long) {
         _selectedAgentSessionId.value = sessionId
+        _agentSteps.value = emptyList()
         viewModelScope.launch {
             val messages = repairToolCallIds(agentHistoryRepository.getMessages(sessionId))
             agentSession.restore(messages.map { it.toAgentMessage() })
@@ -682,10 +683,12 @@ class MainViewModel @Inject constructor(
 
     fun clearSelectedAgentSession() {
         _selectedAgentSessionId.value = null
+        _agentSteps.value = emptyList()
         agentSession.clear()
     }
 
     fun newAgentSession() {
+        _agentSteps.value = emptyList()
         viewModelScope.launch {
             val now = System.currentTimeMillis()
             val id = agentHistoryRepository.createSession("新会话", now)
@@ -706,6 +709,7 @@ class MainViewModel @Inject constructor(
         viewModelScope.launch {
             if (_selectedAgentSessionId.value == sessionId) {
                 _selectedAgentSessionId.value = null
+                _agentSteps.value = emptyList()
                 agentSession.clear()
             }
             agentHistoryRepository.deleteSession(sessionId)

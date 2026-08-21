@@ -5,15 +5,19 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material3.AlertDialog
@@ -24,6 +28,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -128,10 +133,16 @@ fun AgentPage(
             TextButton(onClick = { showAgentThinking = true }) {
                 Text("思维")
             }
-            TextButton(onClick = {
+            FilledTonalButton(onClick = {
                 onTabChange(AgentNavigation.tabAfterNewSession())
                 onNewSession()
             }) {
+                Icon(
+                    imageVector = Icons.Default.Add,
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp),
+                )
+                Spacer(modifier = Modifier.width(4.dp))
                 Text("新建")
             }
         }
@@ -161,6 +172,10 @@ fun AgentPage(
                     }
                 },
                 onStop = onStop,
+                onNewSession = {
+                    onTabChange(AgentNavigation.tabAfterNewSession())
+                    onNewSession()
+                },
                 onRenameSession = onRenameSession,
                 onDeleteSession = onDeleteSession,
                 onClearSession = onClearSession,
@@ -292,6 +307,7 @@ private fun ConversationTab(
     onInputChange: (String) -> Unit,
     onSend: () -> Unit,
     onStop: () -> Unit,
+    onNewSession: () -> Unit = {},
     onRenameSession: (Long, String) -> Unit,
     onDeleteSession: (Long) -> Unit,
     onClearSession: (Long) -> Unit,
@@ -344,11 +360,24 @@ private fun ConversationTab(
                 }
                 if (sessions.isEmpty()) {
                     item {
-                        Text(
-                            "还没有会话，点击“新建会话”或直接输入指令开始。",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
+                        Column(
+                            verticalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            Text(
+                                "还没有会话，点击“新建会话”或直接输入指令开始。",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                            Button(onClick = onNewSession) {
+                                Icon(
+                                    imageVector = Icons.Default.Add,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(18.dp),
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text("新建会话")
+                            }
+                        }
                     }
                 }
                 item {

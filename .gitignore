@@ -66,3 +66,6 @@ scripts/adb_host.local
 
 # Internal product / planning docs (not open-source by default)
 docs/
+
+# UI regression temp dump
+.vc_ui_regression.xml

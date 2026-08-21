@@ -225,6 +225,12 @@ scripts/emulator_smoke.sh emulator-5554
 python scripts/smoke_test.py emulator-5554
 ```
 
+UI 回归测试（Agent 页键盘/新建入口）：
+
+```bash
+scripts/emulator_ui_regression.sh emulator-5554
+```
+
 Agent 场景回放 / 评测：
 
 ```bash
