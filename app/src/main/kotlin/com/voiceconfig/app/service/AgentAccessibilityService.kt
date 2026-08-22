@@ -4,6 +4,7 @@ import android.accessibilityservice.AccessibilityService
 import android.accessibilityservice.AccessibilityServiceInfo
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
+import android.os.Bundle
 
 /**
  * 无 Shizuku 时的 AccessibilityService 降级通道。
@@ -80,6 +81,26 @@ class AgentAccessibilityService : AccessibilityService() {
         return node.performAction(AccessibilityNodeInfo.ACTION_CLICK)
     }
 
+    private fun inputByText(text: String): Boolean {
+        val root = activeRoot ?: return false
+        val focused = root.findFocus(AccessibilityNodeInfo.FOCUS_INPUT)
+        val target = focused ?: findFirstEditable(root) ?: return false
+        val args = Bundle().apply {
+            putCharSequence(AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE, text)
+        }
+        return target.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, args)
+    }
+
+    private fun findFirstEditable(node: AccessibilityNodeInfo): AccessibilityNodeInfo? {
+        if (node.isEditable) return node
+        for (i in 0 until node.childCount) {
+            val child = node.getChild(i) ?: continue
+            val found = findFirstEditable(child)
+            if (found != null) return found
+        }
+        return null
+    }
+
     private fun findText(node: AccessibilityNodeInfo, text: String): AccessibilityNodeInfo? {
         val nodeText = node.text?.toString().orEmpty()
         val desc = node.contentDescription?.toString().orEmpty()
@@ -116,5 +137,7 @@ class AgentAccessibilityService : AccessibilityService() {
         fun clickText(text: String): Boolean? = instance?.clickByText(text)
 
         fun clickPoint(x: Int, y: Int): Boolean? = instance?.clickByBounds(x, y)
+
+        fun inputText(text: String): Boolean? = instance?.inputByText(text)
     }
 }
