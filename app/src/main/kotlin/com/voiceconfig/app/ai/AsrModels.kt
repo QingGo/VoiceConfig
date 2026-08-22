@@ -147,9 +147,9 @@ class AsrModelManager @Inject constructor(
         ),
         AsrModel(
             id = "sherpa-multilingual-2025",
-            displayName = "Sherpa Zipformer 多语流式 2025（实验）",
+            displayName = "Sherpa 多语流式 2025（中英默认）",
             kind = AsrModelKind.SHERPA_STREAMING_ZIPFORMER2_TRANSDUCER,
-            description = "2025 多语流式 Zipformer，支持中英日韩阿俄泰越等，适合中英混合场景。模型较大。",
+            description = "默认中英混合流式模型，支持中英日韩阿俄泰越等；真机已验证中文和英文。",
             threads = 4,
             modelingUnit = "bpe",
             modelType = "zipformer2",
@@ -223,8 +223,13 @@ class AsrModelManager @Inject constructor(
     )
 
     fun selectedModel(): AsrModel {
-        val id = prefs.getString(KEY_SELECTED, models.first().id) ?: models.first().id
-        return models.firstOrNull { it.id == id } ?: models.first()
+        val preferredId = prefs.getString(KEY_SELECTED, DEFAULT_MODEL_ID) ?: DEFAULT_MODEL_ID
+        val selected = models.firstOrNull { it.id == preferredId }
+        if (selected != null && (selected.builtin || isDownloaded(selected))) {
+            return selected
+        }
+        // 默认模型尚未下载时回退到内置模型，保证本地 ASR 仍可用。
+        return models.firstOrNull { it.builtin } ?: models.first()
     }
 
     fun setSelectedModel(id: String) {
@@ -316,5 +321,6 @@ class AsrModelManager @Inject constructor(
 
     companion object {
         private const val KEY_SELECTED = "selected_asr_model"
+        const val DEFAULT_MODEL_ID = "sherpa-multilingual-2025"
     }
 }
