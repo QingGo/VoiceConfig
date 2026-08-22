@@ -80,8 +80,16 @@ class LocalAsrManager @Inject constructor(
         val dir = modelManager.modelDir(model)
         return when (model.kind) {
             AsrModelKind.SHERPA_STREAMING_TRANSDUCER,
+            AsrModelKind.SHERPA_STREAMING_ZIPFORMER2_TRANSDUCER,
             AsrModelKind.SHERPA_STREAMING_CTC,
-            -> SherpaOnnxAsrEngine(context, dir, model.kind, model.threads)
+            -> SherpaOnnxAsrEngine(
+                context,
+                dir,
+                model.kind,
+                model.threads,
+                model.modelingUnit,
+                model.modelType,
+            )
 
             AsrModelKind.SENSEVOICE_OFFLINE -> SenseVoiceAsrEngine(context, dir, model.threads)
         }

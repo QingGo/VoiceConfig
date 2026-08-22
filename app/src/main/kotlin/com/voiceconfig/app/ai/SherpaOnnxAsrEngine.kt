@@ -36,6 +36,8 @@ class SherpaOnnxAsrEngine(
     private val modelDir: String,
     private val modelKind: AsrModelKind,
     private val numThreads: Int = 2,
+    private val modelingUnit: String = "cjkchar",
+    private val modelType: String = "zipformer",
 ) : AsrEngine {
 
     private val mainHandler = Handler(Looper.getMainLooper())
@@ -49,11 +51,21 @@ class SherpaOnnxAsrEngine(
 
     override fun isModelAvailable(): Boolean {
         val required = when (modelKind) {
-            AsrModelKind.SHERPA_STREAMING_TRANSDUCER -> listOf(
+            AsrModelKind.SHERPA_STREAMING_TRANSDUCER -> buildList {
+                add("$modelDir/tokens.txt")
+                add("$modelDir/encoder-epoch-99-avg-1.int8.onnx")
+                add("$modelDir/decoder-epoch-99-avg-1.int8.onnx")
+                add("$modelDir/joiner-epoch-99-avg-1.int8.onnx")
+                if (modelingUnit == "bpe") {
+                    add("$modelDir/bpe.model")
+                }
+            }
+            AsrModelKind.SHERPA_STREAMING_ZIPFORMER2_TRANSDUCER -> listOf(
                 "$modelDir/tokens.txt",
-                "$modelDir/encoder-epoch-99-avg-1.int8.onnx",
-                "$modelDir/decoder-epoch-99-avg-1.int8.onnx",
-                "$modelDir/joiner-epoch-99-avg-1.int8.onnx",
+                "$modelDir/encoder-epoch-75-avg-11-chunk-16-left-128.int8.onnx",
+                "$modelDir/decoder-epoch-75-avg-11-chunk-16-left-128.onnx",
+                "$modelDir/joiner-epoch-75-avg-11-chunk-16-left-128.int8.onnx",
+                "$modelDir/bpe.model",
             )
             AsrModelKind.SHERPA_STREAMING_CTC -> listOf(
                 "$modelDir/tokens.txt",
@@ -318,9 +330,23 @@ class SherpaOnnxAsrEngine(
                     numThreads = numThreads,
                     debug = false,
                     provider = "cpu",
-                    modelType = "zipformer",
-                    modelingUnit = "cjkchar",
-                    bpeVocab = "",
+                    modelType = modelType,
+                    modelingUnit = modelingUnit,
+                    bpeVocab = if (modelingUnit == "bpe") "$modelDir/bpe.model" else "",
+                )
+                AsrModelKind.SHERPA_STREAMING_ZIPFORMER2_TRANSDUCER -> OnlineModelConfig(
+                    transducer = OnlineTransducerModelConfig(
+                        encoder = "$modelDir/encoder-epoch-75-avg-11-chunk-16-left-128.int8.onnx",
+                        decoder = "$modelDir/decoder-epoch-75-avg-11-chunk-16-left-128.onnx",
+                        joiner = "$modelDir/joiner-epoch-75-avg-11-chunk-16-left-128.int8.onnx",
+                    ),
+                    tokens = "$modelDir/tokens.txt",
+                    numThreads = numThreads,
+                    debug = false,
+                    provider = "cpu",
+                    modelType = modelType,
+                    modelingUnit = modelingUnit,
+                    bpeVocab = if (modelingUnit == "bpe") "$modelDir/bpe.model" else "",
                 )
                 AsrModelKind.SHERPA_STREAMING_CTC -> OnlineModelConfig(
                     zipformer2Ctc = OnlineZipformer2CtcModelConfig("$modelDir/model.int8.onnx"),

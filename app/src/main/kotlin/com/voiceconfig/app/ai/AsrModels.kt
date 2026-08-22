@@ -13,6 +13,7 @@ import kotlinx.coroutines.withContext
 
 enum class AsrModelKind {
     SHERPA_STREAMING_TRANSDUCER,
+    SHERPA_STREAMING_ZIPFORMER2_TRANSDUCER,
     SHERPA_STREAMING_CTC,
     SENSEVOICE_OFFLINE,
 }
@@ -33,6 +34,8 @@ data class AsrModel(
     val assetDir: String? = null,
     val files: List<AsrModelFile> = emptyList(),
     val threads: Int = 2,
+    val modelingUnit: String = "cjkchar",
+    val modelType: String = "zipformer",
 )
 
 @Singleton
@@ -90,6 +93,7 @@ class AsrModelManager @Inject constructor(
             kind = AsrModelKind.SHERPA_STREAMING_TRANSDUCER,
             description = "2023 中英双语流式 Zipformer，支持中文+英文混合，适合 App 名、品牌名、英文指令。",
             threads = 4,
+            modelingUnit = "bpe",
             files = listOf(
                 AsrModelFile(
                     name = "encoder-epoch-99-avg-1.int8.onnx",
@@ -116,12 +120,79 @@ class AsrModelManager @Inject constructor(
                     size = 3_228_404L,
                 ),
                 AsrModelFile(
+                    name = "bpe.model",
+                    url = "https://huggingface.co/csukuangfj/sherpa-onnx-streaming-zipformer-bilingual-zh-en-2023-02-20/resolve/main/bpe.model",
+                    mirrorUrls = listOf(
+                        "https://hf-mirror.com/csukuangfj/sherpa-onnx-streaming-zipformer-bilingual-zh-en-2023-02-20/resolve/main/bpe.model",
+                    ),
+                    size = 244_836L,
+                ),
+                AsrModelFile(
+                    name = "bpe.vocab",
+                    url = "https://huggingface.co/csukuangfj/sherpa-onnx-streaming-zipformer-bilingual-zh-en-2023-02-20/resolve/main/bpe.vocab",
+                    mirrorUrls = listOf(
+                        "https://hf-mirror.com/csukuangfj/sherpa-onnx-streaming-zipformer-bilingual-zh-en-2023-02-20/resolve/main/bpe.vocab",
+                    ),
+                    size = 12_564L,
+                ),
+                AsrModelFile(
                     name = "tokens.txt",
                     url = "https://huggingface.co/csukuangfj/sherpa-onnx-streaming-zipformer-bilingual-zh-en-2023-02-20/resolve/main/tokens.txt",
                     mirrorUrls = listOf(
                         "https://hf-mirror.com/csukuangfj/sherpa-onnx-streaming-zipformer-bilingual-zh-en-2023-02-20/resolve/main/tokens.txt",
                     ),
                     size = 56_317L,
+                ),
+            ),
+        ),
+        AsrModel(
+            id = "sherpa-multilingual-2025",
+            displayName = "Sherpa Zipformer 多语流式 2025（实验）",
+            kind = AsrModelKind.SHERPA_STREAMING_ZIPFORMER2_TRANSDUCER,
+            description = "2025 多语流式 Zipformer，支持中英日韩阿俄泰越等，适合中英混合场景。模型较大。",
+            threads = 4,
+            modelingUnit = "bpe",
+            modelType = "zipformer2",
+            files = listOf(
+                AsrModelFile(
+                    name = "encoder-epoch-75-avg-11-chunk-16-left-128.int8.onnx",
+                    url = "https://huggingface.co/csukuangfj/sherpa-onnx-streaming-zipformer-ar_en_id_ja_ru_th_vi_zh-2025-02-10/resolve/main/encoder-epoch-75-avg-11-chunk-16-left-128.int8.onnx",
+                    mirrorUrls = listOf(
+                        "https://hf-mirror.com/csukuangfj/sherpa-onnx-streaming-zipformer-ar_en_id_ja_ru_th_vi_zh-2025-02-10/resolve/main/encoder-epoch-75-avg-11-chunk-16-left-128.int8.onnx",
+                    ),
+                    size = 296_583_597L,
+                ),
+                AsrModelFile(
+                    name = "decoder-epoch-75-avg-11-chunk-16-left-128.onnx",
+                    url = "https://huggingface.co/csukuangfj/sherpa-onnx-streaming-zipformer-ar_en_id_ja_ru_th_vi_zh-2025-02-10/resolve/main/decoder-epoch-75-avg-11-chunk-16-left-128.onnx",
+                    mirrorUrls = listOf(
+                        "https://hf-mirror.com/csukuangfj/sherpa-onnx-streaming-zipformer-ar_en_id_ja_ru_th_vi_zh-2025-02-10/resolve/main/decoder-epoch-75-avg-11-chunk-16-left-128.onnx",
+                    ),
+                    size = 33_837_085L,
+                ),
+                AsrModelFile(
+                    name = "joiner-epoch-75-avg-11-chunk-16-left-128.int8.onnx",
+                    url = "https://huggingface.co/csukuangfj/sherpa-onnx-streaming-zipformer-ar_en_id_ja_ru_th_vi_zh-2025-02-10/resolve/main/joiner-epoch-75-avg-11-chunk-16-left-128.int8.onnx",
+                    mirrorUrls = listOf(
+                        "https://hf-mirror.com/csukuangfj/sherpa-onnx-streaming-zipformer-ar_en_id_ja_ru_th_vi_zh-2025-02-10/resolve/main/joiner-epoch-75-avg-11-chunk-16-left-128.int8.onnx",
+                    ),
+                    size = 8_257_421L,
+                ),
+                AsrModelFile(
+                    name = "bpe.model",
+                    url = "https://huggingface.co/csukuangfj/sherpa-onnx-streaming-zipformer-ar_en_id_ja_ru_th_vi_zh-2025-02-10/resolve/main/bpe.model",
+                    mirrorUrls = listOf(
+                        "https://hf-mirror.com/csukuangfj/sherpa-onnx-streaming-zipformer-ar_en_id_ja_ru_th_vi_zh-2025-02-10/resolve/main/bpe.model",
+                    ),
+                    size = 476_049L,
+                ),
+                AsrModelFile(
+                    name = "tokens.txt",
+                    url = "https://huggingface.co/csukuangfj/sherpa-onnx-streaming-zipformer-ar_en_id_ja_ru_th_vi_zh-2025-02-10/resolve/main/tokens.txt",
+                    mirrorUrls = listOf(
+                        "https://hf-mirror.com/csukuangfj/sherpa-onnx-streaming-zipformer-ar_en_id_ja_ru_th_vi_zh-2025-02-10/resolve/main/tokens.txt",
+                    ),
+                    size = 195_244L,
                 ),
             ),
         ),
