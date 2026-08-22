@@ -18,6 +18,7 @@ interface AgentHistoryRepository {
     suspend fun createSession(title: String, now: Long): Long
     suspend fun addMessage(message: AgentMessageEntity): Long
     suspend fun updateSession(sessionId: Long, title: String, now: Long, messageCount: Int)
+    suspend fun updateSessionDuration(sessionId: Long, durationMs: Long?, now: Long)
     suspend fun renameSession(sessionId: Long, title: String)
     suspend fun deleteSession(sessionId: Long)
     suspend fun clearMessages(sessionId: Long)

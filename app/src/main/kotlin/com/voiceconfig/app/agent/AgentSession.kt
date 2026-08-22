@@ -409,6 +409,7 @@ class AgentSession @Inject constructor(
                     lastAutoVerifyAt = System.currentTimeMillis()
                     val verifyStepIndex = allSteps.size
                     val verifyStartMs = System.currentTimeMillis()
+                    val verifyStartElapsedMs = System.currentTimeMillis() - startedAtMs
                     onStep(
                         AgentStepUi(
                             index = verifyStepIndex,
@@ -416,7 +417,7 @@ class AgentSession @Inject constructor(
                             toolName = "read_screen",
                             argsText = "{\"autoVerify\":true}",
                             status = AgentStepStatus.RUNNING,
-                            startedAtElapsedMs = System.currentTimeMillis() - startedAtMs,
+                            startedAtElapsedMs = verifyStartElapsedMs,
                         ),
                     )
                     val verify = runCatching { toolRegistry.get("read_screen")?.execute(emptyMap()) }.getOrNull()
@@ -439,8 +440,18 @@ class AgentSession @Inject constructor(
                             status = if (verifyResult.ok) AgentStepStatus.SUCCESS else AgentStepStatus.FAILED,
                             message = if (verifyResult.ok) "自动截屏验证" else verifyResult.message,
                             durationMs = verifyDurationMs,
-                            gapBeforeMs = (System.currentTimeMillis() - startedAtMs - lastStepEndElapsedMs).coerceAtLeast(0),
-                            startedAtElapsedMs = System.currentTimeMillis() - startedAtMs - verifyDurationMs,
+                            gapBeforeMs = (verifyStartElapsedMs - lastStepEndElapsedMs).coerceAtLeast(0),
+                            startedAtElapsedMs = verifyStartElapsedMs,
+                        ),
+                    )
+                    onMessage(
+                        AgentMessage(
+                            role = "tool",
+                            content = if (verifyResult.ok) "自动截屏验证（系统自动执行 read_screen）" else verifyResult.message,
+                            toolName = "read_screen",
+                            toolArgs = "{\"autoVerify\":true}",
+                            toolResultOk = verifyResult.ok,
+                            durationMs = verifyDurationMs,
                         ),
                     )
                     allSteps += StepExecution(

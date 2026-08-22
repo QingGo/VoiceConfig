@@ -23,6 +23,9 @@ interface AgentSessionDao {
     @Query("UPDATE agent_sessions SET title = :title WHERE id = :sessionId")
     suspend fun rename(sessionId: Long, title: String)
 
+    @Query("UPDATE agent_sessions SET lastRunDurationMs = :durationMs, updatedAtEpochMillis = :updatedAt WHERE id = :sessionId")
+    suspend fun updateRunDuration(sessionId: Long, durationMs: Long?, updatedAt: Long)
+
     @Query("DELETE FROM agent_sessions WHERE id = :sessionId")
     suspend fun deleteById(sessionId: Long)
 }

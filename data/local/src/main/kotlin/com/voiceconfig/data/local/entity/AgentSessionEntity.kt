@@ -10,4 +10,5 @@ data class AgentSessionEntity(
     val createdAtEpochMillis: Long,
     val updatedAtEpochMillis: Long,
     val messageCount: Int = 0,
+    val lastRunDurationMs: Long? = null,
 )

@@ -56,6 +56,10 @@ class OfflineAgentHistoryRepository(
         sessionDao.updateSummary(sessionId, title, now, messageCount)
     }
 
+    override suspend fun updateSessionDuration(sessionId: Long, durationMs: Long?, now: Long) {
+        sessionDao.updateRunDuration(sessionId, durationMs, now)
+    }
+
     override suspend fun renameSession(sessionId: Long, title: String) {
         sessionDao.rename(sessionId, title)
     }

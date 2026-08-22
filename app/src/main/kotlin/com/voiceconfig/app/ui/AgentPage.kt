@@ -728,7 +728,8 @@ private fun ConversationMessages(
     }
     val lastIndex = if (isAgentBusy) visibleMessages.size else (visibleMessages.size - 1).coerceAtLeast(0)
     LaunchedEffect(visibleMessages.size, isAgentBusy, streamText) {
-        if (visibleMessages.isNotEmpty()) {
+        // 运行中自动跟随底部；运行结束后保留用户当前位置，方便查看上方执行时间线。
+        if (visibleMessages.isNotEmpty() && (isAgentBusy || streamText.isNotBlank())) {
             listState.animateScrollToItem(lastIndex)
         }
     }

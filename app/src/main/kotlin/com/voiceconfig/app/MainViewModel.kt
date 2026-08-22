@@ -736,6 +736,7 @@ class MainViewModel @Inject constructor(
                 val messages = repairToolCallIds(agentHistoryRepository.getMessages(latest))
                 agentSession.restore(messages.map { it.toAgentMessage() })
                 _agentSteps.value = agentHistoryRepository.getSteps(latest).map { it.toAgentStepUi() }
+                _lastAgentRunDurationMs.value = agentHistoryRepository.getSession(latest)?.lastRunDurationMs
             }
         }
     }
@@ -747,6 +748,7 @@ class MainViewModel @Inject constructor(
             val messages = repairToolCallIds(agentHistoryRepository.getMessages(sessionId))
             agentSession.restore(messages.map { it.toAgentMessage() })
             _agentSteps.value = agentHistoryRepository.getSteps(sessionId).map { it.toAgentStepUi() }
+            _lastAgentRunDurationMs.value = agentHistoryRepository.getSession(sessionId)?.lastRunDurationMs
         }
     }
 
@@ -893,6 +895,9 @@ class MainViewModel @Inject constructor(
                     },
                 )
                 _lastAgentRunDurationMs.value = result.durationMs.takeIf { it > 0 }
+                if (result.durationMs > 0) {
+                    agentHistoryRepository.updateSessionDuration(sessionId, result.durationMs, System.currentTimeMillis())
+                }
                 val sessionTitle = agentHistoryRepository.getSession(sessionId)?.title
                     ?.takeIf { it.isNotBlank() && it != "新会话" }
                     ?: (result.history.firstOrNull()?.content?.take(24) ?: text.take(24))
