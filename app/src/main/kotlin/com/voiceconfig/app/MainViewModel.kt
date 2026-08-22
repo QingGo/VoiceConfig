@@ -1129,16 +1129,16 @@ class MainViewModel @Inject constructor(
 
     private fun defaultTemplates(): List<Template> = listOf(
         Template(
-            name = "上班打卡提醒",
-            description = "每个工作日早上 8:25 提醒打卡",
-            category = "工作",
-            configJson = "工作日8点25分提醒我打卡",
+            name = "喝水提醒",
+            description = "每天上午 10:00 提醒喝水",
+            category = "健康",
+            configJson = "每天上午10点提醒我喝水",
         ),
         Template(
-            name = "打开企业微信",
-            description = "每天 8:25 打开企业微信",
-            category = "工作",
-            configJson = "每天8点25分打开企业微信",
+            name = "打开瑞幸咖啡",
+            description = "每天 9:00 打开瑞幸咖啡",
+            category = "生活",
+            configJson = "每天上午9点打开瑞幸咖啡",
         ),
         Template(
             name = "午休提醒",
@@ -1147,10 +1147,10 @@ class MainViewModel @Inject constructor(
             configJson = "每天中午12点提醒我午休",
         ),
         Template(
-            name = "每周例会",
-            description = "每周一 9:30 打开钉钉",
-            category = "工作",
-            configJson = "每周一9点30打开钉钉",
+            name = "运动提醒",
+            description = "每周一 19:00 提醒运动",
+            category = "健康",
+            configJson = "每周一晚上7点提醒我运动",
         ),
     )
 }

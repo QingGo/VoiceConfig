@@ -19,6 +19,7 @@ import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -102,51 +103,46 @@ fun AgentPage(
     onRejectSkill: (String) -> Unit = {},
     onDeleteSkill: (String) -> Unit = {},
     onOpenTask: (Long) -> Unit = {},
+    onOpenAutomation: () -> Unit = {},
 ) {
     var showAgentThinking by remember { mutableStateOf(false) }
-    var showSessionHistory by remember { mutableStateOf(false) }
     var showSkills by remember { mutableStateOf(false) }
+    var showRuns by remember { mutableStateOf(false) }
+    var moreMenuExpanded by remember { mutableStateOf(false) }
 
-    BackHandler(onBack = onBack)
+    BackHandler {
+        if (selectedSessionId != null) onShowSessions() else onBack()
+    }
 
     Column(modifier = Modifier.fillMaxSize()) {
         // Top bar
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(start = 16.dp, end = 4.dp, top = 4.dp, bottom = 4.dp),
+                .padding(start = 8.dp, end = 4.dp, top = 4.dp, bottom = 4.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = "高级能力",
-                    style = MaterialTheme.typography.titleLarge,
-                )
-                Text(
-                    text = "Agent · 复杂指令 / 工具调用 / 调试",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
             if (selectedSessionId != null) {
-                IconButton(onClick = { showSessionHistory = true }) {
+                IconButton(onClick = onShowSessions) {
                     Icon(
-                        imageVector = Icons.AutoMirrored.Filled.List,
-                        contentDescription = "会话历史",
+                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                        contentDescription = "返回会话列表",
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
             }
-            TextButton(onClick = { showSkills = true }) {
-                Text("技能")
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = "智能助手",
+                    style = MaterialTheme.typography.titleLarge,
+                )
+                Text(
+                    text = if (selectedSessionId == null) "选择一个会话，或新建对话" else "Agent · 多步操作 / 工具调用",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
             }
-            TextButton(onClick = { showAgentThinking = true }) {
-                Text("思维")
-            }
-            FilledTonalButton(onClick = {
-                onTabChange(AgentNavigation.tabAfterNewSession())
-                onNewSession()
-            }) {
+            FilledTonalButton(onClick = onNewSession) {
                 Icon(
                     imageVector = Icons.Default.Add,
                     contentDescription = null,
@@ -155,62 +151,97 @@ fun AgentPage(
                 Spacer(modifier = Modifier.width(4.dp))
                 Text("新建")
             }
-        }
-
-        TabRow(selectedTabIndex = tabIndex) {
-            Tab(selected = tabIndex == 0, onClick = { onTabChange(0) }, text = { Text("对话") })
-            Tab(selected = tabIndex == 1, onClick = { onTabChange(1) }, text = { Text("任务") })
-            Tab(selected = tabIndex == 2, onClick = { onTabChange(2) }, text = { Text("运行日志") })
-        }
-
-        when (tabIndex) {
-            0 -> ConversationTab(
-                sessions = sessions,
-                messages = messages,
-                agentSteps = agentSteps,
-                selectedSessionId = selectedSessionId,
-                isAgentBusy = isAgentBusy,
-                streamText = streamText,
-                reasoningText = reasoningText,
-                onSelectSession = onSelectSession,
-                input = input,
-                onInputChange = onInputChange,
-                onSend = {
-                    if (input.isNotBlank()) {
-                        onSend(input.trim())
-                        onInputChange("")
+            Box {
+                IconButton(onClick = { moreMenuExpanded = true }) {
+                    Icon(
+                        imageVector = Icons.Default.MoreVert,
+                        contentDescription = "更多",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                DropdownMenu(
+                    expanded = moreMenuExpanded,
+                    onDismissRequest = { moreMenuExpanded = false },
+                ) {
+                    DropdownMenuItem(
+                        text = { Text("推理设置") },
+                        onClick = {
+                            moreMenuExpanded = false
+                            showAgentThinking = true
+                        },
+                    )
+                    DropdownMenuItem(
+                        text = { Text("经验库") },
+                        onClick = {
+                            moreMenuExpanded = false
+                            showSkills = true
+                        },
+                    )
+                    DropdownMenuItem(
+                        text = { Text("Agent 运行记录") },
+                        onClick = {
+                            moreMenuExpanded = false
+                            showRuns = true
+                        },
+                    )
+                    DropdownMenuItem(
+                        text = { Text("自动化任务") },
+                        onClick = {
+                            moreMenuExpanded = false
+                            onOpenAutomation()
+                        },
+                    )
+                    if (selectedSessionId != null) {
+                        DropdownMenuItem(
+                            text = { Text("清空当前会话") },
+                            onClick = {
+                                moreMenuExpanded = false
+                                onClearSession(selectedSessionId)
+                            },
+                        )
                     }
-                },
-                onStop = onStop,
-                onNewSession = {
-                    onTabChange(AgentNavigation.tabAfterNewSession())
-                    onNewSession()
-                },
-                onRenameSession = onRenameSession,
-                onDeleteSession = onDeleteSession,
-                onClearSession = onClearSession,
-            )
-            1 -> TaskEventsTab(taskEvents = taskEvents, tasks = tasks)
-            else -> ExecutionTab(
-                recentLogs = recentLogs,
-                tasks = tasks,
-                initialLogTaskId = initialLogTaskId,
-                onOpenTask = onOpenTask,
-            )
+                }
+            }
         }
+
+        // 两级结构：无选中会话 = 会话列表；有选中会话 = 对话详情
+        ConversationTab(
+            sessions = sessions,
+            messages = messages,
+            agentSteps = agentSteps,
+            selectedSessionId = selectedSessionId,
+            isAgentBusy = isAgentBusy,
+            streamText = streamText,
+            reasoningText = reasoningText,
+            onSelectSession = onSelectSession,
+            input = input,
+            onInputChange = onInputChange,
+            onSend = {
+                if (input.isNotBlank()) {
+                    onSend(input.trim())
+                    onInputChange("")
+                }
+            },
+            onStop = onStop,
+            onNewSession = onNewSession,
+            onRenameSession = onRenameSession,
+            onDeleteSession = onDeleteSession,
+            onClearSession = onClearSession,
+            showInput = selectedSessionId != null,
+        )
     }
 
     if (showAgentThinking) {
         AlertDialog(
             onDismissRequest = { showAgentThinking = false },
-            title = { Text("Agent 思维链") },
+            title = { Text("推理设置") },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Column(modifier = Modifier.weight(1f)) {
-                            Text(text = "独立开关", style = MaterialTheme.typography.bodyLarge)
+                            Text(text = "深度思考", style = MaterialTheme.typography.bodyLarge)
                             Text(
-                                text = "默认开启，仅影响 Agent 页面",
+                                text = "默认开启，让 Agent 先思考再操作；更稳但更慢/更贵",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
@@ -221,7 +252,7 @@ fun AgentPage(
                         )
                     }
                     if (agentThinkingEnabled) {
-                        Text(text = "思考强度", style = MaterialTheme.typography.bodyMedium)
+                        Text(text = "推理强度", style = MaterialTheme.typography.bodyMedium)
                         Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                                 androidx.compose.material3.RadioButton(selected = agentReasoningEffort == "low", onClick = { onAgentReasoningEffortChange("low") })
@@ -257,17 +288,17 @@ fun AgentPage(
         )
     }
 
-    if (showSessionHistory) {
-        SessionHistoryDialog(
+    if (showRuns) {
+        AgentRunsDialog(
             sessions = sessions,
-            onDismiss = { showSessionHistory = false },
+            onDismiss = { showRuns = false },
             onSelect = { sessionId ->
-                showSessionHistory = false
-                onTabChange(AgentNavigation.tabAfterSelectSession())
+                showRuns = false
                 onSelectSession(sessionId)
             },
         )
     }
+
 }
 
 @Composable
@@ -280,10 +311,10 @@ private fun SkillLibraryDialog(
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("技能库审核") },
+        title = { Text("经验库") },
         text = {
             if (skills.isEmpty()) {
-                Text("暂无技能。成功完成 Agent 任务后会自动沉淀为待审核技能。")
+                Text("暂无经验。成功完成 Agent 任务后会自动沉淀为待审核经验。")
             } else {
                 LazyColumn(
                     modifier = Modifier.fillMaxWidth(),
@@ -353,17 +384,17 @@ private fun SkillLibraryDialog(
 }
 
 @Composable
-private fun SessionHistoryDialog(
+private fun AgentRunsDialog(
     sessions: List<AgentSessionEntity>,
     onDismiss: () -> Unit,
     onSelect: (Long) -> Unit,
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("会话历史") },
+        title = { Text("Agent 运行记录") },
         text = {
             if (sessions.isEmpty()) {
-                Text("暂无历史会话")
+                Text("暂无 Agent 执行会话")
             } else {
                 LazyColumn(
                     modifier = Modifier.fillMaxWidth(),
@@ -413,6 +444,7 @@ private fun ConversationTab(
     onRenameSession: (Long, String) -> Unit,
     onDeleteSession: (Long) -> Unit,
     onClearSession: (Long) -> Unit,
+    showInput: Boolean = true,
     onApproveSkill: (String) -> Unit = {},
     onRejectSkill: (String) -> Unit = {},
     onDeleteSkill: (String) -> Unit = {},
@@ -469,7 +501,7 @@ private fun ConversationTab(
                             verticalArrangement = Arrangement.spacedBy(8.dp),
                         ) {
                             Text(
-                                "还没有会话，点击“新建会话”或直接输入指令开始。",
+                                "还没有会话，点击“新建”开始。创建后会在会话列表中保留历史。",
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
@@ -487,7 +519,7 @@ private fun ConversationTab(
                 }
                 item {
                     Text(
-                        "高级能力适合多步骤、跨应用、需要工具调用的复杂指令；简单定时任务请回首页创建。",
+                        "智能助手适合多步骤、跨应用、需要工具调用的复杂指令；简单定时任务请在「自动化」中创建。",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(top = 8.dp),
@@ -505,28 +537,30 @@ private fun ConversationTab(
             )
         }
 
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            OutlinedTextField(
-                value = input,
-                onValueChange = onInputChange,
-                modifier = Modifier.weight(1f),
-                placeholder = { Text("输入指令…") },
-                singleLine = true,
-                enabled = !isAgentBusy,
-            )
-            if (isAgentBusy) {
-                Button(onClick = onStop) {
-                    Text("停止")
-                }
-            } else {
-                Button(onClick = onSend, enabled = input.isNotBlank()) {
-                    Text("发送")
+        if (showInput) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                OutlinedTextField(
+                    value = input,
+                    onValueChange = onInputChange,
+                    modifier = Modifier.weight(1f),
+                    placeholder = { Text("输入指令…") },
+                    singleLine = true,
+                    enabled = !isAgentBusy,
+                )
+                if (isAgentBusy) {
+                    Button(onClick = onStop) {
+                        Text("停止")
+                    }
+                } else {
+                    Button(onClick = onSend, enabled = input.isNotBlank()) {
+                        Text("发送")
+                    }
                 }
             }
         }
@@ -689,7 +723,7 @@ private fun ConversationMessages(
         if (visibleMessages.isEmpty() && !isAgentBusy) {
             item {
                 Text(
-                    "这是一个新会话。输入一句话，例如“帮我打开企业微信并打卡”，Agent 会持续查看屏幕并操作，直到完成目标。",
+                    "这是一个新会话。输入一句话，例如“帮我打开瑞幸咖啡并点一杯生椰拿铁”，Agent 会持续查看屏幕并操作，直到完成目标。",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(top = 12.dp),

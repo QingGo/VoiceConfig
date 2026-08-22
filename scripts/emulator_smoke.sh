@@ -65,7 +65,7 @@ dump() {
 
 echo "==> Home screen smoke"
 dump
-for text in "自动化" "高级能力" "模板" "说话" "还没有创建任务"; do
+for text in "自动化" "智能助手" "模板" "说话" "还没有创建任务"; do
   if ! grep -q "$text" "$LOCAL_DUMP"; then
     echo "FAIL: home missing '$text'"
     exit 1
@@ -100,10 +100,10 @@ echo "==> Close panel"
 sleep 1
 
 echo "==> Open advanced page via tab"
-tap_text "高级能力"
+tap_text "智能助手"
 sleep 1
 dump
-for text in "高级能力" "对话" "任务" "运行日志" "新建" "输入指令"; do
+for text in "智能助手" "新建" "选择一个会话，或新建对话"; do
   if ! grep -q "$text" "$LOCAL_DUMP"; then
     echo "FAIL: agent page missing '$text'"
     exit 1

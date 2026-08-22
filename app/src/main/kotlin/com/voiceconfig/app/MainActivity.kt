@@ -488,7 +488,7 @@ fun MainScreen(viewModel: MainViewModel) {
                     agentLogTaskId = null
                     scope.launch { pagerState.animateScrollToPage(1) }
                 },
-                text = { Text("高级能力") },
+                text = { Text("智能助手") },
             )
         }
         Box(
@@ -526,9 +526,13 @@ fun MainScreen(viewModel: MainViewModel) {
                             scope.launch { pagerState.animateScrollToPage(1) }
                         },
                         onOpenAgentLogs = { task ->
-                            agentInitialTab = 2
-                            agentTabIndex = 2
-                            agentLogTaskId = task.id
+                            scope.launch { pagerState.animateScrollToPage(0) }
+                        },
+                        onOpenAgentSession = { sessionId ->
+                            viewModel.selectAgentSession(sessionId)
+                            agentInitialTab = 0
+                            agentTabIndex = 0
+                            agentLogTaskId = null
                             scope.launch { pagerState.animateScrollToPage(1) }
                         },
                         showCreatePanel = showCreatePanel,
@@ -625,6 +629,9 @@ fun MainScreen(viewModel: MainViewModel) {
                         onRejectSkill = viewModel::rejectAgentSkill,
                         onDeleteSkill = viewModel::deleteAgentSkill,
                         onOpenTask = { taskId ->
+                            scope.launch { pagerState.animateScrollToPage(0) }
+                        },
+                        onOpenAutomation = {
                             scope.launch { pagerState.animateScrollToPage(0) }
                         },
                     )
@@ -1168,6 +1175,7 @@ fun MainScreenContent(
     onOpenAiSettings: () -> Unit,
     onOpenAgent: () -> Unit,
     onOpenAgentLogs: (Task) -> Unit,
+    onOpenAgentSession: (Long) -> Unit = {},
     showCreatePanel: Boolean,
     onCreatePanelChange: (Boolean) -> Unit,
     onManualPackageChange: (String) -> Unit,
@@ -1230,7 +1238,7 @@ fun MainScreenContent(
         }
         item {
             Text(
-                text = "首页适合简单定时任务；复杂指令 / 工具调用 / 调试请用「高级能力」。",
+                text = "首页适合简单定时任务；复杂指令 / 工具调用 / 调试请用「智能助手」。",
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -1342,7 +1350,7 @@ fun MainScreenContent(
                             style = MaterialTheme.typography.titleMedium,
                         )
                         Text(
-                            text = "试试说：“每天早上8点25分打开企业微信”",
+                            text = "试试说：“每天上午10点提醒我喝水”",
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
@@ -1402,7 +1410,12 @@ fun MainScreenContent(
             }
             if (showLogs) {
                 items(recentLogs, key = { "log_${it.id}" }) { log ->
-                    ExecutionLogRow(log = log, tasks = tasks, installedAppLabels = installedAppLabels)
+                    ExecutionLogRow(
+                        log = log,
+                        tasks = tasks,
+                        installedAppLabels = installedAppLabels,
+                        onOpenAgentSession = onOpenAgentSession,
+                    )
                 }
                 uiState.logSummary?.let { summary ->
                     item {
@@ -1486,7 +1499,7 @@ fun MainScreenContent(
                                 when {
                                     isPreparing -> "正在准备语音模型..."
                                     isListening -> "正在聆听..."
-                                    else -> "例：每天8:25打开企业微信"
+                                    else -> "例：每天上午10点提醒我喝水"
                                 },
                             )
                         },
@@ -1526,7 +1539,7 @@ fun MainScreenContent(
                     onValueChange = { draftTemplateName = it },
                     modifier = Modifier.fillMaxWidth(),
                     label = { Text("模板名称") },
-                    placeholder = { Text("例如：上班打卡") },
+                    placeholder = { Text("例如：喝水提醒") },
                     singleLine = true,
                 )
             },
@@ -1618,7 +1631,7 @@ private fun TaskRow(
                         },
                     )
                     DropdownMenuItem(
-                        text = { Text("查看运行日志") },
+                        text = { Text("查看运行记录") },
                         onClick = {
                             taskMenuExpanded = false
                             onOpenLogs()
@@ -1638,7 +1651,7 @@ private fun TaskRow(
 }
 
 @Composable
-private fun ExecutionLogRow(log: ExecutionLog, tasks: List<Task>, installedAppLabels: Map<String, String>) {
+private fun ExecutionLogRow(log: ExecutionLog, tasks: List<Task>, installedAppLabels: Map<String, String>, onOpenAgentSession: (Long) -> Unit = {}) {
     val task = tasks.firstOrNull { it.id == log.taskId }
     Card(
                     modifier = Modifier.fillMaxWidth(),
@@ -1675,6 +1688,11 @@ private fun ExecutionLogRow(log: ExecutionLog, tasks: List<Task>, installedAppLa
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
+                }
+                log.agentSessionId?.let { sessionId ->
+                    TextButton(onClick = { onOpenAgentSession(sessionId) }) {
+                        Text("查看 Agent 会话")
+                    }
                 }
             }
         }
@@ -1986,12 +2004,12 @@ fun MainScreenContentPreview() {
     VoiceConfigTheme {
         MainScreenContent(
             uiState = MainUiState(
-                input = "每天早上8点25分打开企业微信",
+                input = "每天上午10点提醒我喝水",
                 parsedDraft = TaskDraft(
-                    rawText = "每天早上8点25分打开企业微信",
+                    rawText = "每天上午10点提醒我喝水",
                     schedule = null,
                     actionType = ActionType.OPEN_APP,
-                    targetPackage = "com.tencent.wework",
+                    targetPackage = null,
                 ),
                 parseMessage = "解析成功，请确认任务",
             ),

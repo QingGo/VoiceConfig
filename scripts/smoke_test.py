@@ -118,7 +118,7 @@ def main():
 
     print("[4/7] Select a built-in template")
     root = get_ui_xml()
-    template = find_node(root, text="打开企业微信") or find_node(root, text="上班打卡提醒")
+    template = find_node(root, text="喝水提醒") or find_node(root, text="打开瑞幸咖啡")
     if template is None:
         print("FAIL: no built-in template found in template library")
         sys.exit(1)
