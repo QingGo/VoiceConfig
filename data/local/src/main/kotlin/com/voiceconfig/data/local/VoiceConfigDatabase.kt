@@ -40,7 +40,7 @@ import com.voiceconfig.data.local.entity.TriggerRuleEntity
         AgentStepEntity::class,
         TaskEventEntity::class,
     ],
-    version = 9,
+    version = 11,
     exportSchema = false,
 )
 abstract class VoiceConfigDatabase : RoomDatabase() {
@@ -210,6 +210,22 @@ abstract class VoiceConfigDatabase : RoomDatabase() {
         val MIGRATION_8_9 = object : Migration(8, 9) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL("ALTER TABLE `tasks` ADD COLUMN `agentPrompt` TEXT")
+            }
+        }
+
+        val MIGRATION_9_10 = object : Migration(9, 10) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE `agent_messages` ADD COLUMN `durationMs` INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("ALTER TABLE `agent_messages` ADD COLUMN `thinkingMs` INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("ALTER TABLE `agent_messages` ADD COLUMN `outputMs` INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("ALTER TABLE `agent_steps` ADD COLUMN `durationMs` INTEGER NOT NULL DEFAULT 0")
+            }
+        }
+
+        val MIGRATION_10_11 = object : Migration(10, 11) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE `agent_steps` ADD COLUMN `gapBeforeMs` INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("ALTER TABLE `agent_steps` ADD COLUMN `startedAtElapsedMs` INTEGER NOT NULL DEFAULT 0")
             }
         }
     }

@@ -228,4 +228,74 @@ class AgentSessionTest {
         assertEquals(0, screenExecutions)
     }
 
+    @Test
+    fun `repeat detection stops after too many identical actions`() = runBlocking {
+        val registry = ToolRegistry().register(EchoTool())
+        val client = FakeToolChatClient(
+            listOf(
+                AgentChatResponse(
+                    content = null,
+                    reasoningContent = null,
+                    toolCalls = listOf(
+                        AgentToolCall("call1", "echo", """{"text":"same"}"""),
+                        AgentToolCall("call2", "echo", """{"text":"same"}"""),
+                        AgentToolCall("call3", "echo", """{"text":"same"}"""),
+                    ),
+                ),
+            ),
+        )
+        val session = AgentSession(registry, client, NoOpTrace).apply {
+            argumentParser = { mapOf("text" to "same") }
+        }
+        val result = session.send(
+            "重复三次",
+            runPolicy = AgentRunPolicy(maxSamePageRepeats = 2),
+        )
+        assertFalse(result.ok)
+        assertTrue(result.message.contains("重复"))
+        assertTrue(result.toolCalls.size < 3)
+    }
+
+    @Test
+    fun `run state reaches DONE on successful finish`() = runBlocking {
+        val registry = ToolRegistry().register(EchoTool())
+        val client = FakeToolChatClient(
+            listOf(AgentChatResponse(content = "完成", reasoningContent = null, toolCalls = emptyList())),
+        )
+        val states = mutableListOf<AgentRunState>()
+        val session = AgentSession(registry, client, NoOpTrace)
+        val result = session.send("你好", onStateChange = { states += it })
+        assertTrue(result.ok)
+        assertTrue(states.contains(AgentRunState.RUNNING))
+        assertTrue(states.contains(AgentRunState.DONE))
+    }
+
+    @Test
+    fun `llm timeout returns failure`() = runBlocking {
+        val registry = ToolRegistry().register(EchoTool())
+        val client = object : AgentToolChat {
+            override var lastError: String? = null
+            override suspend fun completeWithTools(
+                systemPrompt: String,
+                messages: List<AgentMessage>,
+                tools: List<AgentTool>,
+            ): AgentChatResponse? = null
+            override suspend fun streamWithTools(
+                systemPrompt: String,
+                messages: List<AgentMessage>,
+                tools: List<AgentTool>,
+                onEvent: (AgentStreamEvent) -> Unit,
+            ): AgentChatResponse? {
+                kotlinx.coroutines.delay(10_000)
+                return AgentChatResponse(content = "完成", reasoningContent = null, toolCalls = emptyList())
+            }
+        }
+        val session = AgentSession(registry, client, NoOpTrace)
+        val result = session.send(
+            "超时",
+            runPolicy = AgentRunPolicy(llmTimeoutMs = 100, llmRetries = 0),
+        )
+        assertFalse(result.ok)
+        assertTrue(result.message.contains("超时"))
+    }
 }

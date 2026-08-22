@@ -1,5 +1,6 @@
 package com.voiceconfig.app.ui
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -48,6 +49,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.voiceconfig.core.model.ExecutionLog
 import com.voiceconfig.core.model.ExecutionMode
@@ -75,6 +77,7 @@ fun AgentPage(
     sessions: List<AgentSessionEntity>,
     messages: List<AgentMessageEntity>,
     agentSteps: List<AgentStepUi> = emptyList(),
+    lastRunDurationMs: Long? = null,
     agentSkills: List<AgentSkill> = emptyList(),
     taskEvents: List<TaskEventEntity>,
     recentLogs: List<ExecutionLog>,
@@ -209,6 +212,7 @@ fun AgentPage(
             sessions = sessions,
             messages = messages,
             agentSteps = agentSteps,
+            lastRunDurationMs = lastRunDurationMs,
             selectedSessionId = selectedSessionId,
             isAgentBusy = isAgentBusy,
             streamText = streamText,
@@ -442,6 +446,7 @@ private fun ConversationTab(
     sessions: List<AgentSessionEntity>,
     messages: List<AgentMessageEntity>,
     agentSteps: List<AgentStepUi> = emptyList(),
+    lastRunDurationMs: Long? = null,
     selectedSessionId: Long?,
     isAgentBusy: Boolean,
     streamText: String,
@@ -542,6 +547,7 @@ private fun ConversationTab(
                 modifier = Modifier.weight(1f),
                 messages = messages,
                 agentSteps = agentSteps,
+                lastRunDurationMs = lastRunDurationMs,
                 isAgentBusy = isAgentBusy,
                 streamText = streamText,
                 reasoningText = reasoningText,
@@ -706,6 +712,7 @@ private fun ConversationMessages(
     modifier: Modifier = Modifier,
     messages: List<AgentMessageEntity>,
     agentSteps: List<AgentStepUi> = emptyList(),
+    lastRunDurationMs: Long? = null,
     isAgentBusy: Boolean,
     streamText: String,
     reasoningText: String,
@@ -743,7 +750,7 @@ private fun ConversationMessages(
         }
         if (agentSteps.isNotEmpty()) {
             item {
-                AgentStepTimeline(steps = agentSteps)
+                AgentStepTimeline(steps = agentSteps, runDurationMs = lastRunDurationMs)
             }
         }
         items(visibleMessages, key = { it.id }) { msg ->
@@ -789,7 +796,8 @@ private fun ConversationMessages(
 }
 
 @Composable
-private fun AgentStepTimeline(steps: List<AgentStepUi>) {
+private fun AgentStepTimeline(steps: List<AgentStepUi>, runDurationMs: Long? = null) {
+    var expanded by remember { mutableStateOf(true) }
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
@@ -797,26 +805,111 @@ private fun AgentStepTimeline(steps: List<AgentStepUi>) {
         ),
     ) {
         Column(Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            Text("执行时间线", style = MaterialTheme.typography.labelLarge)
-            steps.takeLast(30).forEach { step ->
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { expanded = !expanded },
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = if (expanded) "▾" else "▸",
+                    style = MaterialTheme.typography.labelMedium,
+                )
+                Spacer(modifier = Modifier.width(4.dp))
+                Text(
+                    text = "执行时间线（${steps.size} 步）",
+                    style = MaterialTheme.typography.labelLarge,
+                    modifier = Modifier.weight(1f),
+                )
+                if (!expanded && steps.isNotEmpty()) {
+                    val last = steps.lastOrNull()
                     Text(
-                        text = "${step.index + 1}. ${stepStatusIcon(step.status)} ${step.toolName}",
-                        style = MaterialTheme.typography.bodySmall,
-                        modifier = Modifier.weight(1f),
+                        text = "最后工具耗时 ${formatDurationMs(last?.durationMs ?: 0)}",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
-                    if (step.message.isNotBlank()) {
-                        Text(
-                            text = step.message,
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            maxLines = 1,
-                        )
+                }
+            }
+            if (expanded) {
+                Text(
+                    text = "开始执行",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.tertiary,
+                )
+                steps.filter { it.toolName.isNotBlank() }.takeLast(30).forEach { step ->
+                    Column(modifier = Modifier.fillMaxWidth()) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        ) {
+                            Text(
+                                text = "${step.index + 1}. ${stepStatusIcon(step.status)} ${step.toolName}",
+                                style = MaterialTheme.typography.bodySmall,
+                                modifier = Modifier.weight(0.36f),
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                            if (step.message.isNotBlank()) {
+                                Text(
+                                    text = step.message,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.weight(0.50f),
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                )
+                            }
+                            if (step.durationMs > 0) {
+                                Text(
+                                    text = formatDurationMs(step.durationMs),
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.tertiary,
+                                    maxLines = 1,
+                                )
+                            }
+                        }
+                        if (step.gapBeforeMs > 0 || step.startedAtElapsedMs > 0) {
+                            Text(
+                                text = buildString {
+                                    if (step.gapBeforeMs > 0) {
+                                        append("距上一步 ")
+                                        append(formatDurationMs(step.gapBeforeMs))
+                                    }
+                                    if (step.startedAtElapsedMs > 0) {
+                                        if (length > 0) append(" · ")
+                                        append("开始后 ")
+                                        append(formatDurationMs(step.startedAtElapsedMs))
+                                    }
+                                },
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
+                                modifier = Modifier.padding(start = 20.dp),
+                            )
+                        }
                     }
+                }
+                val last = steps.lastOrNull()
+                if (last != null) {
+                    Text(
+                        text = buildString {
+                            append("最后工具耗时 ")
+                            append(formatDurationMs(last.durationMs))
+                            if (last.startedAtElapsedMs > 0) {
+                                append(" · 结束 @ ")
+                                append(formatDurationMs(last.startedAtElapsedMs + last.durationMs))
+                            }
+                        },
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.tertiary,
+                    )
+                }
+                if (runDurationMs != null && runDurationMs > 0) {
+                    Text(
+                        text = "运行总耗时 ${formatDurationMs(runDurationMs)}",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.tertiary,
+                    )
                 }
             }
         }
@@ -828,6 +921,12 @@ private fun stepStatusIcon(status: AgentStepStatus): String = when (status) {
     AgentStepStatus.SUCCESS -> "✅"
     AgentStepStatus.FAILED -> "❌"
     AgentStepStatus.DECLINED -> "⛔"
+}
+
+private fun formatDurationMs(ms: Long): String = when {
+    ms <= 0 -> ""
+    ms < 1000 -> "${ms}ms"
+    else -> String.format("%.1fs", ms / 1000.0)
 }
 
 @Composable
@@ -874,6 +973,27 @@ private fun MessageBubble(msg: AgentMessageEntity) {
                     Text(displayText, style = MaterialTheme.typography.bodyMedium)
                 }
             }
+            if (isUser) {
+                // 用户消息不展示耗时
+            } else if (msg.durationMs > 0 && msg.toolName == null) {
+                val detail = buildString {
+                    append("LLM ")
+                    append(formatDurationMs(msg.durationMs))
+                    if (msg.thinkingMs > 0) {
+                        append("｜思考 ")
+                        append(formatDurationMs(msg.thinkingMs))
+                    }
+                    if (msg.outputMs > 0) {
+                        append("｜输出 ")
+                        append(formatDurationMs(msg.outputMs))
+                    }
+                }
+                Text(
+                    text = detail,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.tertiary,
+                )
+            }
         }
     }
 }
@@ -900,6 +1020,13 @@ private fun ToolResultCard(msg: AgentMessageEntity) {
                 text = "${if (ok) "✅" else "❌"} 工具：${msg.toolName ?: "未知"}",
                 style = MaterialTheme.typography.labelLarge,
             )
+            if (msg.durationMs > 0) {
+                Text(
+                    text = "工具耗时 ${formatDurationMs(msg.durationMs)}",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.tertiary,
+                )
+            }
             SelectionContainer {
                 Text(displayText, style = MaterialTheme.typography.bodyMedium)
             }

@@ -56,6 +56,41 @@ def pull_trace(serial, local_path):
     return local_path
 
 
+def get_ui_text(serial):
+    """拉取当前 uiautomator dump，返回所有可见文本 + contentDescription。"""
+    dump_remote = "/sdcard/window_dump.xml"
+    local = os.path.join(tempfile.gettempdir(), "voiceconfig_ui_dump.xml")
+    try:
+        adb(serial, ["shell", "uiautomator", "dump", dump_remote])
+        adb(serial, ["pull", dump_remote, local])
+    except RuntimeError:
+        return ""
+    try:
+        import xml.etree.ElementTree as ET
+        root = ET.parse(local).getroot()
+        parts = []
+        for node in root.iter("node"):
+            text = node.attrib.get("text", "")
+            desc = node.attrib.get("content-desc", "")
+            if text:
+                parts.append(text)
+            if desc:
+                parts.append(desc)
+        return chr(10).join(parts)
+    except Exception:
+        return ""
+
+
+def verify_expected(serial, expected):
+    """场景级验证：目标关键词必须出现在当前界面 UI 中。"""
+    if not expected:
+        return None
+    text = get_ui_text(serial)
+    if not text:
+        return False
+    return expected.lower() in text.lower()
+
+
 def launch_app(serial):
     adb(serial, ["shell", "am", "start", "-n", f"{PACKAGE}/{ACTIVITY}"])
 
@@ -156,8 +191,13 @@ def compute_metrics(summaries):
     }
 
 
-def run_and_evaluate(serial, text, timeout=90):
+def run_and_evaluate(serial, text, timeout=90, expected=None):
     local = os.path.join(tempfile.gettempdir(), "voiceconfig_agent_trace_eval.log")
+    # 每次运行前拉取当前设备最新 trace 作为基线，避免跨设备临时文件污染。
+    try:
+        pull_trace(serial, local)
+    except RuntimeError:
+        pass
     before = Path(local).read_text(encoding="utf-8") if Path(local).exists() else ""
     before_count = len(before.splitlines())
     send_scenario(serial, text)
@@ -175,8 +215,17 @@ def run_and_evaluate(serial, text, timeout=90):
             new_entries = entries[before_count:]
             runs = extract_runs(new_entries)
             if runs and runs[-1].get("run_finished") is not None:
-                return summarize_run(runs[-1])
-    return {"input": text, "ok": False, "message": "timeout", "tool_count": 0, "failed_tools": [], "declined": 0}
+                result = summarize_run(runs[-1])
+                if expected:
+                    verified = verify_expected(serial, expected)
+                    result["expected"] = expected
+                    result["verified"] = verified
+                    result["ok"] = result["ok"] and bool(verified)
+                    result["verification"] = "PASS" if verified else "FAIL"
+                else:
+                    result["verification"] = "NO_EXPECTED"
+                return result
+    return {"input": text, "ok": False, "message": "timeout", "tool_count": 0, "failed_tools": [], "declined": 0, "verification": "TIMEOUT"}
 
 
 def load_scenarios(path):
@@ -192,6 +241,7 @@ def main():
     p_run = sub.add_parser("run", help="运行单个场景")
     p_run.add_argument("--text", required=True)
     p_run.add_argument("--timeout", type=int, default=90)
+    p_run.add_argument("--expect", default=None, help="场景级验证关键词")
 
     p_suite = sub.add_parser("suite", help="运行一组场景")
     p_suite.add_argument("--scenarios", required=True)
@@ -210,7 +260,7 @@ def main():
     args = parser.parse_args()
 
     if args.command == "run":
-        result = run_and_evaluate(args.serial, args.text, args.timeout)
+        result = run_and_evaluate(args.serial, args.text, args.timeout, args.expect)
         print(json.dumps(result, ensure_ascii=False, indent=2))
         return 0 if result["ok"] else 1
 
@@ -219,9 +269,10 @@ def main():
         results = []
         for sc in scenarios:
             print(f"==> {sc.get('name', sc['text'])}")
-            result = run_and_evaluate(args.serial, sc["text"], sc.get("timeout", args.timeout))
+            result = run_and_evaluate(args.serial, sc["text"], sc.get("timeout", args.timeout), sc.get("expect"))
             result["name"] = sc.get("name", sc["text"])
-            result["expected"] = sc.get("expect")
+            if "expected" not in result:
+                result["expected"] = sc.get("expect")
             results.append(result)
         ok_count = sum(1 for r in results if r["ok"])
         print("\n=== 汇总 ===")

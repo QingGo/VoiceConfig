@@ -27,6 +27,11 @@ class ReadScreenTool @Inject constructor(
     private val shizuku: ShizukuCommandRunner,
 ) : AgentTool {
 
+    private var cachedBase64: String? = null
+    private var cachedAtMs: Long = 0L
+    private var cachedWidth: Int = 0
+    private var cachedHeight: Int = 0
+
     override val name: String = "read_screen"
     override val description: String = "截取当前屏幕并返回带坐标网格的画面，适合需要看界面、图片、小程序按钮位置时使用；参数：{\"gridStep\":100}（可选，网格间隔像素，默认200）"
 
@@ -34,22 +39,57 @@ class ReadScreenTool @Inject constructor(
         if (!shizuku.isAvailable()) {
             return ToolResult.failure("read_screen 需要 Shizuku 授权")
         }
+        val timingMs = linkedMapOf<String, Long>()
+        val totalStartMs = System.currentTimeMillis()
+        synchronized(this) {
+            val now = System.currentTimeMillis()
+            if (cachedBase64 != null && now - cachedAtMs < CACHE_TTL_MS) {
+                timingMs["total_ms"] = System.currentTimeMillis() - totalStartMs
+                return ToolResult.success(
+                    "已返回短时间内的屏幕截图缓存（${cachedBase64?.length ?: 0} 字符 base64）",
+                    mapOf(
+                        "image_base64" to cachedBase64,
+                        "path" to "/data/local/tmp/voiceconfig_screen.png",
+                        "width" to cachedWidth,
+                        "height" to cachedHeight,
+                        "has_grid" to true,
+                        "cached" to true,
+                        "timingMs" to timingMs,
+                    ),
+                )
+            }
+        }
         val path = "/data/local/tmp/voiceconfig_screen.png"
+        val captureStartMs = System.currentTimeMillis()
         val capture = shizuku.execute("screencap", "-p", path)
+        timingMs["screencap_ms"] = System.currentTimeMillis() - captureStartMs
         if (!capture.ok) {
             return ToolResult.failure("截屏失败：${capture.stderr.trim().ifBlank { "exit=${capture.exitCode}" }}")
         }
+        val base64StartMs = System.currentTimeMillis()
         val base64 = shizuku.execute("base64", "-w0", path)
+        timingMs["base64_ms"] = System.currentTimeMillis() - base64StartMs
         if (!base64.ok || base64.stdout.isBlank()) {
             return ToolResult.failure("读取截图失败：${base64.stderr.trim().ifBlank { "exit=${base64.exitCode}" }}")
         }
         val image = base64.stdout.replace("\n", "").replace("\r", "").trim()
         val gridStep = (args["gridStep"] as? Number)?.toInt()?.coerceIn(50, 500) ?: 200
+        val sizeStartMs = System.currentTimeMillis()
         val sizeResult = shizuku.execute("wm", "size")
+        timingMs["wm_size_ms"] = System.currentTimeMillis() - sizeStartMs
         val dimension = Regex("""(\d+)\s*x\s*(\d+)""")
             .find(sizeResult.stdout)
             ?.let { it.groupValues[1].toIntOrNull() to it.groupValues[2].toIntOrNull() }
+        val gridStartMs = System.currentTimeMillis()
         val gridImage = addCoordinateGrid(image, gridStep)
+        timingMs["grid_encode_ms"] = System.currentTimeMillis() - gridStartMs
+        timingMs["total_ms"] = System.currentTimeMillis() - totalStartMs
+        synchronized(this) {
+            cachedBase64 = gridImage
+            cachedAtMs = System.currentTimeMillis()
+            cachedWidth = dimension?.first ?: 0
+            cachedHeight = dimension?.second ?: 0
+        }
         return ToolResult.success(
             "已截取当前屏幕并叠加坐标网格（${gridImage.length} 字符 base64）",
             mapOf(
@@ -58,6 +98,7 @@ class ReadScreenTool @Inject constructor(
                 "width" to (dimension?.first ?: 0),
                 "height" to (dimension?.second ?: 0),
                 "has_grid" to true,
+                "timingMs" to timingMs,
             ),
         )
     }
@@ -95,5 +136,8 @@ class ReadScreenTool @Inject constructor(
             out.recycle()
             Base64.encodeToString(baos.toByteArray(), Base64.NO_WRAP)
         }.getOrElse { imageBase64 }
+    }
+    companion object {
+        private const val CACHE_TTL_MS = 800L
     }
 }

@@ -67,6 +67,19 @@ class FindAppTool @Inject constructor(
 
     companion object {
         private val KNOWN_APPS = linkedMapOf(
+            "设置" to listOf("com.android.settings"),
+            "settings" to listOf("com.android.settings"),
+            "时钟" to listOf("com.android.deskclock"),
+            "clock" to listOf("com.android.deskclock"),
+            "日历" to listOf("com.google.android.calendar"),
+            "calendar" to listOf("com.google.android.calendar"),
+            "联系人" to listOf("com.android.contacts"),
+            "contacts" to listOf("com.android.contacts"),
+            "相机" to listOf("com.android.camera", "com.android.camera2"),
+            "camera" to listOf("com.android.camera", "com.android.camera2"),
+            "文件" to listOf("com.android.documentsui", "com.google.android.documentsui"),
+            "浏览器" to listOf("com.android.chrome", "com.android.browser"),
+            "chrome" to listOf("com.android.chrome"),
             "瑞幸" to listOf("com.lucky.luckyclient", "com.luckin.coffee"),
             "微信" to listOf("com.tencent.mm"),
             "企业微信" to listOf("com.tencent.wework"),

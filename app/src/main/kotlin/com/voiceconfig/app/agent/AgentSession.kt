@@ -2,6 +2,9 @@ package com.voiceconfig.app.agent
 
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlinx.coroutines.TimeoutCancellationException
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.withTimeout
 import org.json.JSONObject
 
 /**
@@ -51,6 +54,7 @@ class AgentSession @Inject constructor(
         maxRounds: Int = 60,
         skills: List<AgentSkill> = emptyList(),
         verifyPolicy: AgentVerificationPolicy = AgentVerificationPolicy(),
+        runPolicy: AgentRunPolicy = AgentRunPolicy(),
         onSensitiveAction: suspend (SensitiveActionRequest) -> Boolean = { false },
     ): AgentTurnResult {
         val saved = history.toList()
@@ -61,6 +65,7 @@ class AgentSession @Inject constructor(
                 maxRounds = maxRounds,
                 skills = skills,
                 verifyPolicy = verifyPolicy,
+                runPolicy = runPolicy,
                 onSensitiveAction = onSensitiveAction,
             )
         } finally {
@@ -74,6 +79,8 @@ class AgentSession @Inject constructor(
         maxRounds: Int = 60,
         skills: List<AgentSkill> = emptyList(),
         verifyPolicy: AgentVerificationPolicy = AgentVerificationPolicy(),
+        runPolicy: AgentRunPolicy = AgentRunPolicy(),
+        onStateChange: (AgentRunState) -> Unit = {},
         onStreamEvent: (AgentStreamEvent) -> Unit = {},
         onMessage: suspend (AgentMessage) -> Unit = {},
         onSensitiveAction: suspend (SensitiveActionRequest) -> Boolean = { false },
@@ -100,6 +107,20 @@ class AgentSession @Inject constructor(
         var toolExecMs = 0L
         var verifyMs = 0L
         var rounds = 0
+        var lastStepEndElapsedMs = 0L
+        val recentActionKeys = mutableListOf<String>()
+        var runState: AgentRunState? = null
+        fun setState(newState: AgentRunState) {
+            if (runState != newState) {
+                runState = newState
+                onStateChange(newState)
+                trace.log(runId, "run_state", mapOf("state" to newState.name, "round" to rounds))
+            }
+        }
+        setState(AgentRunState.RUNNING)
+        fun finishRun(ok: Boolean, message: String) {
+            trace.log(runId, "run_finished", mapOf("ok" to ok, "message" to message, "tool_call_count" to allToolCalls.size, "duration_ms" to (System.currentTimeMillis() - startedAtMs)))
+        }
 
         for (round in 0 until maxRounds) {
             rounds++
@@ -107,10 +128,21 @@ class AgentSession @Inject constructor(
             latestScreenWidth = null
             latestScreenHeight = null
             if (cancelled) {
+                setState(AgentRunState.CANCELLED)
                 trace.log(runId, "run_cancelled", mapOf("round" to round))
                 history += AgentMessage("assistant", "已停止")
                 onMessage(history.last())
+                finishRun(false, "已停止")
                 return AgentTurnResult(ok = false, message = "已停止", toolCalls = allToolCalls, history = historySnapshot(), runId = runId)
+            }
+            if (System.currentTimeMillis() - startedAtMs > runPolicy.overallTimeoutMs) {
+                val error = "整体执行超时（${runPolicy.overallTimeoutMs / 1000}s）"
+                setState(AgentRunState.FAILED)
+                trace.log(runId, "run_timeout", mapOf("round" to round, "timeout_ms" to runPolicy.overallTimeoutMs))
+                history += AgentMessage("assistant", "执行失败：$error")
+                onMessage(history.last())
+                finishRun(false, error)
+                return AgentTurnResult(ok = false, message = error, toolCalls = allToolCalls, history = historySnapshot(), runId = runId, durationMs = System.currentTimeMillis() - startedAtMs, llmWaitMs = llmWaitMs, toolExecMs = toolExecMs, verifyMs = verifyMs, rounds = rounds)
             }
             trace.log(
                 runId,
@@ -122,16 +154,39 @@ class AgentSession @Inject constructor(
                 ),
             )
             val llmStartMs = System.currentTimeMillis()
-            val response = chatClient.streamWithTools(systemPrompt, pruneImageHistory(historySnapshot()), toolRegistry.coreTools(), onStreamEvent) ?: run {
-                val detail = chatClient.lastError?.let { "：$it" } ?: ""
-                val error = "模型未返回结果$detail"
-                trace.log(runId, "llm_error", mapOf("round" to round, "error" to error))
-                history += AgentMessage("assistant", "执行失败：$error")
-                onMessage(history.last())
-                return AgentTurnResult(ok = false, message = error, toolCalls = allToolCalls, history = historySnapshot(), runId = runId)
+            var response: AgentChatResponse? = null
+            var llmError = ""
+            for (attempt in 0..runPolicy.llmRetries) {
+                try {
+                    response = withTimeout(runPolicy.llmTimeoutMs) {
+                        chatClient.streamWithTools(
+                            systemPrompt,
+                            pruneImageHistory(historySnapshot()),
+                            toolRegistry.coreTools(),
+                            onStreamEvent,
+                        )
+                    }
+                    if (response != null) break
+                    llmError = chatClient.lastError?.let { "模型未返回结果：$it" } ?: "模型未返回结果"
+                } catch (e: TimeoutCancellationException) {
+                    llmError = "LLM 请求超时（${runPolicy.llmTimeoutMs / 1000}s）"
+                    if (attempt < runPolicy.llmRetries) delay(1_500)
+                } catch (e: Exception) {
+                    llmError = "LLM 请求异常：${e.message ?: e.javaClass.simpleName}"
+                    if (attempt < runPolicy.llmRetries) delay(1_500)
+                }
             }
+            val roundLlmWaitMs = System.currentTimeMillis() - llmStartMs
+            llmWaitMs += roundLlmWaitMs
 
-            llmWaitMs += System.currentTimeMillis() - llmStartMs
+            if (response == null) {
+                setState(AgentRunState.FAILED)
+                trace.log(runId, "llm_error", mapOf("round" to round, "error" to llmError))
+                history += AgentMessage("assistant", "执行失败：$llmError")
+                onMessage(history.last())
+                finishRun(false, llmError)
+                return AgentTurnResult(ok = false, message = llmError, toolCalls = allToolCalls, history = historySnapshot(), runId = runId, durationMs = System.currentTimeMillis() - startedAtMs, llmWaitMs = llmWaitMs, toolExecMs = toolExecMs, verifyMs = verifyMs, rounds = rounds)
+            }
 
             // 把 assistant 消息（含 reasoning/tool_calls）追加到历史
             val assistantContent = response.content ?: ""
@@ -140,6 +195,9 @@ class AgentSession @Inject constructor(
                 content = assistantContent,
                 reasoningContent = response.reasoningContent,
                 toolCallsJson = toolCallsToJson(response.toolCalls),
+                durationMs = roundLlmWaitMs,
+                thinkingMs = response.thinkingMs,
+                outputMs = response.outputMs,
             )
             onMessage(history.last())
             trace.log(
@@ -155,20 +213,25 @@ class AgentSession @Inject constructor(
             )
 
             if (cancelled) {
+                setState(AgentRunState.CANCELLED)
                 history += AgentMessage("assistant", "已停止")
                 onMessage(history.last())
+                finishRun(false, "已停止")
                 return AgentTurnResult(ok = false, message = "已停止", toolCalls = allToolCalls, history = historySnapshot(), runId = runId)
             }
 
             if (response.toolCalls.isEmpty()) {
                 if (response.finishReason == "tool_calls") {
                     val error = "模型声明需要调用工具，但未返回工具参数"
+                    setState(AgentRunState.FAILED)
                     trace.log(runId, "llm_error", mapOf("round" to round, "error" to error))
                     history += AgentMessage("assistant", "执行失败：$error")
                     onMessage(history.last())
+                    finishRun(false, error)
                     return AgentTurnResult(ok = false, message = error, toolCalls = allToolCalls, history = historySnapshot(), runId = runId)
                 }
                 val finalText = assistantContent.ifBlank { "（无文本回复）" }
+                setState(AgentRunState.DONE)
                 trace.log(runId, "run_finished", mapOf("ok" to true, "message" to finalText, "tool_call_count" to allToolCalls.size, "duration_ms" to (System.currentTimeMillis() - startedAtMs)))
                 return AgentTurnResult(
                     ok = true,
@@ -186,7 +249,9 @@ class AgentSession @Inject constructor(
 
             for (toolCall in response.toolCalls) {
                 if (cancelled) {
+                    setState(AgentRunState.CANCELLED)
                     history += AgentMessage("assistant", "已停止")
+                    finishRun(false, "已停止")
                     return AgentTurnResult(ok = false, message = "已停止", toolCalls = allToolCalls, history = historySnapshot(), runId = runId)
                 }
                 val tool = toolRegistry.get(toolCall.name)
@@ -210,7 +275,22 @@ class AgentSession @Inject constructor(
                     continue
                 }
                 val args = runCatching { argumentParser(toolCall.arguments) }.getOrDefault(emptyMap())
+                val actionKey = toolCall.name + ":" + args.entries.sortedBy { it.key }.joinToString(",") { "${it.key}=${it.value}" }
+                val sameActionRecentCount = recentActionKeys.takeLast(12).count { it == actionKey }
+                if (sameActionRecentCount >= runPolicy.maxSamePageRepeats) {
+                    val repeatError = "检测到同一操作重复 ${sameActionRecentCount + 1} 次（$actionKey），已停止避免死循环"
+                    setState(AgentRunState.FAILED)
+                    trace.log(runId, "repeat_detected", mapOf("tool" to toolCall.name, "args" to args, "count" to sameActionRecentCount + 1))
+                    history += AgentMessage("assistant", "执行失败：$repeatError")
+                    onMessage(history.last())
+                    finishRun(false, repeatError)
+                    return AgentTurnResult(ok = false, message = repeatError, toolCalls = allToolCalls, history = historySnapshot(), runId = runId, durationMs = System.currentTimeMillis() - startedAtMs, llmWaitMs = llmWaitMs, toolExecMs = toolExecMs, verifyMs = verifyMs, rounds = rounds)
+                }
+                recentActionKeys += actionKey
+                if (recentActionKeys.size > 30) recentActionKeys.removeAt(0)
                 val stepIndex = allSteps.size
+                val toolStartElapsedMs = System.currentTimeMillis() - startedAtMs
+                val gapBeforeMs = (toolStartElapsedMs - lastStepEndElapsedMs).coerceAtLeast(0)
                 onStep(
                     AgentStepUi(
                         index = stepIndex,
@@ -218,43 +298,56 @@ class AgentSession @Inject constructor(
                         toolName = toolCall.name,
                         argsText = args.toString(),
                         status = AgentStepStatus.RUNNING,
+                        gapBeforeMs = gapBeforeMs,
+                        startedAtElapsedMs = toolStartElapsedMs,
                     ),
                 )
                 val sensitiveRequest = SensitiveActionRequest(tool.name, args)
-                if (safety.requiresConfirmation(tool, args) && !onSensitiveAction(sensitiveRequest)) {
-                    val declined = "用户未确认敏感操作，已取消：${safety.describe(tool.name, args)}"
-                    onStep(
-                        AgentStepUi(
-                            index = stepIndex,
-                            runId = runId,
+                if (safety.requiresConfirmation(tool, args)) {
+                    setState(AgentRunState.WAITING_CONFIRM)
+                    val approved = onSensitiveAction(sensitiveRequest)
+                    setState(AgentRunState.RUNNING)
+                    if (!approved) {
+                        val declined = "用户未确认敏感操作，已取消：${safety.describe(tool.name, args)}"
+                        onStep(
+                            AgentStepUi(
+                                index = stepIndex,
+                                runId = runId,
+                                toolName = toolCall.name,
+                                argsText = args.toString(),
+                                status = AgentStepStatus.DECLINED,
+                                message = declined,
+                            ),
+                        )
+                        trace.log(runId, "tool_declined", mapOf("tool" to toolCall.name, "args" to args, "reason" to "user_denied"))
+                        history += AgentMessage(
+                            role = "tool",
+                            content = declined,
+                            toolCallId = toolCall.id,
                             toolName = toolCall.name,
-                            argsText = args.toString(),
-                            status = AgentStepStatus.DECLINED,
-                            message = declined,
-                        ),
-                    )
-                    trace.log(runId, "tool_declined", mapOf("tool" to toolCall.name, "args" to args, "reason" to "user_denied"))
-                    history += AgentMessage(
-                        role = "tool",
-                        content = declined,
-                        toolCallId = toolCall.id,
-                        toolName = toolCall.name,
-                        toolArgs = toolCall.arguments,
-                        toolResultOk = false,
-                    )
-                    onMessage(history.last())
-                    allToolCalls += ToolCall(toolCall.name, args)
-                    allSteps += StepExecution(
-                        index = allSteps.size,
-                        call = ToolCall(toolCall.name, args),
-                        result = ToolResult.failure(declined),
-                    )
-                    continue
+                            toolArgs = toolCall.arguments,
+                            toolResultOk = false,
+                        )
+                        onMessage(history.last())
+                        allToolCalls += ToolCall(toolCall.name, args)
+                        allSteps += StepExecution(
+                            index = allSteps.size,
+                            call = ToolCall(toolCall.name, args),
+                            result = ToolResult.failure(declined),
+                        )
+                        continue
+                    }
                 }
+
                 trace.log(runId, "tool_call", mapOf("tool" to toolCall.name, "args" to args))
                 val toolStartMs = System.currentTimeMillis()
-                val result = runCatching { tool.execute(args) }
-                    .getOrElse { ToolResult.failure(it.message ?: it.javaClass.simpleName) }
+                val result = try {
+                    withTimeout(runPolicy.toolTimeoutMs) { tool.execute(args) }
+                } catch (e: TimeoutCancellationException) {
+                    ToolResult.failure("工具 ${toolCall.name} 执行超时（${runPolicy.toolTimeoutMs / 1000}s）")
+                } catch (e: Exception) {
+                    ToolResult.failure(e.message ?: e.javaClass.simpleName)
+                }
                 toolExecMs += System.currentTimeMillis() - toolStartMs
                 onStep(
                     AgentStepUi(
@@ -264,6 +357,9 @@ class AgentSession @Inject constructor(
                         argsText = args.toString(),
                         status = if (result.ok) AgentStepStatus.SUCCESS else AgentStepStatus.FAILED,
                         message = result.message,
+                        durationMs = System.currentTimeMillis() - toolStartMs,
+                        gapBeforeMs = gapBeforeMs,
+                        startedAtElapsedMs = toolStartElapsedMs,
                     ),
                 )
                 if (result.ok) consecutiveFailures = 0 else consecutiveFailures++
@@ -275,6 +371,7 @@ class AgentSession @Inject constructor(
                         "ok" to result.ok,
                         "message" to result.message,
                         "data_keys" to result.data.keys.toList(),
+                        "timing_ms" to (result.data["timingMs"] ?: emptyMap<Any, Any>()),
                     ),
                 )
                 history += AgentMessage(
@@ -284,6 +381,7 @@ class AgentSession @Inject constructor(
                     toolName = toolCall.name,
                     toolArgs = toolCall.arguments,
                     toolResultOk = result.ok,
+                    durationMs = System.currentTimeMillis() - toolStartMs,
                 )
                 onMessage(history.last())
                 allToolCalls += ToolCall(toolCall.name, args)
@@ -309,8 +407,20 @@ class AgentSession @Inject constructor(
                 ) {
                     autoVerifyCount++
                     lastAutoVerifyAt = System.currentTimeMillis()
+                    val verifyStepIndex = allSteps.size
                     val verifyStartMs = System.currentTimeMillis()
+                    onStep(
+                        AgentStepUi(
+                            index = verifyStepIndex,
+                            runId = runId,
+                            toolName = "auto_verify",
+                            argsText = "{}",
+                            status = AgentStepStatus.RUNNING,
+                            startedAtElapsedMs = System.currentTimeMillis() - startedAtMs,
+                        ),
+                    )
                     val verify = runCatching { toolRegistry.get("read_screen")?.execute(emptyMap()) }.getOrNull()
+                    val verifyDurationMs = System.currentTimeMillis() - verifyStartMs
                     val verifyImage = verify?.data?.get("image_base64") as? String
                     if (verify?.ok == true && !verifyImage.isNullOrBlank()) {
                         latestScreenBase64 = verifyImage
@@ -319,11 +429,33 @@ class AgentSession @Inject constructor(
                         val path = trace.saveScreenshot(runId, verifyImage, "auto_verify_${toolCall.name}")
                         trace.log(runId, "auto_verify", mapOf("tool" to toolCall.name, "path" to path, "base64_length" to verifyImage.length))
                     }
-                    verifyMs += System.currentTimeMillis() - verifyStartMs
+                    val verifyResult = verify ?: ToolResult.failure("自动验证截屏失败")
+                    onStep(
+                        AgentStepUi(
+                            index = verifyStepIndex,
+                            runId = runId,
+                            toolName = "auto_verify",
+                            argsText = "{}",
+                            status = if (verifyResult.ok) AgentStepStatus.SUCCESS else AgentStepStatus.FAILED,
+                            message = if (verifyResult.ok) "自动截屏验证" else verifyResult.message,
+                            durationMs = verifyDurationMs,
+                            gapBeforeMs = (System.currentTimeMillis() - startedAtMs - lastStepEndElapsedMs).coerceAtLeast(0),
+                            startedAtElapsedMs = System.currentTimeMillis() - startedAtMs - verifyDurationMs,
+                        ),
+                    )
+                    allSteps += StepExecution(
+                        index = verifyStepIndex,
+                        call = ToolCall("auto_verify", emptyMap()),
+                        result = verifyResult,
+                    )
+                    verifyMs += verifyDurationMs
                 }
 
+                lastStepEndElapsedMs = System.currentTimeMillis() - startedAtMs
                 if (cancelled) {
+                    setState(AgentRunState.CANCELLED)
                     history += AgentMessage("assistant", "已停止")
+                    finishRun(false, "已停止")
                     return AgentTurnResult(ok = false, message = "已停止", toolCalls = allToolCalls, history = historySnapshot(), runId = runId)
                 }
             }
@@ -440,6 +572,7 @@ class AgentSession @Inject constructor(
             - 忽略无关的营销活动、优惠券领取、弹窗引导，除非用户明确要求。
             - 在聊天输入框中输入完成后，优先使用 press_key {"key":"enter"} 发送；如果无效再点击界面上的发送按钮。
             - 完成用户目标后，用简短中文总结结果。
+            - 只有实际收到过屏幕截图（包括自动验证截图）时，才可以说“从截图/画面中看到”；没有截图时只能基于 UI 树和工具结果描述，不得声称看过截图。
             - 不要编造工具执行结果或截图内容。
         """.trimIndent()
     }
@@ -466,6 +599,9 @@ data class AgentStepUi(
     val status: AgentStepStatus,
     val message: String = "",
     val runId: String = "",
+    val durationMs: Long = 0,
+    val gapBeforeMs: Long = 0,
+    val startedAtElapsedMs: Long = 0,
 )
 
 enum class AgentStepStatus {
@@ -479,4 +615,20 @@ data class AgentVerificationPolicy(
     val enabled: Boolean = true,
     val maxPerRun: Int = 2,
     val minIntervalMs: Long = 3_000,
+)
+
+enum class AgentRunState {
+    RUNNING,
+    WAITING_CONFIRM,
+    DONE,
+    FAILED,
+    CANCELLED,
+}
+
+data class AgentRunPolicy(
+    val overallTimeoutMs: Long = 10 * 60 * 1_000L,
+    val llmTimeoutMs: Long = 120_000L,
+    val llmRetries: Int = 1,
+    val toolTimeoutMs: Long = 45_000L,
+    val maxSamePageRepeats: Int = 6,
 )

@@ -30,9 +30,10 @@ class AgentSafetyTest {
     }
 
     @Test
-    fun `shell file write and press key always require confirmation`() {
+    fun `shell and file write require confirmation but navigation keys do not`() {
         assertTrue(safety.requiresConfirmation("run_shell", mapOf("command" to "getprop")))
         assertTrue(safety.requiresConfirmation("file_write", mapOf("path" to "a.txt")))
-        assertTrue(safety.requiresConfirmation("press_key", mapOf("key" to "enter")))
+        assertFalse(safety.requiresConfirmation("press_key", mapOf("key" to "enter")))
+        assertFalse(safety.requiresConfirmation("press_key", mapOf("key" to "back")))
     }
 }

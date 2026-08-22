@@ -204,6 +204,7 @@ fun MainScreen(viewModel: MainViewModel) {
     val agentSessions by viewModel.agentSessions.collectAsState()
     val agentMessages by viewModel.agentMessages.collectAsState()
     val agentSteps by viewModel.agentSteps.collectAsState()
+    val lastAgentRunDurationMs by viewModel.lastAgentRunDurationMs.collectAsState()
     val taskEvents by viewModel.taskEvents.collectAsState()
     val selectedAgentSessionId by viewModel.selectedAgentSessionId.collectAsState()
     val isAgentBusy by viewModel.isAgentBusy.collectAsState()
@@ -597,6 +598,7 @@ fun MainScreen(viewModel: MainViewModel) {
                         sessions = agentSessions,
                         messages = agentMessages,
                         agentSteps = agentSteps,
+                        lastRunDurationMs = lastAgentRunDurationMs,
                         agentSkills = agentSkills,
                         taskEvents = taskEvents,
                         recentLogs = recentLogs,

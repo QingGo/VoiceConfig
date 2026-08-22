@@ -204,6 +204,8 @@ class MainViewModel @Inject constructor(
 
     private val _agentSteps = MutableStateFlow<List<AgentStepUi>>(emptyList())
     val agentSteps: StateFlow<List<AgentStepUi>> = _agentSteps.asStateFlow()
+    private val _lastAgentRunDurationMs = MutableStateFlow<Long?>(null)
+    val lastAgentRunDurationMs: StateFlow<Long?> = _lastAgentRunDurationMs.asStateFlow()
 
     val agentSkills: StateFlow<List<AgentSkill>> = agentSkillStore.observeSkills()
 
@@ -844,6 +846,9 @@ class MainViewModel @Inject constructor(
                                         argsText = step.argsText,
                                         status = step.status.name,
                                         message = step.message,
+                                        durationMs = step.durationMs,
+                                        gapBeforeMs = step.gapBeforeMs,
+                                        startedAtElapsedMs = step.startedAtElapsedMs,
                                         createdAtEpochMillis = System.currentTimeMillis(),
                                         updatedAtEpochMillis = System.currentTimeMillis(),
                                     ),
@@ -878,12 +883,16 @@ class MainViewModel @Inject constructor(
                                     toolCallId = msg.toolCallId,
                                     toolCallsJson = msg.toolCallsJson,
                                     reasoningContent = msg.reasoningContent,
+                                    durationMs = msg.durationMs,
+                                    thinkingMs = msg.thinkingMs,
+                                    outputMs = msg.outputMs,
                                     createdAtEpochMillis = System.currentTimeMillis(),
                                 ),
                             )
                         }
                     },
                 )
+                _lastAgentRunDurationMs.value = result.durationMs.takeIf { it > 0 }
                 val sessionTitle = agentHistoryRepository.getSession(sessionId)?.title
                     ?.takeIf { it.isNotBlank() && it != "新会话" }
                     ?: (result.history.firstOrNull()?.content?.take(24) ?: text.take(24))
@@ -1239,6 +1248,9 @@ private fun AgentMessageEntity.toAgentMessage(): AgentMessage = AgentMessage(
     toolResultOk = toolResultOk,
     toolCallsJson = toolCallsJson,
     reasoningContent = reasoningContent,
+    durationMs = durationMs,
+    thinkingMs = thinkingMs,
+    outputMs = outputMs,
 )
 
 private fun AgentStepEntity.toAgentStepUi(): AgentStepUi = AgentStepUi(
@@ -1248,6 +1260,9 @@ private fun AgentStepEntity.toAgentStepUi(): AgentStepUi = AgentStepUi(
     argsText = argsText,
     status = runCatching { AgentStepStatus.valueOf(status) }.getOrDefault(AgentStepStatus.FAILED),
     message = message,
+    durationMs = durationMs,
+    gapBeforeMs = gapBeforeMs,
+    startedAtElapsedMs = startedAtElapsedMs,
 )
 
 data class MainUiState(

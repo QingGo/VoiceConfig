@@ -28,5 +28,8 @@ data class AgentMessageEntity(
     val toolCallId: String? = null,
     val toolCallsJson: String? = null,
     val reasoningContent: String? = null,
+    val durationMs: Long = 0,
+    val thinkingMs: Long = 0,
+    val outputMs: Long = 0,
     val createdAtEpochMillis: Long,
 )

@@ -20,8 +20,11 @@ class GetScreenStateTool @Inject constructor(
     override val description: String = "获取当前屏幕完整状态：UI元素+文字+坐标+截图，参数：{\"maxNodes\":120,\"gridStep\":200}（可选）"
 
     override suspend fun execute(args: Map<String, Any?>): ToolResult {
+        val totalStartMs = System.currentTimeMillis()
         val uiResult = readUiTool.execute(args)
+        val uiTiming = uiResult.data["timingMs"] as? Map<*, *>
         val screenResult = readScreenTool.execute(args)
+        val screenTiming = screenResult.data["timingMs"] as? Map<*, *>
 
         if (!uiResult.ok && !screenResult.ok) {
             return ToolResult.failure(
@@ -51,6 +54,12 @@ class GetScreenStateTool @Inject constructor(
         } else {
             messages += "截图:${screenResult.message}"
         }
+
+        val timingMs = linkedMapOf<String, Any>()
+        if (uiTiming != null) timingMs["read_ui"] = uiTiming
+        if (screenTiming != null) timingMs["read_screen"] = screenTiming
+        timingMs["total_ms"] = System.currentTimeMillis() - totalStartMs
+        data["timingMs"] = timingMs
 
         return ToolResult.success(
             messages.joinToString("；"),

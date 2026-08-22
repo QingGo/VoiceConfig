@@ -242,6 +242,9 @@ open class AgentChatClient @Inject constructor(
                     return@withContext null
                 }
 
+                val streamStartMs = System.currentTimeMillis()
+                var reasoningStartedAt: Long? = null
+                var contentStartedAt: Long? = null
                 val content = StringBuilder()
                 val reasoning = StringBuilder()
                 val toolCalls = LinkedHashMap<Int, MutableAgentToolCall>()
@@ -260,10 +263,12 @@ open class AgentChatClient @Inject constructor(
                         }
                         val delta = choice.optJSONObject("delta") ?: continue
                         delta.optString("reasoning_content").takeIf { it.isNotBlank() && it != "null" }?.let {
+                            if (reasoningStartedAt == null) reasoningStartedAt = System.currentTimeMillis()
                             reasoning.append(it)
                             onEvent(AgentStreamEvent.Reasoning(it))
                         }
                         delta.optString("content").takeIf { it.isNotBlank() && it != "null" }?.let {
+                            if (contentStartedAt == null) contentStartedAt = System.currentTimeMillis()
                             content.append(it)
                             onEvent(AgentStreamEvent.Content(it))
                         }
@@ -285,11 +290,20 @@ open class AgentChatClient @Inject constructor(
                     }
                 }
 
+                val nowMs = System.currentTimeMillis()
+                val thinkingMs = when {
+                    reasoningStartedAt != null && contentStartedAt != null -> contentStartedAt - streamStartMs
+                    reasoningStartedAt != null -> nowMs - streamStartMs
+                    else -> 0
+                }
+                val outputMs = (nowMs - streamStartMs - thinkingMs).coerceAtLeast(0)
                 val response = AgentChatResponse(
                     content = content.toString().takeIf { it.isNotBlank() },
                     reasoningContent = reasoning.toString().takeIf { it.isNotBlank() },
                     toolCalls = toolCalls.values.map { AgentToolCall(it.id, it.name, it.arguments.toString()) },
                     finishReason = finishReason,
+                    thinkingMs = thinkingMs,
+                    outputMs = outputMs,
                 )
                 onEvent(AgentStreamEvent.Done(response))
                 response
@@ -378,6 +392,9 @@ data class AgentMessage(
     val toolCallsJson: String? = null,
     val reasoningContent: String? = null,
     val imageBase64: String? = null,
+    val durationMs: Long = 0,
+    val thinkingMs: Long = 0,
+    val outputMs: Long = 0,
 )
 
 data class AgentToolCall(
@@ -391,6 +408,8 @@ data class AgentChatResponse(
     val reasoningContent: String?,
     val toolCalls: List<AgentToolCall>,
     val finishReason: String? = null,
+    val thinkingMs: Long = 0,
+    val outputMs: Long = 0,
 )
 
 

@@ -29,6 +29,9 @@ data class AgentStepEntity(
     val argsText: String,
     val status: String,
     val message: String = "",
+    val durationMs: Long = 0,
+    val gapBeforeMs: Long = 0,
+    val startedAtElapsedMs: Long = 0,
     val createdAtEpochMillis: Long,
     val updatedAtEpochMillis: Long,
 )
