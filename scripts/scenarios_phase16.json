@@ -25,7 +25,7 @@
   },
   {
     "name": "Chrome搜索并打开结果",
-    "text": "打开Chrome，搜索Android 15发布时间，然后打开第一个搜索结果",
+    "text": "打开Chrome，在百度搜索Android 15发布时间，然后打开第一个搜索结果",
     "expect": "Android 15",
     "timeout": 240,
     "estimated_seconds": 90,
