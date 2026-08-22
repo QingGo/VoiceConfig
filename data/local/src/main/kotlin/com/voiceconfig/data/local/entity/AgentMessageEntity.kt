@@ -31,5 +31,6 @@ data class AgentMessageEntity(
     val durationMs: Long = 0,
     val thinkingMs: Long = 0,
     val outputMs: Long = 0,
+    val ttftMs: Long = 0,
     val createdAtEpochMillis: Long,
 )

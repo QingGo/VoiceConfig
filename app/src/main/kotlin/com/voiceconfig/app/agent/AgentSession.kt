@@ -198,6 +198,7 @@ class AgentSession @Inject constructor(
                 durationMs = roundLlmWaitMs,
                 thinkingMs = response.thinkingMs,
                 outputMs = response.outputMs,
+                ttftMs = response.ttftMs,
             )
             onMessage(history.last())
             trace.log(
@@ -209,6 +210,9 @@ class AgentSession @Inject constructor(
                     "reasoning" to (response.reasoningContent ?: ""),
                     "tool_calls" to response.toolCalls.map { mapOf("id" to it.id, "name" to it.name, "arguments" to it.arguments) },
                     "finish_reason" to (response.finishReason ?: ""),
+                    "ttft_ms" to response.ttftMs,
+                    "thinking_ms" to response.thinkingMs,
+                    "output_ms" to response.outputMs,
                 ),
             )
 

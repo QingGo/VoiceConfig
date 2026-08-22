@@ -80,6 +80,31 @@ class AgentSessionTest {
     }
 
     @Test
+    fun `llm timing ttft is propagated to assistant history`() = runBlocking {
+        val registry = ToolRegistry().register(EchoTool())
+        val client = FakeToolChatClient(
+            listOf(
+                AgentChatResponse(
+                    content = "完成",
+                    reasoningContent = null,
+                    toolCalls = emptyList(),
+                    thinkingMs = 400,
+                    outputMs = 600,
+                    ttftMs = 800,
+                ),
+            ),
+        )
+        val session = AgentSession(registry, client, NoOpTrace)
+        val result = session.send("你好")
+        assertTrue(result.ok)
+        val assistant = result.history.lastOrNull { it.role == "assistant" }
+        assertTrue(assistant != null)
+        assertEquals(800L, assistant?.ttftMs)
+        assertEquals(400L, assistant?.thinkingMs)
+        assertEquals(600L, assistant?.outputMs)
+    }
+
+    @Test
     fun `session returns text when no tool calls`() = runBlocking {
         val registry = ToolRegistry().register(EchoTool())
         val client = FakeToolChatClient(

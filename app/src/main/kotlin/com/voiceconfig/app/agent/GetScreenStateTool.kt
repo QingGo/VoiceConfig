@@ -2,6 +2,8 @@ package com.voiceconfig.app.agent
 
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 
 /**
  * 结构化屏幕感知工具：
@@ -21,9 +23,13 @@ class GetScreenStateTool @Inject constructor(
 
     override suspend fun execute(args: Map<String, Any?>): ToolResult {
         val totalStartMs = System.currentTimeMillis()
-        val uiResult = readUiTool.execute(args)
+        // UI 树与截图相互独立，短时间并行获取，降低屏幕感知的端到端耗时。
+        val (uiResult, screenResult) = coroutineScope {
+            val uiDeferred = async { readUiTool.execute(args) }
+            val screenDeferred = async { readScreenTool.execute(args) }
+            uiDeferred.await() to screenDeferred.await()
+        }
         val uiTiming = uiResult.data["timingMs"] as? Map<*, *>
-        val screenResult = readScreenTool.execute(args)
         val screenTiming = screenResult.data["timingMs"] as? Map<*, *>
 
         if (!uiResult.ok && !screenResult.ok) {

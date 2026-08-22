@@ -6,6 +6,7 @@ import android.media.AudioRecord
 import android.media.MediaRecorder
 import android.os.Handler
 import android.os.Looper
+import android.util.Log
 import com.k2fsa.sherpa.onnx.FeatureConfig
 import com.k2fsa.sherpa.onnx.HomophoneReplacerConfig
 import com.k2fsa.sherpa.onnx.OfflineModelConfig
@@ -31,6 +32,10 @@ class SenseVoiceAsrEngine(
     private val lock = Any()
     private var recognizer: OfflineRecognizer? = null
     private var currentCancel: (() -> Unit)? = null
+
+    companion object {
+        private const val TIMING_TAG = "VoiceConfigAsrTiming"
+    }
 
     override fun isModelAvailable(): Boolean =
         listOf("$modelDir/model.int8.onnx", "$modelDir/tokens.txt").all { File(it).exists() }
@@ -72,9 +77,11 @@ class SenseVoiceAsrEngine(
                 val shortBuf = ShortArray(minBuf)
                 val samples = ArrayList<Float>(sampleRate * 30)
                 val start = System.currentTimeMillis()
+                var speechStartedAt: Long? = null
                 var speechStarted = false
                 var silenceMs = 0L
                 var lastVoiceAt = start
+                var endpointAt: Long? = null
 
                 while (!stopRequested.get() && System.currentTimeMillis() - start < maxDurationMs) {
                     val read = record.read(shortBuf, 0, shortBuf.size)
@@ -88,11 +95,15 @@ class SenseVoiceAsrEngine(
                     val rms = energy / read
                     if (rms > 0.01) {
                         speechStarted = true
+                        if (speechStartedAt == null) speechStartedAt = System.currentTimeMillis()
                         lastVoiceAt = System.currentTimeMillis()
                         silenceMs = 0
                     } else if (speechStarted) {
                         silenceMs = System.currentTimeMillis() - lastVoiceAt
-                        if (silenceMs >= 1_200) break
+                        if (silenceMs >= 1_200) {
+                            endpointAt = System.currentTimeMillis()
+                            break
+                        }
                     }
                 }
 
@@ -108,11 +119,24 @@ class SenseVoiceAsrEngine(
                     return@Thread
                 }
 
+                val recordEndAt = System.currentTimeMillis()
+                val decodeStartAt = recordEndAt
                 val rec = getRecognizer()
+                val modelReadyAt = System.currentTimeMillis()
                 val stream = rec.createStream()
                 stream.acceptWaveform(samples.toFloatArray(), sampleRate)
                 rec.decode(stream)
                 val text = rec.getResult(stream).text
+                val finishAt = System.currentTimeMillis()
+                Log.i(
+                    TIMING_TAG,
+                    "sensevoice total=${finishAt - start}ms " +
+                        "speechStart=${speechStartedAt?.minus(start) ?: -1}ms " +
+                        "recordEnd=${recordEndAt - start}ms " +
+                        "modelInit=${modelReadyAt - decodeStartAt}ms " +
+                        "decode=${finishAt - modelReadyAt}ms " +
+                        "final=$text",
+                )
                 stream.release()
 
                 if (text.isNotBlank()) {
@@ -139,12 +163,22 @@ class SenseVoiceAsrEngine(
     ) {
         Thread {
             try {
+                val requestStart = System.currentTimeMillis()
                 val samples = readWav(wavPath)
+                val readWavMs = System.currentTimeMillis() - requestStart
                 val rec = getRecognizer()
+                val modelReadyAt = System.currentTimeMillis()
                 val stream = rec.createStream()
                 stream.acceptWaveform(samples, 16_000)
                 rec.decode(stream)
                 val text = rec.getResult(stream).text
+                val finishAt = System.currentTimeMillis()
+                Log.i(
+                    TIMING_TAG,
+                    "sensevoice-file total=${finishAt - requestStart}ms readWav=${readWavMs}ms " +
+                        "modelInit=${modelReadyAt - requestStart - readWavMs}ms decode=${finishAt - modelReadyAt}ms " +
+                        "text=$text",
+                )
                 stream.release()
                 if (text.isNotBlank()) {
                     mainHandler.post { onResult(text) }
@@ -247,7 +281,7 @@ class SenseVoiceAsrEngine(
             val offlineModelConfig = OfflineModelConfig().apply {
                 senseVoice = OfflineSenseVoiceModelConfig(
                     "$modelDir/model.int8.onnx",
-                    "zh",
+                    "auto",
                     true,
                 )
                 tokens = "$modelDir/tokens.txt"

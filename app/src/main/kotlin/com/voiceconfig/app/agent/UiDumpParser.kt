@@ -33,6 +33,20 @@ object UiDumpParser {
     fun summarize(xml: String, maxNodes: Int = 120, maxChars: Int = 4000): String {
         val nodes = parse(xml)
             .filter { it.enabled && (it.hasLabel || it.clickable || it.focusable) }
+            .distinctBy { node ->
+                listOf(
+                    node.text,
+                    node.contentDesc,
+                    node.resourceId,
+                    node.bounds,
+                    node.className,
+                    node.clickable.toString(),
+                    node.focusable.toString(),
+                ).joinToString("|")
+            }
+            .sortedWith(
+                compareByDescending<UiNode> { it.clickable || it.focusable },
+            )
             .take(maxNodes)
         if (nodes.isEmpty()) {
             return "(未发现可交互或带文本的节点)"

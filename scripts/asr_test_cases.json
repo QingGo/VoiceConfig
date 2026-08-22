@@ -1,0 +1,13 @@
+{
+  "name": "VoiceConfig ASR 固定测试集",
+  "description": "用于真机/离线 benchmark 的语音用例描述。实际 WAV 放 test_audio/ 下，文件名对应 case id。",
+  "cases": [
+    {"id": "zh_open_settings", "text": "帮我打开设置", "lang": "zh", "keywords": ["设置"]},
+    {"id": "zh_set_alarm", "text": "帮我定一个八点半的闹钟", "lang": "zh", "keywords": ["闹钟", "八点半"]},
+    {"id": "en_open_chrome", "text": "Open Chrome", "lang": "en", "keywords": ["Chrome"]},
+    {"id": "en_open_github", "text": "打开 GitHub", "lang": "mixed", "keywords": ["GitHub"]},
+    {"id": "en_open_whatsapp", "text": "打开 WhatsApp", "lang": "mixed", "keywords": ["WhatsApp"]},
+    {"id": "mixed_search_email", "text": "打开 Gmail 搜索邮件", "lang": "mixed", "keywords": ["Gmail", "邮件"]},
+    {"id": "long_sentence", "text": "帮我打开日历创建一个明天的下午三点的会议", "lang": "zh", "keywords": ["日历", "会议"]}
+  ]
+}

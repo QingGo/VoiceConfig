@@ -33,7 +33,7 @@ class ReadScreenTool @Inject constructor(
     private var cachedHeight: Int = 0
 
     override val name: String = "read_screen"
-    override val description: String = "截取当前屏幕并返回带坐标网格的画面，适合需要看界面、图片、小程序按钮位置时使用；参数：{\"gridStep\":100}（可选，网格间隔像素，默认200）"
+    override val description: String = "截取当前屏幕并返回带坐标网格的画面，适合需要看界面、图片、小程序按钮位置时使用；参数：{\"gridStep\":100,\"maxDimension\":1280}（可选，网格间隔像素默认200，最长边像素0表示不缩图）"
 
     override suspend fun execute(args: Map<String, Any?>): ToolResult {
         if (!shizuku.isAvailable()) {
@@ -80,8 +80,9 @@ class ReadScreenTool @Inject constructor(
         val dimension = Regex("""(\d+)\s*x\s*(\d+)""")
             .find(sizeResult.stdout)
             ?.let { it.groupValues[1].toIntOrNull() to it.groupValues[2].toIntOrNull() }
+        val maxDimension = (args["maxDimension"] as? Number)?.toInt()?.coerceIn(0, 4096) ?: 0
         val gridStartMs = System.currentTimeMillis()
-        val gridImage = addCoordinateGrid(image, gridStep)
+        val gridImage = addCoordinateGrid(image, gridStep, maxDimension)
         timingMs["grid_encode_ms"] = System.currentTimeMillis() - gridStartMs
         timingMs["total_ms"] = System.currentTimeMillis() - totalStartMs
         synchronized(this) {
@@ -103,13 +104,20 @@ class ReadScreenTool @Inject constructor(
         )
     }
 
-    private fun addCoordinateGrid(imageBase64: String, gridStep: Int): String {
+    private fun addCoordinateGrid(imageBase64: String, gridStep: Int, maxDimension: Int = 0): String {
         return runCatching {
             val bytes = Base64.decode(imageBase64, Base64.DEFAULT)
             val src = BitmapFactory.decodeByteArray(bytes, 0, bytes.size) ?: return@runCatching imageBase64
-            val out = Bitmap.createBitmap(src.width, src.height, Bitmap.Config.ARGB_8888)
+            val scale = if (maxDimension > 0 && maxOf(src.width, src.height) > maxDimension) {
+                maxDimension.toFloat() / maxOf(src.width, src.height)
+            } else {
+                1f
+            }
+            val outWidth = (src.width * scale).toInt().coerceAtLeast(1)
+            val outHeight = (src.height * scale).toInt().coerceAtLeast(1)
+            val out = Bitmap.createBitmap(outWidth, outHeight, Bitmap.Config.ARGB_8888)
             val canvas = Canvas(out)
-            canvas.drawBitmap(src, 0f, 0f, null)
+            canvas.drawBitmap(src, null, android.graphics.Rect(0, 0, outWidth, outHeight), null)
 
             val linePaint = Paint().apply {
                 color = Color.argb(90, 255, 0, 0)
@@ -123,12 +131,14 @@ class ReadScreenTool @Inject constructor(
             }
             val step = gridStep
             for (x in 0..src.width step step) {
-                canvas.drawLine(x.toFloat(), 0f, x.toFloat(), src.height.toFloat(), linePaint)
-                canvas.drawText(x.toString(), x + 6f, 64f, textPaint)
+                val sx = x * scale
+                canvas.drawLine(sx, 0f, sx, outHeight.toFloat(), linePaint)
+                canvas.drawText(x.toString(), sx + 6f, 64f, textPaint)
             }
             for (y in 0..src.height step step) {
-                canvas.drawLine(0f, y.toFloat(), src.width.toFloat(), y.toFloat(), linePaint)
-                canvas.drawText(y.toString(), 8f, y + 56f, textPaint)
+                val sy = y * scale
+                canvas.drawLine(0f, sy, outWidth.toFloat(), sy, linePaint)
+                canvas.drawText(y.toString(), 8f, sy + 56f, textPaint)
             }
 
             val baos = ByteArrayOutputStream()

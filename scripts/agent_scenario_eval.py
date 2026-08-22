@@ -150,7 +150,7 @@ def summarize_run(run):
     finished = run.get("run_finished") or {}
     ok = bool(finished.get("ok"))
     message = finished.get("message", "")
-    return {
+    result = {
         "input": run["user_input"].get("text", ""),
         "ok": ok,
         "message": message,
@@ -159,6 +159,24 @@ def summarize_run(run):
         "declined": len(declines),
         "duration_ms": finished.get("duration_ms"),
     }
+    result["failure_category"] = classify_failure(result)
+    return result
+
+
+def classify_failure(summary):
+    """把失败尽量归类，便于后续按原因修复。"""
+    if summary.get("ok"):
+        return "PASS"
+    message = (summary.get("message") or "")
+    if "超时" in message:
+        return "TIMEOUT"
+    if "重复" in message:
+        return "REPEAT_LOOP"
+    if summary.get("declined", 0) > 0:
+        return "SAFETY_BLOCK"
+    if summary.get("failed_tools"):
+        return "TOOL_FAILURE"
+    return "TARGET_NOT_ACHIEVED"
 
 
 def analyze_trace(path):
@@ -222,6 +240,8 @@ def run_and_evaluate(serial, text, timeout=90, expected=None):
                     result["verified"] = verified
                     result["ok"] = result["ok"] and bool(verified)
                     result["verification"] = "PASS" if verified else "FAIL"
+                    if not verified:
+                        result["failure_category"] = "VERIFY_FAIL"
                 else:
                     result["verification"] = "NO_EXPECTED"
                 return result

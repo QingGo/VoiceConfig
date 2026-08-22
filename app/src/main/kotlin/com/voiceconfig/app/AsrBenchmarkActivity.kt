@@ -37,16 +37,19 @@ class AsrBenchmarkActivity : ComponentActivity() {
             finish()
             return
         }
+        val startMs = System.currentTimeMillis()
         Log.i(TAG, "benchmark start model=${model.id} wav=$wavPath")
         localAsrManager.recognizeFile(
             model = model,
             wavPath = wavPath,
             onResult = { text ->
-                Log.i(TAG, "RESULT model=${model.id} text=$text")
+                val totalMs = System.currentTimeMillis() - startMs
+                Log.i(TAG, "RESULT model=${model.id} text=$text totalMs=$totalMs")
                 finish()
             },
             onError = { message ->
-                Log.e(TAG, "ERROR model=${model.id} message=$message")
+                val totalMs = System.currentTimeMillis() - startMs
+                Log.e(TAG, "ERROR model=${model.id} message=$message totalMs=$totalMs")
                 finish()
             },
         )

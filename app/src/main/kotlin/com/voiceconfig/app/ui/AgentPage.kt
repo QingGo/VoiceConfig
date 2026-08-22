@@ -970,9 +970,18 @@ private fun MessageBubble(msg: AgentMessageEntity) {
             if (isUser) {
                 // 用户消息不展示耗时
             } else if (msg.durationMs > 0 && msg.toolName == null) {
+                val streamRemainingMs = (msg.durationMs - msg.ttftMs).coerceAtLeast(0)
                 val detail = buildString {
                     append("LLM ")
                     append(formatDurationMs(msg.durationMs))
+                    if (msg.ttftMs > 0) {
+                        append("｜TTFT ")
+                        append(formatDurationMs(msg.ttftMs))
+                    }
+                    if (streamRemainingMs > 0) {
+                        append("｜流式 ")
+                        append(formatDurationMs(streamRemainingMs))
+                    }
                     if (msg.thinkingMs > 0) {
                         append("｜思考 ")
                         append(formatDurationMs(msg.thinkingMs))

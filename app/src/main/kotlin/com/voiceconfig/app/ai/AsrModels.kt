@@ -83,6 +83,46 @@ class AsrModelManager @Inject constructor(
             ),
         ),
         AsrModel(
+            id = "sherpa-bilingual-zh-en-2023",
+            displayName = "Sherpa Zipformer 中英双语流式（实验）",
+            kind = AsrModelKind.SHERPA_STREAMING_TRANSDUCER,
+            description = "2023 中英双语流式 Zipformer，支持中文+英文混合，适合 App 名、品牌名、英文指令。",
+            files = listOf(
+                AsrModelFile(
+                    name = "encoder-epoch-99-avg-1.int8.onnx",
+                    url = "https://huggingface.co/csukuangfj/sherpa-onnx-streaming-zipformer-bilingual-zh-en-2023-02-20/resolve/main/encoder-epoch-99-avg-1.int8.onnx",
+                    mirrorUrls = listOf(
+                        "https://hf-mirror.com/csukuangfj/sherpa-onnx-streaming-zipformer-bilingual-zh-en-2023-02-20/resolve/main/encoder-epoch-99-avg-1.int8.onnx",
+                    ),
+                    size = 0L,
+                ),
+                AsrModelFile(
+                    name = "decoder-epoch-99-avg-1.int8.onnx",
+                    url = "https://huggingface.co/csukuangfj/sherpa-onnx-streaming-zipformer-bilingual-zh-en-2023-02-20/resolve/main/decoder-epoch-99-avg-1.int8.onnx",
+                    mirrorUrls = listOf(
+                        "https://hf-mirror.com/csukuangfj/sherpa-onnx-streaming-zipformer-bilingual-zh-en-2023-02-20/resolve/main/decoder-epoch-99-avg-1.int8.onnx",
+                    ),
+                    size = 0L,
+                ),
+                AsrModelFile(
+                    name = "joiner-epoch-99-avg-1.int8.onnx",
+                    url = "https://huggingface.co/csukuangfj/sherpa-onnx-streaming-zipformer-bilingual-zh-en-2023-02-20/resolve/main/joiner-epoch-99-avg-1.int8.onnx",
+                    mirrorUrls = listOf(
+                        "https://hf-mirror.com/csukuangfj/sherpa-onnx-streaming-zipformer-bilingual-zh-en-2023-02-20/resolve/main/joiner-epoch-99-avg-1.int8.onnx",
+                    ),
+                    size = 0L,
+                ),
+                AsrModelFile(
+                    name = "tokens.txt",
+                    url = "https://huggingface.co/csukuangfj/sherpa-onnx-streaming-zipformer-bilingual-zh-en-2023-02-20/resolve/main/tokens.txt",
+                    mirrorUrls = listOf(
+                        "https://hf-mirror.com/csukuangfj/sherpa-onnx-streaming-zipformer-bilingual-zh-en-2023-02-20/resolve/main/tokens.txt",
+                    ),
+                    size = 0L,
+                ),
+            ),
+        ),
+        AsrModel(
             id = "sensevoice-small",
             displayName = "SenseVoice Small（非流式）",
             kind = AsrModelKind.SENSEVOICE_OFFLINE,
@@ -135,10 +175,10 @@ class AsrModelManager @Inject constructor(
 
     fun modelSizeText(model: AsrModel): String {
         val total = model.files.sumOf { it.size }
-        return if (total > 0) {
-            "%.1f MB".format(total / 1024f / 1024f)
-        } else {
-            "内置"
+        return when {
+            total > 0 -> "%.1f MB".format(total / 1024f / 1024f)
+            model.builtin -> "内置"
+            else -> "未知"
         }
     }
 
@@ -148,11 +188,14 @@ class AsrModelManager @Inject constructor(
             dir.mkdirs()
             val total = model.files.sumOf { it.size }.toFloat()
             var downloaded = 0L
+            fun reportProgress() {
+                if (total > 0f) onProgress(downloaded / total)
+            }
             model.files.forEach { file ->
                 val target = File(dir, file.name)
-                if (target.exists() && target.length() == file.size) {
+                if (target.exists() && ((file.size == 0L && target.length() > 0L) || target.length() == file.size)) {
                     downloaded += file.size
-                    onProgress(downloaded / total)
+                    reportProgress()
                     return@forEach
                 }
                 val candidates = (file.mirrorUrls + file.url).distinct()
@@ -173,7 +216,7 @@ class AsrModelManager @Inject constructor(
                         while (input.read(buf).also { read = it } != -1) {
                             output.write(buf, 0, read)
                             downloaded += read
-                            onProgress(downloaded / total)
+                            reportProgress()
                         }
                         output.close()
                         input.close()

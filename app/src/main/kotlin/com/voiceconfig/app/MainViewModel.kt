@@ -888,6 +888,7 @@ class MainViewModel @Inject constructor(
                                     durationMs = msg.durationMs,
                                     thinkingMs = msg.thinkingMs,
                                     outputMs = msg.outputMs,
+                                    ttftMs = msg.ttftMs,
                                     createdAtEpochMillis = System.currentTimeMillis(),
                                 ),
                             )

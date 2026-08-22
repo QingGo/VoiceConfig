@@ -26,6 +26,23 @@ class UiDumpParserTest {
     }
 
     @Test
+    fun `summarize prioritizes interactive nodes and deduplicates`() {
+        val xml = """
+            <node index="0" text="" resource-id="" class="android.widget.FrameLayout" clickable="false" enabled="true" focusable="false" bounds="[0,0][1080,2400]">
+              <node index="1" text="非按钮文字" resource-id="" class="android.widget.TextView" clickable="false" enabled="true" focusable="false" bounds="[0,100][500,200]"/>
+              <node index="2" text="点击我" resource-id="com.example:id/btn" class="android.widget.Button" clickable="true" enabled="true" focusable="true" bounds="[0,300][500,400]"/>
+              <node index="3" text="点击我" resource-id="com.example:id/btn" class="android.widget.Button" clickable="true" enabled="true" focusable="true" bounds="[0,300][500,400]"/>
+            </node>
+        """.trimIndent()
+        val summary = UiDumpParser.summarize(xml, maxNodes = 10)
+        val lines = summary.lines()
+        val firstMeaningful = lines.first { it.contains("点击我") || it.contains("非按钮文字") }
+        assertTrue(firstMeaningful.contains("点击我"))
+        // 完全重复节点只输出一次
+        assertEquals(1, lines.count { it.contains("点击我") })
+    }
+
+    @Test
     fun `summarize keeps only meaningful nodes`() {
         val xml = """
             <node index="0" text="" resource-id="" class="android.widget.FrameLayout" clickable="false" enabled="true" focusable="false" bounds="[0,0][1080,2400]">

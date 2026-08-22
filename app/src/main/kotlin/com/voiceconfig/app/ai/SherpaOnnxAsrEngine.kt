@@ -6,6 +6,7 @@ import android.media.AudioRecord
 import android.media.MediaRecorder
 import android.os.Handler
 import android.os.Looper
+import android.util.Log
 import com.k2fsa.sherpa.onnx.EndpointConfig
 import com.k2fsa.sherpa.onnx.EndpointRule
 import com.k2fsa.sherpa.onnx.FeatureConfig
@@ -40,6 +41,10 @@ class SherpaOnnxAsrEngine(
     private val lock = Any()
     private var recognizer: OnlineRecognizer? = null
     private var currentCancel: (() -> Unit)? = null
+
+    companion object {
+        private const val TIMING_TAG = "VoiceConfigAsrTiming"
+    }
 
     override fun isModelAvailable(): Boolean {
         val required = when (modelKind) {
@@ -100,13 +105,16 @@ class SherpaOnnxAsrEngine(
                     bufferSize,
                 )
                 record.startRecording()
+                val start = System.currentTimeMillis()
                 // 模型初始化可能较慢，但 AudioRecord 已经开始缓存，避免丢失开头。
                 val rec = getRecognizer()
+                val modelReadyAtMs = System.currentTimeMillis()
                 val stream = rec.createStream("")
                 val shortBuf = ShortArray(minBuf)
                 val floatBuf = FloatArray(minBuf)
-                val start = System.currentTimeMillis()
                 var lastEmittedPartial = ""
+                var firstPartialAtMs: Long? = null
+                var endpointAtMs: Long? = null
 
                 while (!stopRequested.get() && System.currentTimeMillis() - start < maxDurationMs) {
                     val read = record.read(shortBuf, 0, shortBuf.size)
@@ -122,10 +130,14 @@ class SherpaOnnxAsrEngine(
                         val text = rec.getResult(stream).text
                         if (text.isNotBlank() && text != lastEmittedPartial) {
                             lastEmittedPartial = text
+                            if (firstPartialAtMs == null) firstPartialAtMs = System.currentTimeMillis()
                             val partial = text
                             mainHandler.post { onPartialResult?.invoke(partial) }
                         }
-                        if (rec.isEndpoint(stream)) break
+                        if (rec.isEndpoint(stream)) {
+                            if (endpointAtMs == null) endpointAtMs = System.currentTimeMillis()
+                            break
+                        }
                     }
                 }
 
@@ -134,6 +146,16 @@ class SherpaOnnxAsrEngine(
                     rec.decode(stream)
                 }
                 val finalText = rec.getResult(stream).text
+                val finishAtMs = System.currentTimeMillis()
+
+                Log.i(
+                    TIMING_TAG,
+                    "streaming total=${finishAtMs - start}ms " +
+                        "modelInit=${modelReadyAtMs - start}ms " +
+                        "firstPartial=${firstPartialAtMs?.minus(start) ?: -1}ms " +
+                        "endpoint=${endpointAtMs?.minus(start) ?: -1}ms " +
+                        "final=$finalText",
+                )
 
                 runCatching { record.stop() }
                 runCatching { record.release() }
@@ -165,8 +187,11 @@ class SherpaOnnxAsrEngine(
     ) {
         Thread {
             try {
+                val requestStart = System.currentTimeMillis()
                 val samples = readWav(wavPath)
+                val readWavMs = System.currentTimeMillis() - requestStart
                 val rec = getRecognizer()
+                val modelInitMs = System.currentTimeMillis() - requestStart - readWavMs
                 val stream = rec.createStream("")
                 stream.acceptWaveform(samples, 16_000)
                 while (rec.isReady(stream)) {
@@ -177,6 +202,11 @@ class SherpaOnnxAsrEngine(
                     rec.decode(stream)
                 }
                 val text = rec.getResult(stream).text
+                val totalMs = System.currentTimeMillis() - requestStart
+                Log.i(
+                    TIMING_TAG,
+                    "file total=${totalMs}ms readWav=${readWavMs}ms modelInit=${modelInitMs}ms text=$text",
+                )
                 stream.release()
                 if (text.isNotBlank()) {
                     mainHandler.post { onResult(text) }

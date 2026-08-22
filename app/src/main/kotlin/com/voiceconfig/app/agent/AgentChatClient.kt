@@ -208,6 +208,7 @@ open class AgentChatClient @Inject constructor(
             return@withContext null
         }
         try {
+            val requestStartMs = System.currentTimeMillis()
             val url = URL("https://api.deepseek.com/chat/completions")
             val conn = url.openConnection() as HttpURLConnection
             try {
@@ -243,6 +244,7 @@ open class AgentChatClient @Inject constructor(
                 }
 
                 val streamStartMs = System.currentTimeMillis()
+                var firstTokenAtMs: Long? = null
                 var reasoningStartedAt: Long? = null
                 var contentStartedAt: Long? = null
                 val content = StringBuilder()
@@ -263,16 +265,19 @@ open class AgentChatClient @Inject constructor(
                         }
                         val delta = choice.optJSONObject("delta") ?: continue
                         delta.optString("reasoning_content").takeIf { it.isNotBlank() && it != "null" }?.let {
+                            if (firstTokenAtMs == null) firstTokenAtMs = System.currentTimeMillis()
                             if (reasoningStartedAt == null) reasoningStartedAt = System.currentTimeMillis()
                             reasoning.append(it)
                             onEvent(AgentStreamEvent.Reasoning(it))
                         }
                         delta.optString("content").takeIf { it.isNotBlank() && it != "null" }?.let {
+                            if (firstTokenAtMs == null) firstTokenAtMs = System.currentTimeMillis()
                             if (contentStartedAt == null) contentStartedAt = System.currentTimeMillis()
                             content.append(it)
                             onEvent(AgentStreamEvent.Content(it))
                         }
                         delta.optJSONArray("tool_calls")?.let { arr ->
+                            if (firstTokenAtMs == null && arr.length() > 0) firstTokenAtMs = System.currentTimeMillis()
                             for (i in 0 until arr.length()) {
                                 val tc = arr.optJSONObject(i) ?: continue
                                 val index = tc.optInt("index", i)
@@ -297,6 +302,7 @@ open class AgentChatClient @Inject constructor(
                     else -> 0
                 }
                 val outputMs = (nowMs - streamStartMs - thinkingMs).coerceAtLeast(0)
+                val ttftMs = (firstTokenAtMs?.minus(requestStartMs) ?: nowMs - requestStartMs).coerceAtLeast(0)
                 val response = AgentChatResponse(
                     content = content.toString().takeIf { it.isNotBlank() },
                     reasoningContent = reasoning.toString().takeIf { it.isNotBlank() },
@@ -304,6 +310,7 @@ open class AgentChatClient @Inject constructor(
                     finishReason = finishReason,
                     thinkingMs = thinkingMs,
                     outputMs = outputMs,
+                    ttftMs = ttftMs,
                 )
                 onEvent(AgentStreamEvent.Done(response))
                 response
@@ -395,6 +402,7 @@ data class AgentMessage(
     val durationMs: Long = 0,
     val thinkingMs: Long = 0,
     val outputMs: Long = 0,
+    val ttftMs: Long = 0,
 )
 
 data class AgentToolCall(
@@ -410,6 +418,7 @@ data class AgentChatResponse(
     val finishReason: String? = null,
     val thinkingMs: Long = 0,
     val outputMs: Long = 0,
+    val ttftMs: Long = 0,
 )
 
 
