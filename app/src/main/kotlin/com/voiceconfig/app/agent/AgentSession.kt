@@ -46,16 +46,18 @@ class AgentSession @Inject constructor(
         userText: String,
         maxRounds: Int = 60,
         skills: List<AgentSkill> = emptyList(),
+        verifyPolicy: AgentVerificationPolicy = AgentVerificationPolicy(),
         onStreamEvent: (AgentStreamEvent) -> Unit = {},
         onMessage: suspend (AgentMessage) -> Unit = {},
         onSensitiveAction: suspend (SensitiveActionRequest) -> Boolean = { false },
         onStep: (AgentStepUi) -> Unit = {},
     ): AgentTurnResult {
-        if (userText.isBlank()) return AgentTurnResult(ok = false, message = "输入为空", toolCalls = emptyList(), history = historySnapshot())
+        if (userText.isBlank()) return AgentTurnResult(ok = false, message = "输入为空", toolCalls = emptyList(), history = historySnapshot(), runId = "")
         cancelled = false
+        val runId = trace.startRun(userText)
         history += AgentMessage("user", userText)
         onMessage(history.last())
-        trace.log("user_input", mapOf("text" to userText))
+        trace.log(runId, "user_input", mapOf("text" to userText))
 
         val systemPrompt = buildSystemPrompt(skills)
         val allToolCalls = mutableListOf<ToolCall>()
@@ -64,18 +66,21 @@ class AgentSession @Inject constructor(
         var latestScreenBase64: String? = null
         var latestScreenWidth: Int? = null
         var latestScreenHeight: Int? = null
+        var autoVerifyCount = 0
+        var lastAutoVerifyAt = 0L
 
         for (round in 0 until maxRounds) {
             latestScreenBase64 = null
             latestScreenWidth = null
             latestScreenHeight = null
             if (cancelled) {
-                trace.log("run_cancelled", mapOf("round" to round))
+                trace.log(runId, "run_cancelled", mapOf("round" to round))
                 history += AgentMessage("assistant", "已停止")
                 onMessage(history.last())
-                return AgentTurnResult(ok = false, message = "已停止", toolCalls = allToolCalls, history = historySnapshot())
+                return AgentTurnResult(ok = false, message = "已停止", toolCalls = allToolCalls, history = historySnapshot(), runId = runId)
             }
             trace.log(
+                runId,
                 "llm_request",
                 mapOf(
                     "round" to round,
@@ -86,10 +91,10 @@ class AgentSession @Inject constructor(
             val response = chatClient.streamWithTools(systemPrompt, pruneImageHistory(historySnapshot()), toolRegistry.tools(), onStreamEvent) ?: run {
                 val detail = chatClient.lastError?.let { "：$it" } ?: ""
                 val error = "模型未返回结果$detail"
-                trace.log("llm_error", mapOf("round" to round, "error" to error))
+                trace.log(runId, "llm_error", mapOf("round" to round, "error" to error))
                 history += AgentMessage("assistant", "执行失败：$error")
                 onMessage(history.last())
-                return AgentTurnResult(ok = false, message = error, toolCalls = allToolCalls, history = historySnapshot())
+                return AgentTurnResult(ok = false, message = error, toolCalls = allToolCalls, history = historySnapshot(), runId = runId)
             }
 
             // 把 assistant 消息（含 reasoning/tool_calls）追加到历史
@@ -102,6 +107,7 @@ class AgentSession @Inject constructor(
             )
             onMessage(history.last())
             trace.log(
+                runId,
                 "llm_response",
                 mapOf(
                     "round" to round,
@@ -115,36 +121,37 @@ class AgentSession @Inject constructor(
             if (cancelled) {
                 history += AgentMessage("assistant", "已停止")
                 onMessage(history.last())
-                return AgentTurnResult(ok = false, message = "已停止", toolCalls = allToolCalls, history = historySnapshot())
+                return AgentTurnResult(ok = false, message = "已停止", toolCalls = allToolCalls, history = historySnapshot(), runId = runId)
             }
 
             if (response.toolCalls.isEmpty()) {
                 if (response.finishReason == "tool_calls") {
                     val error = "模型声明需要调用工具，但未返回工具参数"
-                    trace.log("llm_error", mapOf("round" to round, "error" to error))
+                    trace.log(runId, "llm_error", mapOf("round" to round, "error" to error))
                     history += AgentMessage("assistant", "执行失败：$error")
                     onMessage(history.last())
-                    return AgentTurnResult(ok = false, message = error, toolCalls = allToolCalls, history = historySnapshot())
+                    return AgentTurnResult(ok = false, message = error, toolCalls = allToolCalls, history = historySnapshot(), runId = runId)
                 }
                 val finalText = assistantContent.ifBlank { "（无文本回复）" }
-                trace.log("run_finished", mapOf("ok" to true, "message" to finalText, "tool_call_count" to allToolCalls.size))
+                trace.log(runId, "run_finished", mapOf("ok" to true, "message" to finalText, "tool_call_count" to allToolCalls.size))
                 return AgentTurnResult(
                     ok = true,
                     message = finalText,
                     toolCalls = allToolCalls,
                     history = historySnapshot(),
+                    runId = runId,
                 )
             }
 
             for (toolCall in response.toolCalls) {
                 if (cancelled) {
                     history += AgentMessage("assistant", "已停止")
-                    return AgentTurnResult(ok = false, message = "已停止", toolCalls = allToolCalls, history = historySnapshot())
+                    return AgentTurnResult(ok = false, message = "已停止", toolCalls = allToolCalls, history = historySnapshot(), runId = runId)
                 }
                 val tool = toolRegistry.get(toolCall.name)
                 if (tool == null) {
                     val errMsg = "未知工具：${toolCall.name}"
-                    trace.log("tool_error", mapOf("tool" to toolCall.name, "error" to errMsg))
+                    trace.log(runId, "tool_error", mapOf("tool" to toolCall.name, "error" to errMsg))
                     history += AgentMessage(
                         role = "tool",
                         content = errMsg,
@@ -166,24 +173,26 @@ class AgentSession @Inject constructor(
                 onStep(
                     AgentStepUi(
                         index = stepIndex,
+                        runId = runId,
                         toolName = toolCall.name,
                         argsText = args.toString(),
                         status = AgentStepStatus.RUNNING,
                     ),
                 )
                 val sensitiveRequest = SensitiveActionRequest(tool.name, args)
-                if (safety.requiresConfirmation(tool.name, args) && !onSensitiveAction(sensitiveRequest)) {
+                if (safety.requiresConfirmation(tool, args) && !onSensitiveAction(sensitiveRequest)) {
                     val declined = "用户未确认敏感操作，已取消：${safety.describe(tool.name, args)}"
                     onStep(
                         AgentStepUi(
                             index = stepIndex,
+                            runId = runId,
                             toolName = toolCall.name,
                             argsText = args.toString(),
                             status = AgentStepStatus.DECLINED,
                             message = declined,
                         ),
                     )
-                    trace.log("tool_declined", mapOf("tool" to toolCall.name, "args" to args, "reason" to "user_denied"))
+                    trace.log(runId, "tool_declined", mapOf("tool" to toolCall.name, "args" to args, "reason" to "user_denied"))
                     history += AgentMessage(
                         role = "tool",
                         content = declined,
@@ -201,12 +210,13 @@ class AgentSession @Inject constructor(
                     )
                     continue
                 }
-                trace.log("tool_call", mapOf("tool" to toolCall.name, "args" to args))
+                trace.log(runId, "tool_call", mapOf("tool" to toolCall.name, "args" to args))
                 val result = runCatching { tool.execute(args) }
                     .getOrElse { ToolResult.failure(it.message ?: it.javaClass.simpleName) }
                 onStep(
                     AgentStepUi(
                         index = stepIndex,
+                        runId = runId,
                         toolName = toolCall.name,
                         argsText = args.toString(),
                         status = if (result.ok) AgentStepStatus.SUCCESS else AgentStepStatus.FAILED,
@@ -215,6 +225,7 @@ class AgentSession @Inject constructor(
                 )
                 if (result.ok) consecutiveFailures = 0 else consecutiveFailures++
                 trace.log(
+                runId,
                     "tool_result",
                     mapOf(
                         "tool" to toolCall.name,
@@ -242,26 +253,33 @@ class AgentSession @Inject constructor(
                     latestScreenBase64 = image
                     latestScreenWidth = (result.data["width"] as? Number)?.toInt()
                     latestScreenHeight = (result.data["height"] as? Number)?.toInt()
-                    val path = trace.saveScreenshot(image, toolCall.name)
-                    trace.log("image_seen", mapOf("tool" to toolCall.name, "path" to path, "base64_length" to image.length))
+                    val path = trace.saveScreenshot(runId, image, toolCall.name)
+                    trace.log(runId, "image_seen", mapOf("tool" to toolCall.name, "path" to path, "base64_length" to image.length))
                 }
 
-                // Phase 0 动作验证循环：对改变界面的操作自动截屏，模型下一轮会看到执行后的真实屏幕。
-                if (result.data["image_base64"] == null && shouldAutoVerify(toolCall.name)) {
+                // Phase 1.5 动作验证循环：按工具元数据 + 成本策略自动截屏。
+                if (result.data["image_base64"] == null &&
+                    tool.metadata.requiresAutoVerify &&
+                    verifyPolicy.enabled &&
+                    autoVerifyCount < verifyPolicy.maxPerRun &&
+                    System.currentTimeMillis() - lastAutoVerifyAt >= verifyPolicy.minIntervalMs
+                ) {
+                    autoVerifyCount++
+                    lastAutoVerifyAt = System.currentTimeMillis()
                     val verify = runCatching { toolRegistry.get("read_screen")?.execute(emptyMap()) }.getOrNull()
                     val verifyImage = verify?.data?.get("image_base64") as? String
                     if (verify?.ok == true && !verifyImage.isNullOrBlank()) {
                         latestScreenBase64 = verifyImage
                         latestScreenWidth = (verify.data["width"] as? Number)?.toInt()
                         latestScreenHeight = (verify.data["height"] as? Number)?.toInt()
-                        val path = trace.saveScreenshot(verifyImage, "auto_verify_${toolCall.name}")
-                        trace.log("auto_verify", mapOf("tool" to toolCall.name, "path" to path, "base64_length" to verifyImage.length))
+                        val path = trace.saveScreenshot(runId, verifyImage, "auto_verify_${toolCall.name}")
+                        trace.log(runId, "auto_verify", mapOf("tool" to toolCall.name, "path" to path, "base64_length" to verifyImage.length))
                     }
                 }
 
                 if (cancelled) {
                     history += AgentMessage("assistant", "已停止")
-                    return AgentTurnResult(ok = false, message = "已停止", toolCalls = allToolCalls, history = historySnapshot())
+                    return AgentTurnResult(ok = false, message = "已停止", toolCalls = allToolCalls, history = historySnapshot(), runId = runId)
                 }
             }
 
@@ -290,12 +308,13 @@ class AgentSession @Inject constructor(
             val status = if (step.result.ok) "✅" else "❌"
             "$status ${step.call.tool}(${step.call.args}) -> ${step.result.message}"
         }
-        trace.log("run_finished", mapOf("ok" to allSteps.all { it.result.ok }, "message" to summary.ifBlank { "达到最大轮数" }, "tool_call_count" to allToolCalls.size))
+        trace.log(runId, "run_finished", mapOf("ok" to allSteps.all { it.result.ok }, "message" to summary.ifBlank { "达到最大轮数" }, "tool_call_count" to allToolCalls.size))
         return AgentTurnResult(
             ok = allSteps.all { it.result.ok },
             message = summary.ifBlank { "达到最大轮数" },
             toolCalls = allToolCalls,
             history = historySnapshot(),
+            runId = runId,
         )
     }
 
@@ -322,12 +341,6 @@ class AgentSession @Inject constructor(
                 else -> append(ch)
             }
         }
-    }
-
-    private fun shouldAutoVerify(toolName: String): Boolean = toolName in AUTO_VERIFY_TOOLS
-
-    private companion object {
-        val AUTO_VERIFY_TOOLS = setOf("tap", "tap_text", "input_text", "press_key", "swipe", "open_app", "run_shell")
     }
 
     private fun pruneImageHistory(messages: List<AgentMessage>): List<AgentMessage> {
@@ -381,6 +394,7 @@ data class AgentTurnResult(
     val message: String,
     val toolCalls: List<ToolCall>,
     val history: List<AgentMessage>,
+    val runId: String = "",
 )
 
 
@@ -390,6 +404,7 @@ data class AgentStepUi(
     val argsText: String,
     val status: AgentStepStatus,
     val message: String = "",
+    val runId: String = "",
 )
 
 enum class AgentStepStatus {
@@ -398,3 +413,9 @@ enum class AgentStepStatus {
     FAILED,
     DECLINED,
 }
+
+data class AgentVerificationPolicy(
+    val enabled: Boolean = true,
+    val maxPerRun: Int = 4,
+    val minIntervalMs: Long = 1_500,
+)

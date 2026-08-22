@@ -12,7 +12,7 @@ import org.junit.Test
 class VoiceConfigMigrationTest {
 
     @Test
-    fun `migrations from v1 to v7 create expected columns`() {
+    fun `migrations from v1 to v8 create expected columns`() {
         val conn = DriverManager.getConnection("jdbc:sqlite::memory:")
         try {
             createV1Schema(conn)
@@ -23,6 +23,7 @@ class VoiceConfigMigrationTest {
             VoiceConfigDatabase.MIGRATION_4_5.migrate(db)
             VoiceConfigDatabase.MIGRATION_5_6.migrate(db)
             VoiceConfigDatabase.MIGRATION_6_7.migrate(db)
+        VoiceConfigDatabase.MIGRATION_7_8.migrate(db)
 
             assertTrue(columns(conn, "tasks").containsAll(setOf("id", "rawText", "title", "enabled", "scheduleType", "time", "date", "daysOfWeek", "intervalMinutes", "actionType", "targetPackage", "targetActivity", "deepLink", "executionMode", "nextRunAtEpochMillis", "createdAtEpochMillis", "updatedAtEpochMillis")))
             assertTrue(columns(conn, "execution_logs").containsAll(setOf("id", "taskId", "scheduledAtEpochMillis", "startedAtEpochMillis", "finishedAtEpochMillis", "status", "executionMode", "errorCode", "message", "agentSessionId")))
@@ -34,6 +35,7 @@ class VoiceConfigMigrationTest {
             assertTrue(columns(conn, "agent_sessions").containsAll(setOf("id", "title", "createdAtEpochMillis", "updatedAtEpochMillis", "messageCount")))
             assertTrue(columns(conn, "agent_messages").containsAll(setOf("id", "sessionId", "role", "content", "toolName", "toolArgs", "toolResultOk", "toolCallId", "toolCallsJson", "reasoningContent", "createdAtEpochMillis")))
             assertTrue(columns(conn, "task_events").containsAll(setOf("id", "taskId", "agentSessionId", "eventType", "rawText", "summary", "createdAtEpochMillis")))
+            assertTrue(columns(conn, "agent_steps").containsAll(setOf("id", "sessionId", "runId", "stepIndex", "toolName", "argsText", "status", "message", "createdAtEpochMillis", "updatedAtEpochMillis")))
 
             // 旧表不应因迁移而消失
             assertFalse(columns(conn, "tasks").isEmpty())

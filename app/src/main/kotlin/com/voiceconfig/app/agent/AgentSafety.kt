@@ -8,6 +8,11 @@ package com.voiceconfig.app.agent
  */
 class AgentSafety {
 
+    fun requiresConfirmation(tool: AgentTool, args: Map<String, Any?>): Boolean {
+        if (tool.metadata.sensitive) return true
+        return requiresConfirmation(tool.name, args)
+    }
+
     fun requiresConfirmation(toolName: String, args: Map<String, Any?>): Boolean {
         val text = buildString {
             args.values.forEach { value ->
@@ -16,7 +21,7 @@ class AgentSafety {
         }
         return when (toolName) {
             "run_shell", "file_write", "press_key" -> true
-            "tap_text", "tap", "press_key", "input_text", "swipe" ->
+            "tap_text", "tap", "input_text", "swipe", "open_app", "open_file" ->
                 SENSITIVE_KEYWORDS.any { text.contains(it, ignoreCase = true) }
             else -> false
         }

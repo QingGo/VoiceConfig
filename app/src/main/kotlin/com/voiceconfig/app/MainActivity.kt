@@ -192,6 +192,9 @@ fun MainScreen(viewModel: MainViewModel) {
     val agentDeepSeekThinkingEnabled by viewModel.agentDeepSeekThinkingEnabled.collectAsState()
     val agentDeepSeekReasoningEffort by viewModel.agentDeepSeekReasoningEffort.collectAsState()
     val agentAutoConfirmSensitiveActions by viewModel.agentAutoConfirmSensitiveActions.collectAsState()
+    val agentAutoVerifyEnabled by viewModel.agentAutoVerifyEnabled.collectAsState()
+    val agentMaxAutoVerifies by viewModel.agentMaxAutoVerifies.collectAsState()
+    val agentSkills by viewModel.agentSkills.collectAsState()
     val pendingAgentConfirmation by viewModel.pendingAgentConfirmation.collectAsState()
     val aiDebugLogs by viewModel.aiDebugLogs.collectAsState()
     val triggerRules by viewModel.triggerRules.collectAsState()
@@ -211,6 +214,8 @@ fun MainScreen(viewModel: MainViewModel) {
     var draftAgentThinkingEnabled by remember { mutableStateOf(true) }
     var draftAgentReasoningEffort by remember { mutableStateOf("max") }
     var draftAgentAutoConfirmSensitiveActions by remember { mutableStateOf(false) }
+    var draftAgentAutoVerifyEnabled by remember { mutableStateOf(true) }
+    var draftAgentMaxAutoVerifies by remember { mutableStateOf(4) }
     var showAgentPage by remember { mutableStateOf(false) }
     var agentInitialTab by remember { mutableIntStateOf(0) }
     var agentTabIndex by remember { mutableIntStateOf(0) }
@@ -511,6 +516,8 @@ fun MainScreen(viewModel: MainViewModel) {
                             draftAgentThinkingEnabled = agentDeepSeekThinkingEnabled
                             draftAgentReasoningEffort = agentDeepSeekReasoningEffort
                             draftAgentAutoConfirmSensitiveActions = agentAutoConfirmSensitiveActions
+                            draftAgentAutoVerifyEnabled = agentAutoVerifyEnabled
+                            draftAgentMaxAutoVerifies = agentMaxAutoVerifies
                         },
                         onOpenAgent = {
                             agentInitialTab = 0
@@ -582,6 +589,7 @@ fun MainScreen(viewModel: MainViewModel) {
                         sessions = agentSessions,
                         messages = agentMessages,
                         agentSteps = agentSteps,
+                        agentSkills = agentSkills,
                         taskEvents = taskEvents,
                         recentLogs = recentLogs,
                         tasks = tasks,
@@ -613,6 +621,9 @@ fun MainScreen(viewModel: MainViewModel) {
                         onRenameSession = viewModel::renameAgentSession,
                         onDeleteSession = viewModel::deleteAgentSession,
                         onClearSession = viewModel::clearAgentSession,
+                        onApproveSkill = viewModel::approveAgentSkill,
+                        onRejectSkill = viewModel::rejectAgentSkill,
+                        onDeleteSkill = viewModel::deleteAgentSkill,
                         onOpenTask = { taskId ->
                             scope.launch { pagerState.animateScrollToPage(0) }
                         },
@@ -789,6 +800,39 @@ fun MainScreen(viewModel: MainViewModel) {
                             checked = draftAgentAutoConfirmSensitiveActions,
                             onCheckedChange = { draftAgentAutoConfirmSensitiveActions = it },
                         )
+                    }
+                    HorizontalDivider()
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(text = "自动截屏验证", style = MaterialTheme.typography.bodyLarge)
+                            Text(
+                                text = "开启后每次改变界面的工具执行后自动截屏确认；可限制每次运行最大次数以控制成本",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                        Switch(
+                            checked = draftAgentAutoVerifyEnabled,
+                            onCheckedChange = { draftAgentAutoVerifyEnabled = it },
+                        )
+                    }
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            text = "每次最多自动验证次数",
+                            style = MaterialTheme.typography.bodyMedium,
+                            modifier = Modifier.weight(1f),
+                        )
+                        TextButton(onClick = { draftAgentMaxAutoVerifies = (draftAgentMaxAutoVerifies - 1).coerceAtLeast(0) }) {
+                            Text("-")
+                        }
+                        Text(
+                            text = draftAgentMaxAutoVerifies.toString(),
+                            style = MaterialTheme.typography.bodyMedium,
+                            modifier = Modifier.padding(horizontal = 12.dp),
+                        )
+                        TextButton(onClick = { draftAgentMaxAutoVerifies = (draftAgentMaxAutoVerifies + 1).coerceAtMost(20) }) {
+                            Text("+")
+                        }
                     }
                     HorizontalDivider()
                     var showDebugSection by remember { mutableStateOf(false) }
@@ -1090,6 +1134,8 @@ fun MainScreen(viewModel: MainViewModel) {
                         viewModel.setAgentDeepSeekThinkingEnabled(draftAgentThinkingEnabled)
                         viewModel.setAgentDeepSeekReasoningEffort(draftAgentReasoningEffort)
                         viewModel.setAgentAutoConfirmSensitiveActions(draftAgentAutoConfirmSensitiveActions)
+                        viewModel.setAgentAutoVerifyEnabled(draftAgentAutoVerifyEnabled)
+                        viewModel.setAgentMaxAutoVerifies(draftAgentMaxAutoVerifies)
                         showAiSettings = false
                     },
                 ) {

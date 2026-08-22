@@ -6,6 +6,7 @@ import androidx.room.TypeConverters
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 import com.voiceconfig.data.local.dao.AgentMessageDao
+import com.voiceconfig.data.local.dao.AgentStepDao
 import com.voiceconfig.data.local.dao.AgentSessionDao
 import com.voiceconfig.data.local.dao.AiDebugLogDao
 import com.voiceconfig.data.local.dao.AppAliasDao
@@ -15,6 +16,7 @@ import com.voiceconfig.data.local.dao.TriggerRuleDao
 import com.voiceconfig.data.local.dao.TemplateDao
 import com.voiceconfig.data.local.dao.TaskEventDao
 import com.voiceconfig.data.local.entity.AgentMessageEntity
+import com.voiceconfig.data.local.entity.AgentStepEntity
 import com.voiceconfig.data.local.entity.AgentSessionEntity
 import com.voiceconfig.data.local.entity.AiDebugLogEntity
 import com.voiceconfig.data.local.entity.AppAliasEntity
@@ -35,9 +37,10 @@ import com.voiceconfig.data.local.entity.TriggerRuleEntity
         TriggerRuleEntity::class,
         AgentSessionEntity::class,
         AgentMessageEntity::class,
+        AgentStepEntity::class,
         TaskEventEntity::class,
     ],
-    version = 7,
+    version = 8,
     exportSchema = false,
 )
 abstract class VoiceConfigDatabase : RoomDatabase() {
@@ -49,6 +52,7 @@ abstract class VoiceConfigDatabase : RoomDatabase() {
     abstract fun triggerRuleDao(): TriggerRuleDao
     abstract fun agentSessionDao(): AgentSessionDao
     abstract fun agentMessageDao(): AgentMessageDao
+    abstract fun agentStepDao(): AgentStepDao
     abstract fun taskEventDao(): TaskEventDao
 
     companion object {
@@ -176,6 +180,30 @@ abstract class VoiceConfigDatabase : RoomDatabase() {
         val MIGRATION_6_7 = object : Migration(6, 7) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL("ALTER TABLE `agent_messages` ADD COLUMN `reasoningContent` TEXT")
+            }
+        }
+
+        val MIGRATION_7_8 = object : Migration(7, 8) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS `agent_steps` (
+                        `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        `sessionId` INTEGER NOT NULL,
+                        `runId` TEXT NOT NULL,
+                        `stepIndex` INTEGER NOT NULL,
+                        `toolName` TEXT NOT NULL,
+                        `argsText` TEXT NOT NULL,
+                        `status` TEXT NOT NULL,
+                        `message` TEXT NOT NULL,
+                        `createdAtEpochMillis` INTEGER NOT NULL,
+                        `updatedAtEpochMillis` INTEGER NOT NULL,
+                        FOREIGN KEY(`sessionId`) REFERENCES `agent_sessions`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE
+                    )
+                    """.trimIndent(),
+                )
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_agent_steps_sessionId` ON `agent_steps` (`sessionId`)")
+                db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_agent_steps_session_runId_stepIndex` ON `agent_steps` (`sessionId`, `runId`, `stepIndex`)")
             }
         }
     }

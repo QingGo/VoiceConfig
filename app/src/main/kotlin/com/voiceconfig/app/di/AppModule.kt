@@ -24,6 +24,7 @@ import com.voiceconfig.core.scheduler.NextRunCalculator
 import com.voiceconfig.core.scheduler.TaskScheduler
 import com.voiceconfig.data.local.VoiceConfigDatabase
 import com.voiceconfig.data.local.dao.AgentMessageDao
+import com.voiceconfig.data.local.dao.AgentStepDao
 import com.voiceconfig.data.local.dao.AgentSessionDao
 import com.voiceconfig.data.local.dao.AiDebugLogDao
 import com.voiceconfig.data.local.dao.AppAliasDao
@@ -63,7 +64,7 @@ object AppModule {
             VoiceConfigDatabase::class.java,
             "voice_config.db",
         )
-            .addMigrations(VoiceConfigDatabase.MIGRATION_1_2, VoiceConfigDatabase.MIGRATION_2_3, VoiceConfigDatabase.MIGRATION_3_4, VoiceConfigDatabase.MIGRATION_4_5, VoiceConfigDatabase.MIGRATION_5_6, VoiceConfigDatabase.MIGRATION_6_7)
+            .addMigrations(VoiceConfigDatabase.MIGRATION_1_2, VoiceConfigDatabase.MIGRATION_2_3, VoiceConfigDatabase.MIGRATION_3_4, VoiceConfigDatabase.MIGRATION_4_5, VoiceConfigDatabase.MIGRATION_5_6, VoiceConfigDatabase.MIGRATION_6_7, VoiceConfigDatabase.MIGRATION_7_8)
             .build()
 
     @Provides
@@ -86,6 +87,9 @@ object AppModule {
 
     @Provides
     fun provideAgentMessageDao(database: VoiceConfigDatabase): AgentMessageDao = database.agentMessageDao()
+
+    @Provides
+    fun provideAgentStepDao(database: VoiceConfigDatabase): AgentStepDao = database.agentStepDao()
 
     @Provides
     fun provideTaskEventDao(database: VoiceConfigDatabase): TaskEventDao = database.taskEventDao()
@@ -128,10 +132,12 @@ object AppModule {
         agentSessionDao: AgentSessionDao,
         agentMessageDao: AgentMessageDao,
         taskEventDao: TaskEventDao,
+        agentStepDao: AgentStepDao,
     ): AgentHistoryRepository = OfflineAgentHistoryRepository(
         sessionDao = agentSessionDao,
         messageDao = agentMessageDao,
         taskEventDao = taskEventDao,
+        stepDao = agentStepDao,
     )
 
     @Provides

@@ -7,8 +7,9 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 private object NoOpTrace : AgentTrace {
-    override fun log(type: String, data: Map<String, Any?>) {}
-    override fun saveScreenshot(base64: String, label: String): String = ""
+    override fun startRun(userText: String): String = "test-run"
+    override fun log(runId: String, type: String, data: Map<String, Any?>) {}
+    override fun saveScreenshot(runId: String, base64: String, label: String): String = ""
 }
 
 class AgentSessionTest {
@@ -136,4 +137,95 @@ class AgentSessionTest {
             secondRequest?.any { it.role == "user" && it.imageBase64 == "iVBORw0KGgo=" } == true,
         )
     }
+
+    @Test
+    fun `auto verification respects max per run and runId is propagated`() = runBlocking {
+        var screenExecutions = 0
+        val screenTool = object : AgentTool {
+            override val name: String = "read_screen"
+            override val description: String = "screen"
+            override suspend fun execute(args: Map<String, Any?>): ToolResult {
+                screenExecutions++
+                return ToolResult.success("ok", mapOf("image_base64" to "iVBORw0KGgo="))
+            }
+        }
+        val tapTool = object : AgentTool {
+            override val name: String = "tap"
+            override val description: String = "tap"
+            override val metadata: AgentToolMetadata
+                get() = AgentToolMetadata(risk = ToolRisk.MEDIUM, mutatesUi = true, requiresAutoVerify = true)
+            override suspend fun execute(args: Map<String, Any?>): ToolResult =
+                ToolResult.success("tapped", emptyMap())
+        }
+        val registry = ToolRegistry().register(tapTool).register(screenTool)
+        val client = FakeToolChatClient(
+            listOf(
+                AgentChatResponse(
+                    content = null,
+                    reasoningContent = null,
+                    toolCalls = listOf(
+                        AgentToolCall("call1", "tap", "{}"),
+                        AgentToolCall("call2", "tap", "{}"),
+                    ),
+                ),
+                AgentChatResponse(content = "完成", reasoningContent = null, toolCalls = emptyList()),
+            ),
+        )
+        var steps = mutableListOf<AgentStepUi>()
+        val session = AgentSession(registry, client, NoOpTrace).apply {
+            argumentParser = { emptyMap() }
+        }
+        val result = session.send(
+            "点两次",
+            verifyPolicy = AgentVerificationPolicy(enabled = true, maxPerRun = 1, minIntervalMs = 0),
+            onStep = { steps += it },
+        )
+        assertTrue(result.ok)
+        assertEquals(2, result.toolCalls.size)
+        assertEquals(1, screenExecutions)
+        assertEquals("test-run", result.runId)
+        assertTrue(steps.all { it.runId == "test-run" })
+    }
+
+    @Test
+    fun `auto verification can be disabled`() = runBlocking {
+        var screenExecutions = 0
+        val screenTool = object : AgentTool {
+            override val name: String = "read_screen"
+            override val description: String = "screen"
+            override suspend fun execute(args: Map<String, Any?>): ToolResult {
+                screenExecutions++
+                return ToolResult.success("ok", mapOf("image_base64" to "iVBORw0KGgo="))
+            }
+        }
+        val tapTool = object : AgentTool {
+            override val name: String = "tap"
+            override val description: String = "tap"
+            override val metadata: AgentToolMetadata
+                get() = AgentToolMetadata(mutatesUi = true, requiresAutoVerify = true)
+            override suspend fun execute(args: Map<String, Any?>): ToolResult =
+                ToolResult.success("tapped", emptyMap())
+        }
+        val registry = ToolRegistry().register(tapTool).register(screenTool)
+        val client = FakeToolChatClient(
+            listOf(
+                AgentChatResponse(
+                    content = null,
+                    reasoningContent = null,
+                    toolCalls = listOf(AgentToolCall("call1", "tap", "{}")),
+                ),
+                AgentChatResponse(content = "完成", reasoningContent = null, toolCalls = emptyList()),
+            ),
+        )
+        val session = AgentSession(registry, client, NoOpTrace).apply {
+            argumentParser = { emptyMap() }
+        }
+        val result = session.send(
+            "点一次",
+            verifyPolicy = AgentVerificationPolicy(enabled = false),
+        )
+        assertTrue(result.ok)
+        assertEquals(0, screenExecutions)
+    }
+
 }

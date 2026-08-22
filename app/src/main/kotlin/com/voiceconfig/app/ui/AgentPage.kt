@@ -55,6 +55,8 @@ import com.voiceconfig.core.model.Task
 import com.voiceconfig.data.local.entity.AgentMessageEntity
 import com.voiceconfig.data.local.entity.AgentSessionEntity
 import com.voiceconfig.data.local.entity.TaskEventEntity
+import com.voiceconfig.app.agent.AgentSkill
+import com.voiceconfig.app.agent.AgentSkillStatus
 import com.voiceconfig.app.agent.AgentStepUi
 import com.voiceconfig.app.agent.AgentStepStatus
 import java.time.Instant
@@ -72,6 +74,7 @@ fun AgentPage(
     sessions: List<AgentSessionEntity>,
     messages: List<AgentMessageEntity>,
     agentSteps: List<AgentStepUi> = emptyList(),
+    agentSkills: List<AgentSkill> = emptyList(),
     taskEvents: List<TaskEventEntity>,
     recentLogs: List<ExecutionLog>,
     tasks: List<Task>,
@@ -95,10 +98,14 @@ fun AgentPage(
     onRenameSession: (Long, String) -> Unit,
     onDeleteSession: (Long) -> Unit,
     onClearSession: (Long) -> Unit,
+    onApproveSkill: (String) -> Unit = {},
+    onRejectSkill: (String) -> Unit = {},
+    onDeleteSkill: (String) -> Unit = {},
     onOpenTask: (Long) -> Unit = {},
 ) {
     var showAgentThinking by remember { mutableStateOf(false) }
     var showSessionHistory by remember { mutableStateOf(false) }
+    var showSkills by remember { mutableStateOf(false) }
 
     BackHandler(onBack = onBack)
 
@@ -129,6 +136,9 @@ fun AgentPage(
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
+            }
+            TextButton(onClick = { showSkills = true }) {
+                Text("技能")
             }
             TextButton(onClick = { showAgentThinking = true }) {
                 Text("思维")
@@ -237,6 +247,16 @@ fun AgentPage(
         )
     }
 
+    if (showSkills) {
+        SkillLibraryDialog(
+            skills = agentSkills,
+            onDismiss = { showSkills = false },
+            onApprove = onApproveSkill,
+            onReject = onRejectSkill,
+            onDelete = onDeleteSkill,
+        )
+    }
+
     if (showSessionHistory) {
         SessionHistoryDialog(
             sessions = sessions,
@@ -248,6 +268,88 @@ fun AgentPage(
             },
         )
     }
+}
+
+@Composable
+private fun SkillLibraryDialog(
+    skills: List<AgentSkill>,
+    onDismiss: () -> Unit,
+    onApprove: (String) -> Unit,
+    onReject: (String) -> Unit,
+    onDelete: (String) -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("技能库审核") },
+        text = {
+            if (skills.isEmpty()) {
+                Text("暂无技能。成功完成 Agent 任务后会自动沉淀为待审核技能。")
+            } else {
+                LazyColumn(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    items(skills, key = { it.id }) { skill ->
+                        Card(modifier = Modifier.fillMaxWidth()) {
+                            Column(Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Text(
+                                        text = skill.text,
+                                        style = MaterialTheme.typography.bodyLarge,
+                                        modifier = Modifier.weight(1f),
+                                    )
+                                    Text(
+                                        text = when (skill.status) {
+                                            AgentSkillStatus.APPROVED -> "已通过"
+                                            AgentSkillStatus.PENDING -> "待审核"
+                                            AgentSkillStatus.REJECTED -> "已拒绝"
+                                        },
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = when (skill.status) {
+                                            AgentSkillStatus.APPROVED -> MaterialTheme.colorScheme.primary
+                                            AgentSkillStatus.PENDING -> MaterialTheme.colorScheme.tertiary
+                                            AgentSkillStatus.REJECTED -> MaterialTheme.colorScheme.error
+                                        },
+                                    )
+                                }
+                                Text(
+                                    text = "${skill.steps.size} 步 · 成功 ${skill.successCount} 次 · 使用 ${skill.useCount} 次",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                                Text(
+                                    text = skill.steps.joinToString(" → ") { "${it.toolName}(${it.args.take(40)})" }.take(160),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    maxLines = 3,
+                                )
+                                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                                    if (skill.status != AgentSkillStatus.APPROVED) {
+                                        TextButton(onClick = { onApprove(skill.id) }) {
+                                            Text("通过")
+                                        }
+                                    }
+                                    if (skill.status != AgentSkillStatus.REJECTED) {
+                                        TextButton(onClick = { onReject(skill.id) }) {
+                                            Text("拒绝")
+                                        }
+                                    }
+                                    TextButton(onClick = { onDelete(skill.id) }) {
+                                        Text("删除", color = MaterialTheme.colorScheme.error)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text("关闭")
+            }
+        },
+    )
 }
 
 @Composable
@@ -311,6 +413,9 @@ private fun ConversationTab(
     onRenameSession: (Long, String) -> Unit,
     onDeleteSession: (Long) -> Unit,
     onClearSession: (Long) -> Unit,
+    onApproveSkill: (String) -> Unit = {},
+    onRejectSkill: (String) -> Unit = {},
+    onDeleteSkill: (String) -> Unit = {},
     onOpenTask: (Long) -> Unit = {},
 ) {
     var menuFor by remember { mutableStateOf<Long?>(null) }

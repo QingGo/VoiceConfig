@@ -26,7 +26,11 @@ import com.voiceconfig.core.scheduler.TaskScheduler
 import com.voiceconfig.app.agent.AgentMessage
 import com.voiceconfig.app.agent.AgentStreamEvent
 import com.voiceconfig.app.agent.AgentSession
+import com.voiceconfig.app.agent.AgentSkill
+import com.voiceconfig.app.agent.AgentSkillStatus
 import com.voiceconfig.app.agent.AgentSkillStore
+import com.voiceconfig.app.agent.AgentVerificationPolicy
+import com.voiceconfig.app.agent.AgentStepStatus
 import com.voiceconfig.app.agent.AgentStepUi
 import com.voiceconfig.app.agent.SensitiveActionRequest
 import com.voiceconfig.app.ai.ApiKeyStore
@@ -35,6 +39,7 @@ import com.voiceconfig.app.scheduler.TriggerRuleScheduler
 import com.voiceconfig.app.di.UserAliasRegistry
 import com.voiceconfig.data.local.entity.AgentMessageEntity
 import com.voiceconfig.data.local.entity.AgentSessionEntity
+import com.voiceconfig.data.local.entity.AgentStepEntity
 import com.voiceconfig.data.local.entity.AiDebugLogEntity
 import com.voiceconfig.data.local.entity.TaskEventEntity
 import com.voiceconfig.data.local.repository.AgentHistoryRepository
@@ -188,11 +193,19 @@ class MainViewModel @Inject constructor(
     private val _agentAutoConfirmSensitiveActions = MutableStateFlow(apiKeyStore.agentAutoConfirmSensitiveActions)
     val agentAutoConfirmSensitiveActions: StateFlow<Boolean> = _agentAutoConfirmSensitiveActions.asStateFlow()
 
+    private val _agentAutoVerifyEnabled = MutableStateFlow(apiKeyStore.agentAutoVerifyEnabled)
+    val agentAutoVerifyEnabled: StateFlow<Boolean> = _agentAutoVerifyEnabled.asStateFlow()
+
+    private val _agentMaxAutoVerifies = MutableStateFlow(apiKeyStore.agentMaxAutoVerifies)
+    val agentMaxAutoVerifies: StateFlow<Int> = _agentMaxAutoVerifies.asStateFlow()
+
     private val _pendingAgentConfirmation = MutableStateFlow<PendingAgentConfirmation?>(null)
     val pendingAgentConfirmation: StateFlow<PendingAgentConfirmation?> = _pendingAgentConfirmation.asStateFlow()
 
     private val _agentSteps = MutableStateFlow<List<AgentStepUi>>(emptyList())
     val agentSteps: StateFlow<List<AgentStepUi>> = _agentSteps.asStateFlow()
+
+    val agentSkills: StateFlow<List<AgentSkill>> = agentSkillStore.observeSkills()
 
     fun onInputChange(value: String) {
         _uiState.update {
@@ -668,6 +681,7 @@ class MainViewModel @Inject constructor(
             viewModelScope.launch {
                 val messages = repairToolCallIds(agentHistoryRepository.getMessages(latest))
                 agentSession.restore(messages.map { it.toAgentMessage() })
+                _agentSteps.value = agentHistoryRepository.getSteps(latest).map { it.toAgentStepUi() }
             }
         }
     }
@@ -678,6 +692,7 @@ class MainViewModel @Inject constructor(
         viewModelScope.launch {
             val messages = repairToolCallIds(agentHistoryRepository.getMessages(sessionId))
             agentSession.restore(messages.map { it.toAgentMessage() })
+            _agentSteps.value = agentHistoryRepository.getSteps(sessionId).map { it.toAgentStepUi() }
         }
     }
 
@@ -719,7 +734,9 @@ class MainViewModel @Inject constructor(
     fun clearAgentSession(sessionId: Long) {
         viewModelScope.launch {
             agentHistoryRepository.clearMessages(sessionId)
+            agentHistoryRepository.clearSteps(sessionId)
             if (_selectedAgentSessionId.value == sessionId) {
+                _agentSteps.value = emptyList()
                 agentSession.clear()
             }
         }
@@ -746,9 +763,14 @@ class MainViewModel @Inject constructor(
                 }
                 val targetSessionId: Long = sessionId
                 val relevantSkills = agentSkillStore.relevant(text)
+                val verifyPolicy = AgentVerificationPolicy(
+                    enabled = apiKeyStore.agentAutoVerifyEnabled,
+                    maxPerRun = apiKeyStore.agentMaxAutoVerifies,
+                )
                 val result = agentSession.send(
                     text,
                     skills = relevantSkills,
+                    verifyPolicy = verifyPolicy,
                     onSensitiveAction = { request -> confirmSensitiveAction(request) },
                     onStep = { step ->
                         _agentSteps.update { current ->
@@ -757,6 +779,23 @@ class MainViewModel @Inject constructor(
                                 current.toMutableList().apply { set(index, step) }
                             } else {
                                 current + step
+                            }
+                        }
+                        if (step.runId.isNotBlank() && step.status != AgentStepStatus.RUNNING) {
+                            viewModelScope.launch {
+                                agentHistoryRepository.upsertStep(
+                                    AgentStepEntity(
+                                        sessionId = targetSessionId,
+                                        runId = step.runId,
+                                        stepIndex = step.index,
+                                        toolName = step.toolName,
+                                        argsText = step.argsText,
+                                        status = step.status.name,
+                                        message = step.message,
+                                        createdAtEpochMillis = System.currentTimeMillis(),
+                                        updatedAtEpochMillis = System.currentTimeMillis(),
+                                    ),
+                                )
                             }
                         }
                     },
@@ -803,7 +842,13 @@ class MainViewModel @Inject constructor(
                     messageCount = result.history.count { it.imageBase64 == null },
                 )
                 if (result.ok) {
-                    agentSkillStore.record(text, result.toolCalls, result.ok)
+                    agentSkillStore.record(
+                        text = text,
+                        toolCalls = result.toolCalls,
+                        ok = result.ok,
+                        runId = result.runId,
+                        sourceSessionId = sessionId,
+                    )
                 }
             } finally {
                 _isAgentBusy.value = false
@@ -947,6 +992,28 @@ class MainViewModel @Inject constructor(
     fun setAgentAutoConfirmSensitiveActions(enabled: Boolean) {
         apiKeyStore.agentAutoConfirmSensitiveActions = enabled
         _agentAutoConfirmSensitiveActions.value = enabled
+    }
+
+    fun setAgentAutoVerifyEnabled(enabled: Boolean) {
+        apiKeyStore.agentAutoVerifyEnabled = enabled
+        _agentAutoVerifyEnabled.value = enabled
+    }
+
+    fun setAgentMaxAutoVerifies(value: Int) {
+        apiKeyStore.agentMaxAutoVerifies = value
+        _agentMaxAutoVerifies.value = value
+    }
+
+    fun approveAgentSkill(id: String) {
+        agentSkillStore.approve(id)
+    }
+
+    fun rejectAgentSkill(id: String) {
+        agentSkillStore.reject(id)
+    }
+
+    fun deleteAgentSkill(id: String) {
+        agentSkillStore.delete(id)
     }
 
     suspend fun confirmSensitiveAction(request: SensitiveActionRequest): Boolean {
@@ -1120,6 +1187,15 @@ private fun AgentMessageEntity.toAgentMessage(): AgentMessage = AgentMessage(
     toolResultOk = toolResultOk,
     toolCallsJson = toolCallsJson,
     reasoningContent = reasoningContent,
+)
+
+private fun AgentStepEntity.toAgentStepUi(): AgentStepUi = AgentStepUi(
+    index = stepIndex,
+    runId = runId,
+    toolName = toolName,
+    argsText = argsText,
+    status = runCatching { AgentStepStatus.valueOf(status) }.getOrDefault(AgentStepStatus.FAILED),
+    message = message,
 )
 
 data class MainUiState(

@@ -1,9 +1,11 @@
 package com.voiceconfig.data.local.repository
 
 import com.voiceconfig.data.local.dao.AgentMessageDao
+import com.voiceconfig.data.local.dao.AgentStepDao
 import com.voiceconfig.data.local.dao.AgentSessionDao
 import com.voiceconfig.data.local.dao.TaskEventDao
 import com.voiceconfig.data.local.entity.AgentMessageEntity
+import com.voiceconfig.data.local.entity.AgentStepEntity
 import com.voiceconfig.data.local.entity.AgentSessionEntity
 import com.voiceconfig.data.local.entity.TaskEventEntity
 import kotlinx.coroutines.flow.Flow
@@ -12,12 +14,16 @@ class OfflineAgentHistoryRepository(
     private val sessionDao: AgentSessionDao,
     private val messageDao: AgentMessageDao,
     private val taskEventDao: TaskEventDao,
+    private val stepDao: AgentStepDao,
 ) : AgentHistoryRepository {
 
     override fun observeSessions(): Flow<List<AgentSessionEntity>> = sessionDao.observeAll()
 
     override fun observeMessages(sessionId: Long): Flow<List<AgentMessageEntity>> =
         messageDao.observeBySession(sessionId)
+
+    override fun observeSteps(sessionId: Long): Flow<List<AgentStepEntity>> =
+        stepDao.observeBySession(sessionId)
 
     override fun observeTaskEvents(): Flow<List<TaskEventEntity>> = taskEventDao.observeAll()
 
@@ -26,6 +32,9 @@ class OfflineAgentHistoryRepository(
 
     override suspend fun getMessages(sessionId: Long): List<AgentMessageEntity> =
         messageDao.getBySession(sessionId)
+
+    override suspend fun getSteps(sessionId: Long): List<AgentStepEntity> =
+        stepDao.getBySession(sessionId)
 
     override suspend fun getSession(sessionId: Long): AgentSessionEntity? =
         sessionDao.getById(sessionId)
@@ -63,4 +72,11 @@ class OfflineAgentHistoryRepository(
 
     override suspend fun addTaskEvent(event: TaskEventEntity): Long =
         taskEventDao.insert(event)
+
+    override suspend fun upsertStep(step: AgentStepEntity): Long =
+        stepDao.upsert(step)
+
+    override suspend fun clearSteps(sessionId: Long) {
+        stepDao.deleteBySession(sessionId)
+    }
 }

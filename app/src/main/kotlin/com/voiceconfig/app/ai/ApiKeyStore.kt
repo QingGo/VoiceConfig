@@ -60,6 +60,18 @@ class ApiKeyStore @Inject constructor(
             prefs.edit().putBoolean(KEY_AGENT_AUTO_CONFIRM, value).apply()
         }
 
+    var agentAutoVerifyEnabled: Boolean
+        get() = prefs.getBoolean(KEY_AGENT_AUTO_VERIFY_ENABLED, true)
+        set(value) {
+            prefs.edit().putBoolean(KEY_AGENT_AUTO_VERIFY_ENABLED, value).apply()
+        }
+
+    var agentMaxAutoVerifies: Int
+        get() = prefs.getInt(KEY_AGENT_MAX_AUTO_VERIFY, DEFAULT_MAX_AUTO_VERIFY)
+        set(value) {
+            prefs.edit().putInt(KEY_AGENT_MAX_AUTO_VERIFY, value.coerceIn(0, 20)).apply()
+        }
+
     companion object {
         private const val KEY_API_KEY = "deepseek_api_key"
         private const val KEY_MODEL = "deepseek_model"
@@ -68,6 +80,9 @@ class ApiKeyStore @Inject constructor(
         private const val KEY_AGENT_THINKING_ENABLED = "agent_deepseek_thinking_enabled"
         private const val KEY_AGENT_REASONING_EFFORT = "agent_deepseek_reasoning_effort"
         private const val KEY_AGENT_AUTO_CONFIRM = "agent_auto_confirm_sensitive_actions"
+        private const val KEY_AGENT_AUTO_VERIFY_ENABLED = "agent_auto_verify_enabled"
+        private const val KEY_AGENT_MAX_AUTO_VERIFY = "agent_max_auto_verifies"
+        const val DEFAULT_MAX_AUTO_VERIFY = 4
         const val DEFAULT_MODEL = "deepseek-v4-flash-vision-exp"
 
         fun normalizeModel(value: String?): String {

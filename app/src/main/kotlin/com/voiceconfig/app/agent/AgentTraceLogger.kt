@@ -9,18 +9,22 @@ import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import java.util.UUID
 import javax.inject.Inject
 import javax.inject.Singleton
 
 interface AgentTrace {
-    fun log(type: String, data: Map<String, Any?> = emptyMap())
-    fun saveScreenshot(base64: String, label: String): String
+    fun startRun(userText: String): String
+    fun log(runId: String, type: String, data: Map<String, Any?> = emptyMap())
+    fun log(type: String, data: Map<String, Any?> = emptyMap()) = log("local", type, data)
+    fun saveScreenshot(runId: String, base64: String, label: String): String
+    fun saveScreenshot(base64: String, label: String): String = saveScreenshot("local", base64, label)
 }
 
 /**
  * Agent 运行轨迹记录器。
  *
- * 会把每次 Agent 执行的：
+ * 每次 Agent 执行使用独立 runId，把：
  * - 用户输入
  * - LLM 请求/响应（正文、思考、工具调用）
  * - 工具调用参数
@@ -28,7 +32,7 @@ interface AgentTrace {
  * - 多模态模型看到的截图（保存为 PNG）
  * - 错误与最终结果
  *
- * 写入应用私有目录：files/agent_trace/agent_trace.log
+ * 写成结构化 JSON 行，放进应用私有目录：files/agent_trace/agent_trace.log
  * 截图保存在：files/agent_trace/screenshots/
  */
 @Singleton
@@ -42,12 +46,19 @@ class AgentTraceLogger @Inject constructor(
 
     private val timeFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS", Locale.US)
 
-    override fun log(type: String, data: Map<String, Any?>) {
+    override fun startRun(userText: String): String {
+        val runId = "run_${System.currentTimeMillis()}_${UUID.randomUUID().toString().take(8)}"
+        log(runId, "run_start", mapOf("userText" to userText))
+        return runId
+    }
+
+    override fun log(runId: String, type: String, data: Map<String, Any?>) {
         runCatching {
             synchronized(lock) {
                 logDir.mkdirs()
                 val entry = JSONObject()
                 entry.put("time", timeFormat.format(Date()))
+                entry.put("runId", runId)
                 entry.put("type", type)
                 data.forEach { (key, value) ->
                     when (value) {
@@ -64,13 +75,14 @@ class AgentTraceLogger @Inject constructor(
         }
     }
 
-    override fun saveScreenshot(base64: String, label: String): String {
+    override fun saveScreenshot(runId: String, base64: String, label: String): String {
         return runCatching {
             synchronized(lock) {
-                screenshotDir.mkdirs()
+                val runDir = File(screenshotDir, runId.sanitize())
+                runDir.mkdirs()
                 val bytes = Base64.decode(base64, Base64.DEFAULT)
                 val name = "screenshot_${System.currentTimeMillis()}_${label.sanitize()}.png"
-                val file = File(screenshotDir, name)
+                val file = File(runDir, name)
                 file.writeBytes(bytes)
                 file.absolutePath
             }
@@ -81,7 +93,7 @@ class AgentTraceLogger @Inject constructor(
     }
 
     private fun String.sanitize(): String =
-        replace(Regex("[^a-zA-Z0-9_-]"), "_").take(40)
+        replace(Regex("[^a-zA-Z0-9_-]"), "_").take(60)
 
     companion object {
         private const val TAG = "AgentTrace"
