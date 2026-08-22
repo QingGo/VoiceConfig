@@ -31,7 +31,7 @@ import json
 import os
 import sys
 
-import requests
+import subprocess
 
 DEFAULT_MODEL = "deepseek-v4-flash-vision-exp"
 
@@ -85,17 +85,23 @@ def call_llm(api_key, model, goal, ui_text, screenshot_path):
         "temperature": 0,
         "stream": False,
     }
-    resp = requests.post(
-        "https://api.deepseek.com/chat/completions",
-        headers={
-            "Authorization": f"Bearer {api_key}",
-            "Content-Type": "application/json",
-        },
-        json=payload,
-        timeout=60,
+    # 当前 Python/requests 环境存在 TLS handshake 问题，改用 curl 调用 DeepSeek。
+    proc = subprocess.run(
+        [
+            "curl", "-k", "-sS", "-X", "POST",
+            "https://api.deepseek.com/chat/completions",
+            "-H", f"Authorization: Bearer {api_key}",
+            "-H", "Content-Type: application/json",
+            "--data-binary", "@-",
+        ],
+        input=json.dumps(payload, ensure_ascii=False),
+        capture_output=True,
+        text=True,
+        timeout=90,
     )
-    resp.raise_for_status()
-    data = resp.json()
+    if proc.returncode != 0:
+        raise RuntimeError(f"curl failed: {proc.stderr}")
+    data = json.loads(proc.stdout)
     return data["choices"][0]["message"]["content"]
 
 
