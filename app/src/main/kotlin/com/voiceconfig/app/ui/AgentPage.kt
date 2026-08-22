@@ -824,7 +824,7 @@ private fun AgentStepTimeline(steps: List<AgentStepUi>, runDurationMs: Long? = n
                 if (!expanded && steps.isNotEmpty()) {
                     val last = steps.lastOrNull()
                     Text(
-                        text = "最后工具耗时 ${formatDurationMs(last?.durationMs ?: 0)}",
+                        text = "最后工具结束 @ ${formatDurationMs((last?.startedAtElapsedMs ?: 0) + (last?.durationMs ?: 0))}",
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -878,7 +878,7 @@ private fun AgentStepTimeline(steps: List<AgentStepUi>, runDurationMs: Long? = n
                                     }
                                     if (step.startedAtElapsedMs > 0) {
                                         if (length > 0) append(" · ")
-                                        append("开始后 ")
+                                        append("运行后 ")
                                         append(formatDurationMs(step.startedAtElapsedMs))
                                     }
                                 },
@@ -890,16 +890,9 @@ private fun AgentStepTimeline(steps: List<AgentStepUi>, runDurationMs: Long? = n
                     }
                 }
                 val last = steps.lastOrNull()
-                if (last != null) {
+                if (last != null && last.startedAtElapsedMs > 0) {
                     Text(
-                        text = buildString {
-                            append("最后工具耗时 ")
-                            append(formatDurationMs(last.durationMs))
-                            if (last.startedAtElapsedMs > 0) {
-                                append(" · 结束 @ ")
-                                append(formatDurationMs(last.startedAtElapsedMs + last.durationMs))
-                            }
-                        },
+                        text = "最后工具结束 @ ${formatDurationMs(last.startedAtElapsedMs + last.durationMs)}",
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.tertiary,
                     )

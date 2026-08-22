@@ -413,8 +413,8 @@ class AgentSession @Inject constructor(
                         AgentStepUi(
                             index = verifyStepIndex,
                             runId = runId,
-                            toolName = "auto_verify",
-                            argsText = "{}",
+                            toolName = "read_screen",
+                            argsText = "{\"autoVerify\":true}",
                             status = AgentStepStatus.RUNNING,
                             startedAtElapsedMs = System.currentTimeMillis() - startedAtMs,
                         ),
@@ -434,8 +434,8 @@ class AgentSession @Inject constructor(
                         AgentStepUi(
                             index = verifyStepIndex,
                             runId = runId,
-                            toolName = "auto_verify",
-                            argsText = "{}",
+                            toolName = "read_screen",
+                            argsText = "{\"autoVerify\":true}",
                             status = if (verifyResult.ok) AgentStepStatus.SUCCESS else AgentStepStatus.FAILED,
                             message = if (verifyResult.ok) "自动截屏验证" else verifyResult.message,
                             durationMs = verifyDurationMs,
@@ -445,7 +445,7 @@ class AgentSession @Inject constructor(
                     )
                     allSteps += StepExecution(
                         index = verifyStepIndex,
-                        call = ToolCall("auto_verify", emptyMap()),
+                        call = ToolCall("read_screen", mapOf("autoVerify" to true)),
                         result = verifyResult,
                     )
                     verifyMs += verifyDurationMs
