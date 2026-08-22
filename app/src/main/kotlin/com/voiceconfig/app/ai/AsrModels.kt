@@ -32,6 +32,7 @@ data class AsrModel(
     val builtin: Boolean = false,
     val assetDir: String? = null,
     val files: List<AsrModelFile> = emptyList(),
+    val threads: Int = 2,
 )
 
 @Singleton
@@ -55,6 +56,7 @@ class AsrModelManager @Inject constructor(
             displayName = "Sherpa Zipformer Small CTC 2025",
             kind = AsrModelKind.SHERPA_STREAMING_CTC,
             description = "Small 级 2025 新流式模型（参数多于 14M），int8 文件约 26MB，识别性能通常更好。",
+            threads = 4,
             files = listOf(
                 AsrModelFile(
                     name = "model.int8.onnx",
@@ -87,6 +89,7 @@ class AsrModelManager @Inject constructor(
             displayName = "Sherpa Zipformer 中英双语流式（实验）",
             kind = AsrModelKind.SHERPA_STREAMING_TRANSDUCER,
             description = "2023 中英双语流式 Zipformer，支持中文+英文混合，适合 App 名、品牌名、英文指令。",
+            threads = 4,
             files = listOf(
                 AsrModelFile(
                     name = "encoder-epoch-99-avg-1.int8.onnx",

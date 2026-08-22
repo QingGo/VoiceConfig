@@ -35,6 +35,7 @@ class SherpaOnnxAsrEngine(
     private val context: Context,
     private val modelDir: String,
     private val modelKind: AsrModelKind,
+    private val numThreads: Int = 2,
 ) : AsrEngine {
 
     private val mainHandler = Handler(Looper.getMainLooper())
@@ -314,7 +315,7 @@ class SherpaOnnxAsrEngine(
                         joiner = "$modelDir/joiner-epoch-99-avg-1.int8.onnx",
                     ),
                     tokens = "$modelDir/tokens.txt",
-                    numThreads = 2,
+                    numThreads = numThreads,
                     debug = false,
                     provider = "cpu",
                     modelType = "zipformer",
@@ -324,7 +325,7 @@ class SherpaOnnxAsrEngine(
                 AsrModelKind.SHERPA_STREAMING_CTC -> OnlineModelConfig(
                     zipformer2Ctc = OnlineZipformer2CtcModelConfig("$modelDir/model.int8.onnx"),
                     tokens = "$modelDir/tokens.txt",
-                    numThreads = 2,
+                    numThreads = numThreads,
                     debug = false,
                     provider = "cpu",
                     modelType = "zipformer2_ctc",

@@ -81,9 +81,9 @@ class LocalAsrManager @Inject constructor(
         return when (model.kind) {
             AsrModelKind.SHERPA_STREAMING_TRANSDUCER,
             AsrModelKind.SHERPA_STREAMING_CTC,
-            -> SherpaOnnxAsrEngine(context, dir, model.kind)
+            -> SherpaOnnxAsrEngine(context, dir, model.kind, model.threads)
 
-            AsrModelKind.SENSEVOICE_OFFLINE -> SenseVoiceAsrEngine(context, dir)
+            AsrModelKind.SENSEVOICE_OFFLINE -> SenseVoiceAsrEngine(context, dir, model.threads)
         }
     }
 

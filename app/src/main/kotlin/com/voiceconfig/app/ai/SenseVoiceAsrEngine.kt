@@ -26,6 +26,7 @@ import kotlin.math.abs
 class SenseVoiceAsrEngine(
     private val context: Context,
     private val modelDir: String,
+    private val numThreads: Int = 2,
 ) : AsrEngine {
 
     private val mainHandler = Handler(Looper.getMainLooper())
@@ -285,7 +286,7 @@ class SenseVoiceAsrEngine(
                     true,
                 )
                 tokens = "$modelDir/tokens.txt"
-                numThreads = 2
+                numThreads = numThreads
                 debug = false
                 provider = "cpu"
                 modelType = "sensevoice"
