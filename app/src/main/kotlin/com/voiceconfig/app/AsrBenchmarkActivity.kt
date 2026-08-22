@@ -37,27 +37,40 @@ class AsrBenchmarkActivity : ComponentActivity() {
             finish()
             return
         }
+        val threadsOverride = intent.getStringExtra(EXTRA_THREADS)?.toIntOrNull()?.coerceIn(1, 16)
+        val warm = intent.getBooleanExtra(EXTRA_WARM, false)
         val startMs = System.currentTimeMillis()
-        Log.i(TAG, "benchmark start model=${model.id} wav=$wavPath")
-        localAsrManager.recognizeFile(
-            model = model,
-            wavPath = wavPath,
-            onResult = { text ->
-                val totalMs = System.currentTimeMillis() - startMs
-                Log.i(TAG, "RESULT model=${model.id} text=$text totalMs=$totalMs")
-                finish()
-            },
-            onError = { message ->
-                val totalMs = System.currentTimeMillis() - startMs
-                Log.e(TAG, "ERROR model=${model.id} message=$message totalMs=$totalMs")
-                finish()
-            },
-        )
+        Log.i(TAG, "benchmark start model=${model.id} wav=$wavPath warm=$warm threads=${threadsOverride ?: "default"}")
+        Thread {
+            if (warm) {
+                val warmStart = System.currentTimeMillis()
+                localAsrManager.prepareModel(model)
+                Log.i(TAG, "WARMUP model=${model.id} warmupMs=${System.currentTimeMillis() - warmStart}")
+            }
+            localAsrManager.recognizeFile(
+                model = model,
+                wavPath = wavPath,
+                onResult = { text ->
+                    val totalMs = System.currentTimeMillis() - startMs
+                    Log.i(TAG, "RESULT model=${model.id} text=$text totalMs=$totalMs")
+                    finish()
+                },
+                onError = { message ->
+                    val totalMs = System.currentTimeMillis() - startMs
+                    Log.e(TAG, "ERROR model=${model.id} message=$message totalMs=$totalMs")
+                    finish()
+                },
+                threadsOverride = threadsOverride,
+                useCachedEngine = warm,
+            )
+        }.start()
     }
 
     companion object {
         private const val TAG = "AsrBenchmark"
         private const val EXTRA_WAV = "wav"
         private const val EXTRA_MODEL = "model"
+        private const val EXTRA_THREADS = "threads"
+        private const val EXTRA_WARM = "warm"
     }
 }

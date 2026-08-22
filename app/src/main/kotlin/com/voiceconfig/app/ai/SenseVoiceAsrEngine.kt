@@ -47,6 +47,10 @@ class SenseVoiceAsrEngine(
         }
     }
 
+    override fun warmUp() {
+        getRecognizer()
+    }
+
     override fun recognize(
         maxDurationMs: Long,
         onPartialResult: ((String) -> Unit)?,

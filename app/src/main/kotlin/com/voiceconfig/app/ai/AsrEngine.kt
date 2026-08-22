@@ -3,6 +3,8 @@ package com.voiceconfig.app.ai
 interface AsrEngine {
     fun isModelAvailable(): Boolean
 
+    fun warmUp()
+
     fun recognize(
         maxDurationMs: Long = 30_000,
         onPartialResult: ((String) -> Unit)? = null,

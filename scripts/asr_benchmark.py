@@ -61,12 +61,17 @@ def push_wav(serial, wav_path):
     print(f"pushed {wav_path} to app private files")
 
 
-def launch_bench(serial, model_id):
-    proc = adb(serial, [
+def launch_bench(serial, model_id, threads=None, warm=False):
+    args = [
         "shell", "am", "start", "-n", f"{PACKAGE}/{ACTIVITY}",
         "--es", "wav", REMOTE_WAV,
         "--es", "model", model_id,
-    ])
+    ]
+    if threads:
+        args += ["--es", "threads", str(threads)]
+    if warm:
+        args += ["--ez", "warm", "true"]
+    proc = adb(serial, args)
     if proc.returncode != 0:
         raise RuntimeError(f"launch failed: {proc.stderr}")
 
@@ -94,6 +99,9 @@ def parse_bench(text):
     if m:
         result["error"] = m.group(1)
         result["total_ms"] = int(m.group(2))
+    m = re.search(r"WARMUP model=\S+ warmupMs=(\d+)", text)
+    if m:
+        result["warmup_ms"] = int(m.group(1))
     for line in text.splitlines():
         if "VoiceConfigAsrTiming" in line:
             result["timing"] = line
@@ -105,10 +113,10 @@ def load_cases(path):
         return json.load(f)["cases"]
 
 
-def run_one(serial, wav_path, model_id):
+def run_one(serial, wav_path, model_id, threads=None, warm=False):
     push_wav(serial, wav_path)
     clear_logcat(serial)
-    launch_bench(serial, model_id)
+    launch_bench(serial, model_id, threads=threads, warm=warm)
     output = collect_result(serial)
     return parse_bench(output)
 
@@ -127,6 +135,8 @@ def main():
     parser.add_argument("--cases", default=None, help="固定测试集 JSON")
     parser.add_argument("--wav-dir", default=None, help="固定测试集对应 WAV 目录")
     parser.add_argument("--model", default="sherpa-ctc-2025")
+    parser.add_argument("--threads", type=int, default=None, help="覆盖 CPU 线程数")
+    parser.add_argument("--warm", action="store_true", help="先预热再识别（验证 warm 路径）")
     parser.add_argument("--iterations", type=int, default=1)
     args = parser.parse_args()
 
@@ -146,7 +156,7 @@ def main():
                 print(f"skip {case_id}: no wav file")
                 continue
             print(f"--- {case_id} ---")
-            parsed = run_one(args.serial, wav, args.model)
+            parsed = run_one(args.serial, wav, args.model, args.threads, args.warm)
             parsed["case_id"] = case_id
             parsed["expected_text"] = case.get("text")
             parsed["keywords"] = case.get("keywords", [])
@@ -173,7 +183,7 @@ def main():
     results = []
     for i in range(args.iterations):
         print(f"--- iteration {i + 1} ---")
-        parsed = run_one(args.serial, args.wav, args.model)
+        parsed = run_one(args.serial, args.wav, args.model, args.threads, args.warm)
         results.append(parsed)
         if "text" in parsed:
             print(f"result: {parsed['text']}")
@@ -183,6 +193,8 @@ def main():
             print(parsed["timing"])
         if "total_ms" in parsed:
             print(f"totalMs={parsed['total_ms']}")
+        if "warmup_ms" in parsed:
+            print(f"warmupMs={parsed['warmup_ms']}")
 
     totals = [r.get("total_ms") for r in results if r.get("total_ms")]
     if totals:

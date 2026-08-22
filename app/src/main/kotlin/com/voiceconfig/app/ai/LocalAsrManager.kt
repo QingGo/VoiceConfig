@@ -5,7 +5,17 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.withContext
+
+enum class AsrEngineStatus {
+    COLD,
+    WARMING_UP,
+    READY,
+    UNAVAILABLE,
+}
 
 /**
  * 本地 ASR 门面：根据设置选择具体引擎。
@@ -17,6 +27,9 @@ class LocalAsrManager @Inject constructor(
 ) {
     @Volatile
     private var engine: AsrEngine? = null
+    private val engineLock = Any()
+    private val _engineStatus = MutableStateFlow(AsrEngineStatus.COLD)
+    val engineStatus: StateFlow<AsrEngineStatus> = _engineStatus.asStateFlow()
 
     fun availableModels(): List<AsrModel> = modelManager.models
 
@@ -25,6 +38,7 @@ class LocalAsrManager @Inject constructor(
     fun selectModel(id: String) {
         modelManager.setSelectedModel(id)
         engine = null
+        _engineStatus.value = AsrEngineStatus.COLD
     }
 
     fun isDownloaded(model: AsrModel): Boolean = modelManager.isDownloaded(model)
@@ -34,20 +48,50 @@ class LocalAsrManager @Inject constructor(
     fun deleteModel(model: AsrModel) {
         modelManager.deleteModel(model)
         engine = null
+        _engineStatus.value = AsrEngineStatus.COLD
     }
 
     suspend fun downloadModel(model: AsrModel, onProgress: (Float) -> Unit) {
         modelManager.download(model, onProgress)
         engine = null
+        _engineStatus.value = AsrEngineStatus.COLD
     }
 
     suspend fun warmUp() {
         withContext(Dispatchers.IO) {
-            currentEngine()
+            warmUpSync()
         }
     }
 
-    fun isModelAvailable(): Boolean = currentEngine().isModelAvailable()
+    fun warmUpSync() {
+        if (engine == null) {
+            _engineStatus.value = AsrEngineStatus.WARMING_UP
+        }
+        val created = currentEngine()
+        if (created.isModelAvailable()) {
+            created.warmUp()
+            _engineStatus.value = AsrEngineStatus.READY
+        } else {
+            _engineStatus.value = AsrEngineStatus.UNAVAILABLE
+        }
+    }
+
+    /** 为指定模型预热并缓存，用于 benchmark 验证 warm 路径；不改变用户选中项。 */
+    fun prepareModel(model: AsrModel) {
+        _engineStatus.value = AsrEngineStatus.WARMING_UP
+        val created = createEngine(model)
+        synchronized(engineLock) {
+            engine = created
+        }
+        if (created.isModelAvailable()) {
+            created.warmUp()
+            _engineStatus.value = AsrEngineStatus.READY
+        } else {
+            _engineStatus.value = AsrEngineStatus.UNAVAILABLE
+        }
+    }
+
+    fun isModelAvailable(): Boolean = engine?.isModelAvailable() == true
 
     fun cancel() {
         currentEngine().cancel()
@@ -72,12 +116,20 @@ class LocalAsrManager @Inject constructor(
         wavPath: String,
         onResult: (String) -> Unit,
         onError: (String) -> Unit,
+        threadsOverride: Int? = null,
+        useCachedEngine: Boolean = false,
     ) {
-        createEngine(model).recognizeFile(wavPath, onResult, onError)
+        val engine = if (useCachedEngine) {
+            currentEngine()
+        } else {
+            createEngine(model, threadsOverride)
+        }
+        engine.recognizeFile(wavPath, onResult, onError)
     }
 
-    private fun createEngine(model: AsrModel): AsrEngine {
+    private fun createEngine(model: AsrModel, threadsOverride: Int? = null): AsrEngine {
         val dir = modelManager.modelDir(model)
+        val threads = threadsOverride ?: model.threads
         return when (model.kind) {
             AsrModelKind.SHERPA_STREAMING_TRANSDUCER,
             AsrModelKind.SHERPA_STREAMING_ZIPFORMER2_TRANSDUCER,
@@ -86,19 +138,22 @@ class LocalAsrManager @Inject constructor(
                 context,
                 dir,
                 model.kind,
-                model.threads,
+                threads,
                 model.modelingUnit,
                 model.modelType,
             )
 
-            AsrModelKind.SENSEVOICE_OFFLINE -> SenseVoiceAsrEngine(context, dir, model.threads)
+            AsrModelKind.SENSEVOICE_OFFLINE -> SenseVoiceAsrEngine(context, dir, threads)
         }
     }
 
     private fun currentEngine(): AsrEngine {
         engine?.let { return it }
-        val created = createEngine(modelManager.selectedModel())
-        engine = created
-        return created
+        synchronized(engineLock) {
+            engine?.let { return it }
+            val created = createEngine(modelManager.selectedModel())
+            engine = created
+            return created
+        }
     }
 }

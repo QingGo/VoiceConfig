@@ -107,6 +107,7 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import com.voiceconfig.app.agent.AgentSession
 import com.voiceconfig.app.ai.InstalledAppProvider
+import com.voiceconfig.app.ai.AsrEngineStatus
 import com.voiceconfig.app.ai.LocalAsrManager
 import com.voiceconfig.app.service.AccessibilityKeepAlive
 import com.voiceconfig.app.service.VoiceConfigService
@@ -305,6 +306,13 @@ fun MainScreen(viewModel: MainViewModel) {
     }
     var isListening by remember { mutableStateOf(false) }
     var isPreparing by remember { mutableStateOf(false) }
+    var asrEngineStatus by remember { mutableStateOf(AsrEngineStatus.COLD) }
+    LaunchedEffect(localAsrManager) {
+        localAsrManager?.engineStatus?.collect { status ->
+            asrEngineStatus = status
+            isPreparing = status == AsrEngineStatus.WARMING_UP || status == AsrEngineStatus.COLD
+        }
+    }
     DisposableEffect(Unit) {
         onDispose {
             speechRecognizer?.destroy()
@@ -332,6 +340,10 @@ fun MainScreen(viewModel: MainViewModel) {
         onError: (String) -> Unit = { viewModel.setParseMessage(it) },
     ) {
         activeSpeechConsumer = onResult
+        if (asrEngineStatus == AsrEngineStatus.WARMING_UP || asrEngineStatus == AsrEngineStatus.COLD) {
+            onError("语音模型准备中，请稍候")
+            return
+        }
         if (localAsrManager?.isModelAvailable() == true) {
             // 立即进入聆听状态并开始录音，避免等待模型预热时丢失开头语音。
             isPreparing = false
