@@ -354,9 +354,8 @@ class SherpaOnnxAsrEngine(
                     numThreads = numThreads,
                     debug = false,
                     provider = "cpu",
-                    modelType = "zipformer2_ctc",
+                    modelType = "zipformer2",
                     modelingUnit = "cjkchar",
-                    bpeVocab = "$modelDir/bbpe.model",
                 )
                 else -> error("Unsupported sherpa model kind")
             }
