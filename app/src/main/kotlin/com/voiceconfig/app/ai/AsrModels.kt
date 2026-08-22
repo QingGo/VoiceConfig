@@ -89,9 +89,9 @@ class AsrModelManager @Inject constructor(
         ),
         AsrModel(
             id = "sherpa-bilingual-zh-en-2023",
-            displayName = "Sherpa Zipformer 中英双语流式（实验）",
+            displayName = "Sherpa Zipformer 中英双语流式 2023（旧实验）",
             kind = AsrModelKind.SHERPA_STREAMING_TRANSDUCER,
-            description = "2023 中英双语流式 Zipformer，支持中文+英文混合，适合 App 名、品牌名、英文指令。",
+            description = "旧版双语模型，模拟器复测中文有重复字问题；中英混合建议优先使用 2025 多语流式模型。",
             threads = 4,
             modelingUnit = "bpe",
             files = listOf(
