@@ -1,0 +1,21 @@
+{
+  "cases": [
+    {
+      "name": "打开设置",
+      "goal": "打开手机设置",
+      "ui": "text=\"设置\" desc=\"Settings\" id=\"com.android.settings:id/home\" class=TextView clickable=true bounds=[0,100][1080,300]",
+      "expected_tools": [
+        {"tool": "tap_text", "args": {"text": "设置"}}
+      ]
+    },
+    {
+      "name": "网页搜索",
+      "goal": "打开 Chrome 搜索 Android 15 发布时间",
+      "ui": "text=\"Chrome\" desc=\"\" id=\"com.android.launcher3:id/icon\" class=TextView clickable=true bounds=[0,500][400,900]",
+      "expected_tools": [
+        {"tool": "find_app", "args": {"keyword": "Chrome"}},
+        {"tool": "open_app", "args": {}}
+      ]
+    }
+  ]
+}
