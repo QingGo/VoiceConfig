@@ -211,11 +211,14 @@ class SherpaOnnxAsrEngine(
             try {
                 val requestStart = System.currentTimeMillis()
                 val samples = readWav(wavPath)
+                // 给流式模型尾部补 500ms 静音，帮助 Paraformer 等流式模型 flush 最后一个 LFR window，
+                // 避免末尾最后一个字被遗漏。
+                val paddedSamples = samples + FloatArray(8_000)
                 val readWavMs = System.currentTimeMillis() - requestStart
                 val rec = getRecognizer()
                 val modelInitMs = System.currentTimeMillis() - requestStart - readWavMs
                 val stream = rec.createStream("")
-                stream.acceptWaveform(samples, 16_000)
+                stream.acceptWaveform(paddedSamples, 16_000)
                 while (rec.isReady(stream)) {
                     rec.decode(stream)
                 }
