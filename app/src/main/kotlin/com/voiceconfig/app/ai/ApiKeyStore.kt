@@ -66,6 +66,12 @@ class ApiKeyStore @Inject constructor(
             prefs.edit().putBoolean(KEY_AGENT_AUTO_VERIFY_ENABLED, value).apply()
         }
 
+    var agentImageDetailLow: Boolean
+        get() = prefs.getBoolean(KEY_AGENT_IMAGE_DETAIL_LOW, false)
+        set(value) {
+            prefs.edit().putBoolean(KEY_AGENT_IMAGE_DETAIL_LOW, value).apply()
+        }
+
     var agentMaxAutoVerifies: Int
         get() = prefs.getInt(KEY_AGENT_MAX_AUTO_VERIFY, DEFAULT_MAX_AUTO_VERIFY)
         set(value) {
@@ -82,6 +88,7 @@ class ApiKeyStore @Inject constructor(
         private const val KEY_AGENT_AUTO_CONFIRM = "agent_auto_confirm_sensitive_actions"
         private const val KEY_AGENT_AUTO_VERIFY_ENABLED = "agent_auto_verify_enabled"
         private const val KEY_AGENT_MAX_AUTO_VERIFY = "agent_max_auto_verifies"
+        private const val KEY_AGENT_IMAGE_DETAIL_LOW = "agent_image_detail_low"
         const val DEFAULT_MAX_AUTO_VERIFY = 2
         const val DEFAULT_MODEL = "deepseek-v4-flash-vision-exp"
 

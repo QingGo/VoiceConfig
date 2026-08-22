@@ -336,7 +336,15 @@ open class AgentChatClient @Inject constructor(
                             put(
                                 JSONObject()
                                     .put("type", "image_url")
-                                    .put("image_url", JSONObject().put("url", "data:image/png;base64,${msg.imageBase64}")),
+                                    .put(
+                                        "image_url",
+                                        JSONObject().apply {
+                                            put("url", "data:image/png;base64,${msg.imageBase64}")
+                                            if (apiKeyStore.agentImageDetailLow) {
+                                                put("detail", "low")
+                                            }
+                                        },
+                                    ),
                             )
                         })
                     } else {
