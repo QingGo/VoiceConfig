@@ -108,6 +108,7 @@ import androidx.compose.ui.unit.dp
 import com.voiceconfig.app.agent.AgentSession
 import com.voiceconfig.app.ai.InstalledAppProvider
 import com.voiceconfig.app.ai.LocalAsrManager
+import com.voiceconfig.app.service.AccessibilityKeepAlive
 import com.voiceconfig.app.service.VoiceConfigService
 import com.voiceconfig.app.ui.theme.SuccessGreen
 import com.voiceconfig.app.ui.AgentNavigation
@@ -135,6 +136,7 @@ class MainActivity : ComponentActivity() {
     @Inject lateinit var localAsrManager: LocalAsrManager
     @Inject lateinit var installedAppProvider: InstalledAppProvider
     @Inject lateinit var agentSession: AgentSession
+    @Inject lateinit var accessibilityKeepAlive: AccessibilityKeepAlive
 
     private val viewModel: MainViewModel by viewModels()
 
@@ -170,6 +172,7 @@ class MainActivity : ComponentActivity() {
         }
         window.decorView.post {
             VoiceConfigService.start(this)
+            runCatching { accessibilityKeepAlive.ensureEnabled() }
         }
     }
 
@@ -212,7 +215,7 @@ fun MainScreen(viewModel: MainViewModel) {
     var draftThinkingEnabled by remember { mutableStateOf(false) }
     var draftReasoningEffort by remember { mutableStateOf("low") }
     var draftAgentThinkingEnabled by remember { mutableStateOf(true) }
-    var draftAgentReasoningEffort by remember { mutableStateOf("max") }
+    var draftAgentReasoningEffort by remember { mutableStateOf("medium") }
     var draftAgentAutoConfirmSensitiveActions by remember { mutableStateOf(false) }
     var draftAgentAutoVerifyEnabled by remember { mutableStateOf(true) }
     var draftAgentMaxAutoVerifies by remember { mutableStateOf(4) }

@@ -20,7 +20,7 @@ class AgentSafety {
             }
         }
         return when (toolName) {
-            "run_shell", "file_write", "press_key" -> true
+            "run_shell", "file_write" -> true
             "tap_text", "tap", "input_text", "swipe", "open_app", "open_file" ->
                 SENSITIVE_KEYWORDS.any { text.contains(it, ignoreCase = true) }
             else -> false

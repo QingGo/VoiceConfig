@@ -91,6 +91,13 @@ class AgentAccessibilityService : AccessibilityService() {
         return target.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, args)
     }
 
+    private fun pasteIntoFocused(): Boolean {
+        val root = activeRoot ?: return false
+        val focused = root.findFocus(AccessibilityNodeInfo.FOCUS_INPUT)
+        val target = focused ?: findFirstEditable(root) ?: return false
+        return target.performAction(AccessibilityNodeInfo.ACTION_PASTE)
+    }
+
     private fun findFirstEditable(node: AccessibilityNodeInfo): AccessibilityNodeInfo? {
         if (node.isEditable) return node
         for (i in 0 until node.childCount) {
@@ -139,5 +146,7 @@ class AgentAccessibilityService : AccessibilityService() {
         fun clickPoint(x: Int, y: Int): Boolean? = instance?.clickByBounds(x, y)
 
         fun inputText(text: String): Boolean? = instance?.inputByText(text)
+
+        fun paste(): Boolean? = instance?.pasteIntoFocused()
     }
 }

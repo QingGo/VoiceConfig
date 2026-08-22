@@ -84,6 +84,19 @@ object AgentToolSchemas {
             "query" to string("搜索关键词"),
             "maxUses" to integer("最大搜索次数"),
         )
+        "open_search" -> objectSchema(
+            "engine" to string("搜索引擎：baidu/google/bing，默认 baidu"),
+            "query" to string("搜索关键词"),
+            "browser" to string("浏览器：chrome，默认 chrome"),
+        )
+        "create_calendar_event" -> objectSchema(
+            "title" to string("事件标题"),
+            "date" to string("日期：today/tomorrow/YYYY-MM-DD"),
+            "startHour" to integer("开始小时 0-23，默认9"),
+            "startMinute" to integer("开始分钟 0-59，默认0"),
+            "durationMinutes" to integer("时长分钟，默认60"),
+            "startTimeMs" to integer("可选：毫秒时间戳，优先于 date"),
+        )
         "file_write" -> objectSchema(
             "filename" to string("文件名"),
             "content" to string("文件内容"),

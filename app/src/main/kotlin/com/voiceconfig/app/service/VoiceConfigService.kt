@@ -17,6 +17,7 @@ import com.voiceconfig.app.MainActivity
 import com.voiceconfig.app.R
 import com.voiceconfig.app.scheduler.ConditionTriggerHandler
 import com.voiceconfig.app.scheduler.TriggerRuleScheduler
+import kotlinx.coroutines.delay
 import com.voiceconfig.core.scheduler.TaskScheduler
 import com.voiceconfig.data.local.repository.TaskRepository
 import com.voiceconfig.data.local.repository.TriggerRuleRepository
@@ -41,6 +42,7 @@ class VoiceConfigService : Service() {
     @Inject lateinit var taskScheduler: TaskScheduler
     @Inject lateinit var triggerRuleRepository: TriggerRuleRepository
     @Inject lateinit var triggerRuleScheduler: TriggerRuleScheduler
+    @Inject lateinit var accessibilityKeepAlive: AccessibilityKeepAlive
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val receiver = object : BroadcastReceiver() {
@@ -66,6 +68,7 @@ class VoiceConfigService : Service() {
             registerConditionReceiver()
         }
         restoreSchedules()
+        startAccessibilityKeepAliveLoop()
         return START_STICKY
     }
 
@@ -75,6 +78,18 @@ class VoiceConfigService : Service() {
             receiverRegistered = false
         }
         super.onDestroy()
+    }
+
+    private fun startAccessibilityKeepAliveLoop() {
+        scope.launch {
+            // 启动后等待 Shizuku binder 就绪，再尝试一次，并周期性补写。
+            delay(2_000)
+            accessibilityKeepAlive.ensureEnabled()
+            while (true) {
+                delay(30_000)
+                accessibilityKeepAlive.ensureEnabled()
+            }
+        }
     }
 
     private fun restoreSchedules() {

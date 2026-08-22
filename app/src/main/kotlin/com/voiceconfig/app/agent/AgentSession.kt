@@ -430,11 +430,12 @@ class AgentSession @Inject constructor(
             - 如果需要调用工具，使用 function calling 返回 tool_calls；一轮可以返回多个工具调用。
             - 执行完工具后，根据工具结果继续判断是否需要更多工具，直到目标完成。
             - 查找应用时优先使用 find_app，不要用 run_shell 列举全部包名。
-            - 对于需要“看屏幕”的任务（如 App 内操作），优先调用 get_screen_state 同时获取 UI 元素和截图；仅需截图时用 read_screen，仅需 UI 树时用 read_ui。
-            - 如果 get_screen_state 不可用或失败，再使用 read_screen 或 read_ui 分别获取画面/UI 树。
-            - 点击有明确文字的按钮时，优先使用 tap_text，并传入当前界面实际看到的文字（可用 texts 传多个候选，例如发送按钮可能是“发送/Send/发送消息”）；如果按钮是纯图标没有文字，用 review_tap 预览后 tap。
-            - 点击前如果不确定坐标，先调用 review_tap 查看标记位置，再决定是否调整或执行 tap。
-            - 每次操作后应继续 read_screen 确认页面变化，再决定下一步，不要一次性盲目点击。
+            - 为节省时间和 token，不要每步都调用 get_screen_state / read_screen。get_screen_state 已返回完整 UI 树和截图时，优先继续使用其中的文字与坐标完成连续操作；同一页面没有明显变化就不要重复获取。
+            - 仅在页面切换、需要看图标按钮位置、或现有坐标不再可靠时，再获取一次 get_screen_state（或 read_screen）。
+            - 点击有明确文字的按钮时，直接使用 tap_text，不要为每个按钮先 review_tap；只有纯图标且坐标不确定时才 review_tap 预览后 tap。
+            - 操作后如果工具结果已经明确成功，不需要截图确认；需要确认新页面时才获取屏幕状态。
+            - 网页搜索优先使用 open_search 直接打开搜索引擎结果页（如 baidu），避免在浏览器输入框手动输入中文；只有需要点击搜索按钮或打开具体结果时才进入浏览器操作。
+            - 创建日历事件时优先使用 create_calendar_event 直接打开预填好的新建事件页，然后点击保存；不要手动在日历里反复点“+”。
             - 涉及下单/支付/购买等敏感操作时，只负责操作到“确认订单”页面，不要点击“提交订单/支付/确认购买”等最终按钮，最后请用户手动确认下单。
             - 忽略无关的营销活动、优惠券领取、弹窗引导，除非用户明确要求。
             - 在聊天输入框中输入完成后，优先使用 press_key {"key":"enter"} 发送；如果无效再点击界面上的发送按钮。
@@ -476,6 +477,6 @@ enum class AgentStepStatus {
 
 data class AgentVerificationPolicy(
     val enabled: Boolean = true,
-    val maxPerRun: Int = 4,
-    val minIntervalMs: Long = 1_500,
+    val maxPerRun: Int = 2,
+    val minIntervalMs: Long = 3_000,
 )

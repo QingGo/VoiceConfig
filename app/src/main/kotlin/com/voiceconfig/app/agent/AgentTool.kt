@@ -154,6 +154,22 @@ object AgentToolMetadataRegistry {
             group = ToolGroup.CORE,
             risk = ToolRisk.READ_ONLY,
         ),
+        "open_search" to AgentToolMetadata(
+            category = "信息",
+            group = ToolGroup.CORE,
+            risk = ToolRisk.MEDIUM,
+            mutatesUi = true,
+            requiresAutoVerify = true,
+            needsShizuku = false,
+        ),
+        "create_calendar_event" to AgentToolMetadata(
+            category = "日历",
+            group = ToolGroup.CORE,
+            risk = ToolRisk.MEDIUM,
+            mutatesUi = true,
+            requiresAutoVerify = true,
+            needsShizuku = false,
+        ),
         "file_write" to AgentToolMetadata(
             category = "文件",
             group = ToolGroup.DEBUG,

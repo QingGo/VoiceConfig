@@ -82,7 +82,7 @@ class ApiKeyStore @Inject constructor(
         private const val KEY_AGENT_AUTO_CONFIRM = "agent_auto_confirm_sensitive_actions"
         private const val KEY_AGENT_AUTO_VERIFY_ENABLED = "agent_auto_verify_enabled"
         private const val KEY_AGENT_MAX_AUTO_VERIFY = "agent_max_auto_verifies"
-        const val DEFAULT_MAX_AUTO_VERIFY = 4
+        const val DEFAULT_MAX_AUTO_VERIFY = 2
         const val DEFAULT_MODEL = "deepseek-v4-flash-vision-exp"
 
         fun normalizeModel(value: String?): String {
@@ -94,7 +94,7 @@ class ApiKeyStore @Inject constructor(
             }
         }
         const val DEFAULT_REASONING_EFFORT = "low"
-        const val DEFAULT_AGENT_REASONING_EFFORT = "max"
+        const val DEFAULT_AGENT_REASONING_EFFORT = "medium"
         private const val LEGACY_MODEL = "deepseek-chat"
         private const val LEGACY_FLASH_MODEL = "deepseek-v4-flash"
     }
