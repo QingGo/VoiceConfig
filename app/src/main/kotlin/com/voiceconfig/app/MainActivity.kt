@@ -765,7 +765,7 @@ fun MainScreen(viewModel: MainViewModel) {
                     Text(text = "Agent 页面（独立）", style = MaterialTheme.typography.titleSmall)
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Column(modifier = Modifier.weight(1f)) {
-                            Text(text = "Agent 思维链", style = MaterialTheme.typography.bodyLarge)
+                            Text(text = "Agent 推理设置", style = MaterialTheme.typography.bodyLarge)
                             Text(
                                 text = "默认开启，强度 max；仅影响 Agent 页面",
                                 style = MaterialTheme.typography.bodySmall,
@@ -778,7 +778,7 @@ fun MainScreen(viewModel: MainViewModel) {
                         )
                     }
                     if (draftAgentThinkingEnabled) {
-                        Text(text = "Agent 思考强度", style = MaterialTheme.typography.bodyMedium)
+                        Text(text = "Agent 推理强度", style = MaterialTheme.typography.bodyMedium)
                         Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                                 RadioButton(selected = draftAgentReasoningEffort == "low", onClick = { draftAgentReasoningEffort = "low" })

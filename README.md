@@ -11,9 +11,9 @@ VoiceConfig（言控）是一个 Android Jetpack Compose 应用。它不只是�
 
 ## 界面截图
 
-| 首页 | Agent 对话 | 设置 | 模板库 |
+| 首页 | 智能助手 | 设置 | 模板库 |
 | --- | --- | --- | --- |
-| ![首页](screenshots/readme_home.png) | ![Agent](screenshots/readme_agent.png) | ![设置](screenshots/readme_settings.png) | ![模板库](screenshots/readme_templates.png) |
+| ![首页](screenshots/readme_home.png) | ![智能助手](screenshots/readme_agent.png) | ![设置](screenshots/readme_settings.png) | ![模板库](screenshots/readme_templates.png) |
 
 ## 工作原理
 
@@ -87,7 +87,7 @@ VoiceConfig 不是“只会聊天”的助手，而是把语言理解、手机�
 - 执行步骤时间线：实时展示正在执行/成功/失败/被拒绝的工具步骤，并按会话持久化，切换历史会话可恢复
 - 敏感操作确认，默认需用户允许；可开启自动模式
 - 自动截图验证：默认开启但限制每次运行次数/间隔，可在设置中开关和调整成本
-- 技能/经验库：成功路径自动沉淀为待审核技能，可在 Agent 页“技能库”中通过/拒绝/删除；仅已通过技能会注入 Agent
+- 技能/经验库：成功路径自动沉淀为待审核经验，可在智能助手「更多 → 经验库」中通过/拒绝/删除；仅已通过经验会注入 Agent
 - 失败恢复：连续失败自动提示换入口/搜索/询问用户
 
 ### 4. 执行通道
@@ -171,12 +171,12 @@ core:
 - 首页：任务列表 + 模板库 + 执行记录
 - Agent 页面：会话列表 / 对话详情；更多菜单包含推理设置、经验库、Agent 运行记录
 - 首页创建面板默认收起，悬浮麦克风为主要语音入口
-- Agent 会话历史支持分组、重命名、删除、清空
+- 智能助手会话列表支持按时间分组、重命名、删除、清空；对话详情可返回会话列表
 - 设置页：
   - DeepSeek API Key 隐藏/显示
   - 模型选择
   - DeepSeek 思考模式
-  - Agent 独立思维链与思考强度
+  - Agent 推理设置与推理强度
   - Agent 自动截图验证开关与次数限制
   - 开发者调试折叠
 - 模板库：
