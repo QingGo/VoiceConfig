@@ -14,6 +14,7 @@ import kotlinx.coroutines.withContext
 enum class AsrModelKind {
     SHERPA_STREAMING_TRANSDUCER,
     SHERPA_STREAMING_ZIPFORMER2_TRANSDUCER,
+    SHERPA_STREAMING_PARAFORMER,
     SHERPA_STREAMING_CTC,
     SENSEVOICE_OFFLINE,
 }
@@ -142,6 +143,39 @@ class AsrModelManager @Inject constructor(
                         "https://hf-mirror.com/csukuangfj/sherpa-onnx-streaming-zipformer-bilingual-zh-en-2023-02-20/resolve/main/tokens.txt",
                     ),
                     size = 56_317L,
+                ),
+            ),
+        ),
+        AsrModel(
+            id = "sherpa-paraformer-bilingual-zh-en",
+            displayName = "Sherpa Paraformer 中英流式",
+            kind = AsrModelKind.SHERPA_STREAMING_PARAFORMER,
+            description = "流式 Paraformer 中英双语 int8，约 237MB，支持普通话/河南话/天津话/四川话等。",
+            threads = 4,
+            files = listOf(
+                AsrModelFile(
+                    name = "encoder.int8.onnx",
+                    url = "https://huggingface.co/csukuangfj/sherpa-onnx-streaming-paraformer-bilingual-zh-en/resolve/main/encoder.int8.onnx",
+                    mirrorUrls = listOf(
+                        "https://hf-mirror.com/csukuangfj/sherpa-onnx-streaming-paraformer-bilingual-zh-en/resolve/main/encoder.int8.onnx",
+                    ),
+                    size = 165_462_184L,
+                ),
+                AsrModelFile(
+                    name = "decoder.int8.onnx",
+                    url = "https://huggingface.co/csukuangfj/sherpa-onnx-streaming-paraformer-bilingual-zh-en/resolve/main/decoder.int8.onnx",
+                    mirrorUrls = listOf(
+                        "https://hf-mirror.com/csukuangfj/sherpa-onnx-streaming-paraformer-bilingual-zh-en/resolve/main/decoder.int8.onnx",
+                    ),
+                    size = 71_664_561L,
+                ),
+                AsrModelFile(
+                    name = "tokens.txt",
+                    url = "https://huggingface.co/csukuangfj/sherpa-onnx-streaming-paraformer-bilingual-zh-en/resolve/main/tokens.txt",
+                    mirrorUrls = listOf(
+                        "https://hf-mirror.com/csukuangfj/sherpa-onnx-streaming-paraformer-bilingual-zh-en/resolve/main/tokens.txt",
+                    ),
+                    size = 75_756L,
                 ),
             ),
         ),

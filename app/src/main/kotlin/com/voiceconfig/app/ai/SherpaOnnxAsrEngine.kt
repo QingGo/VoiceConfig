@@ -67,6 +67,11 @@ class SherpaOnnxAsrEngine(
                 "$modelDir/joiner-epoch-75-avg-11-chunk-16-left-128.int8.onnx",
                 "$modelDir/bpe.model",
             )
+            AsrModelKind.SHERPA_STREAMING_PARAFORMER -> listOf(
+                "$modelDir/tokens.txt",
+                "$modelDir/encoder.int8.onnx",
+                "$modelDir/decoder.int8.onnx",
+            )
             AsrModelKind.SHERPA_STREAMING_CTC -> listOf(
                 "$modelDir/tokens.txt",
                 "$modelDir/model.int8.onnx",
@@ -351,6 +356,18 @@ class SherpaOnnxAsrEngine(
                     modelType = modelType,
                     modelingUnit = modelingUnit,
                     bpeVocab = if (modelingUnit == "bpe") "$modelDir/bpe.model" else "",
+                )
+                AsrModelKind.SHERPA_STREAMING_PARAFORMER -> OnlineModelConfig(
+                    paraformer = OnlineParaformerModelConfig(
+                        encoder = "$modelDir/encoder.int8.onnx",
+                        decoder = "$modelDir/decoder.int8.onnx",
+                    ),
+                    tokens = "$modelDir/tokens.txt",
+                    numThreads = numThreads,
+                    debug = false,
+                    provider = "cpu",
+                    modelType = "paraformer",
+                    modelingUnit = "cjkchar",
                 )
                 AsrModelKind.SHERPA_STREAMING_CTC -> OnlineModelConfig(
                     zipformer2Ctc = OnlineZipformer2CtcModelConfig("$modelDir/model.int8.onnx"),

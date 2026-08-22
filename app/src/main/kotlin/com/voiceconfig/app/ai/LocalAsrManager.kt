@@ -133,6 +133,7 @@ class LocalAsrManager @Inject constructor(
         return when (model.kind) {
             AsrModelKind.SHERPA_STREAMING_TRANSDUCER,
             AsrModelKind.SHERPA_STREAMING_ZIPFORMER2_TRANSDUCER,
+            AsrModelKind.SHERPA_STREAMING_PARAFORMER,
             AsrModelKind.SHERPA_STREAMING_CTC,
             -> SherpaOnnxAsrEngine(
                 context,
