@@ -40,38 +40,37 @@ def main():
         print(f"local dir not found: {args.local_dir}")
         return 1
 
-    files = sorted(os.listdir(args.local_dir))
-    if not files:
-        print(f"empty local dir: {args.local_dir}")
-        return 1
+    total = 0
+    for root, dirs, files in os.walk(args.local_dir):
+        rel = os.path.relpath(root, args.local_dir).replace("\\", "/")
+        if rel == ".":
+            remote_model_dir = f"{REMOTE_TMP}/{args.model_id}"
+            app_model_dir = f"files/models/{args.model_id}"
+        else:
+            remote_model_dir = f"{REMOTE_TMP}/{args.model_id}/{rel}"
+            app_model_dir = f"files/models/{args.model_id}/{rel}"
 
-    remote_model_tmp = f"{REMOTE_TMP}/{args.model_id}"
-    adb(args.serial, ["shell", f"mkdir -p {remote_model_tmp}"])
+        adb(args.serial, ["shell", f"mkdir -p {remote_model_dir}"])
+        adb(args.serial, ["shell", f"run-as {PACKAGE} mkdir -p {app_model_dir}"])
 
-    for name in files:
-        local = os.path.join(args.local_dir, name)
-        if not os.path.isfile(local):
-            continue
-        print(f"push {name}")
-        proc = adb(args.serial, ["push", local, f"{remote_model_tmp}/{name}"])
-        if proc.returncode != 0:
-            print(f"push failed: {proc.stderr}")
-            return 1
+        for name in files:
+            local = os.path.join(root, name)
+            remote = f"{remote_model_dir}/{name}"
+            print(f"push {os.path.relpath(local, args.local_dir)}")
+            proc = adb(args.serial, ["push", local, remote])
+            if proc.returncode != 0:
+                print(f"push failed: {proc.stderr}")
+                return 1
+            proc = adb(args.serial, [
+                "shell",
+                f"run-as {PACKAGE} cp {remote} {app_model_dir}/{name}",
+            ])
+            if proc.returncode != 0:
+                print(f"copy failed: {proc.stderr}")
+                return 1
+            total += 1
 
-    # 写入 App 私有目录
-    app_dir = f"files/models/{args.model_id}"
-    adb(args.serial, ["shell", f"run-as {PACKAGE} mkdir -p {app_dir}"])
-    for name in files:
-        print(f"copy {name}")
-        proc = adb(args.serial, [
-            "shell",
-            f"run-as {PACKAGE} cp {remote_model_tmp}/{name} {app_dir}/{name}",
-        ])
-        if proc.returncode != 0:
-            print(f"copy failed: {proc.stderr}")
-            return 1
-
-    print("done")
+    print(f"done, pushed {total} files")
     return 0
 
 

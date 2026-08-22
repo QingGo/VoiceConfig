@@ -17,6 +17,8 @@ enum class AsrModelKind {
     SHERPA_STREAMING_PARAFORMER,
     SHERPA_STREAMING_CTC,
     SENSEVOICE_OFFLINE,
+    QWEN3_ASR_OFFLINE,
+    COHERE_TRANSCRIBE_OFFLINE,
 }
 
 data class AsrModelFile(
@@ -37,6 +39,7 @@ data class AsrModel(
     val threads: Int = 2,
     val modelingUnit: String = "cjkchar",
     val modelType: String = "zipformer",
+    val language: String = "",
 )
 
 @Singleton
@@ -254,6 +257,105 @@ class AsrModelManager @Inject constructor(
                 ),
             ),
         ),
+        AsrModel(
+            id = "qwen3-asr-0.6b-int8",
+            displayName = "Qwen3-ASR 0.6B int8（非流式，高精度）",
+            kind = AsrModelKind.QWEN3_ASR_OFFLINE,
+            description = "Qwen3-ASR 0.6B ONNX int8，中英混合准确率高；模型较大，约 987MB。",
+            threads = 4,
+            files = listOf(
+                AsrModelFile(
+                    name = "conv_frontend.onnx",
+                    url = "https://huggingface.co/csukuangfj2/sherpa-onnx-qwen3-asr-0.6B-int8-2026-03-25/resolve/main/conv_frontend.onnx",
+                    mirrorUrls = listOf(
+                        "https://hf-mirror.com/csukuangfj2/sherpa-onnx-qwen3-asr-0.6B-int8-2026-03-25/resolve/main/conv_frontend.onnx",
+                    ),
+                    size = 44_148_281L,
+                ),
+                AsrModelFile(
+                    name = "encoder.int8.onnx",
+                    url = "https://huggingface.co/csukuangfj2/sherpa-onnx-qwen3-asr-0.6B-int8-2026-03-25/resolve/main/encoder.int8.onnx",
+                    mirrorUrls = listOf(
+                        "https://hf-mirror.com/csukuangfj2/sherpa-onnx-qwen3-asr-0.6B-int8-2026-03-25/resolve/main/encoder.int8.onnx",
+                    ),
+                    size = 182_491_662L,
+                ),
+                AsrModelFile(
+                    name = "decoder.int8.onnx",
+                    url = "https://huggingface.co/csukuangfj2/sherpa-onnx-qwen3-asr-0.6B-int8-2026-03-25/resolve/main/decoder.int8.onnx",
+                    mirrorUrls = listOf(
+                        "https://hf-mirror.com/csukuangfj2/sherpa-onnx-qwen3-asr-0.6B-int8-2026-03-25/resolve/main/decoder.int8.onnx",
+                    ),
+                    size = 755_914_231L,
+                ),
+                AsrModelFile(
+                    name = "tokenizer/merges.txt",
+                    url = "https://huggingface.co/csukuangfj2/sherpa-onnx-qwen3-asr-0.6B-int8-2026-03-25/resolve/main/tokenizer/merges.txt",
+                    mirrorUrls = listOf(
+                        "https://hf-mirror.com/csukuangfj2/sherpa-onnx-qwen3-asr-0.6B-int8-2026-03-25/resolve/main/tokenizer/merges.txt",
+                    ),
+                    size = 1_671_853L,
+                ),
+                AsrModelFile(
+                    name = "tokenizer/vocab.json",
+                    url = "https://huggingface.co/csukuangfj2/sherpa-onnx-qwen3-asr-0.6B-int8-2026-03-25/resolve/main/tokenizer/vocab.json",
+                    mirrorUrls = listOf(
+                        "https://hf-mirror.com/csukuangfj2/sherpa-onnx-qwen3-asr-0.6B-int8-2026-03-25/resolve/main/tokenizer/vocab.json",
+                    ),
+                    size = 2_776_833L,
+                ),
+                AsrModelFile(
+                    name = "tokenizer/tokenizer_config.json",
+                    url = "https://huggingface.co/csukuangfj2/sherpa-onnx-qwen3-asr-0.6B-int8-2026-03-25/resolve/main/tokenizer/tokenizer_config.json",
+                    mirrorUrls = listOf(
+                        "https://hf-mirror.com/csukuangfj2/sherpa-onnx-qwen3-asr-0.6B-int8-2026-03-25/resolve/main/tokenizer/tokenizer_config.json",
+                    ),
+                    size = 12_487L,
+                ),
+            ),
+        ),
+        AsrModel(
+            id = "cohere-transcribe-14-lang-int8",
+            displayName = "Cohere Transcribe 14语言 int8（非流式）",
+            kind = AsrModelKind.COHERE_TRANSCRIBE_OFFLINE,
+            description = "Cohere Transcribe 14语言 int8，支持中英等多语种；体积约 2.9GB，适合有存储空间的高精度场景。",
+            threads = 4,
+            language = "zh",
+            files = listOf(
+                AsrModelFile(
+                    name = "encoder.int8.onnx",
+                    url = "https://huggingface.co/csukuangfj2/sherpa-onnx-cohere-transcribe-14-lang-int8-2026-04-01/resolve/main/encoder.int8.onnx",
+                    mirrorUrls = listOf(
+                        "https://hf-mirror.com/csukuangfj2/sherpa-onnx-cohere-transcribe-14-lang-int8-2026-04-01/resolve/main/encoder.int8.onnx",
+                    ),
+                    size = 3_090_822L,
+                ),
+                AsrModelFile(
+                    name = "encoder.int8.onnx.data",
+                    url = "https://huggingface.co/csukuangfj2/sherpa-onnx-cohere-transcribe-14-lang-int8-2026-04-01/resolve/main/encoder.int8.onnx.data",
+                    mirrorUrls = listOf(
+                        "https://hf-mirror.com/csukuangfj2/sherpa-onnx-cohere-transcribe-14-lang-int8-2026-04-01/resolve/main/encoder.int8.onnx.data",
+                    ),
+                    size = 2_731_503_072L,
+                ),
+                AsrModelFile(
+                    name = "decoder.int8.onnx",
+                    url = "https://huggingface.co/csukuangfj2/sherpa-onnx-cohere-transcribe-14-lang-int8-2026-04-01/resolve/main/decoder.int8.onnx",
+                    mirrorUrls = listOf(
+                        "https://hf-mirror.com/csukuangfj2/sherpa-onnx-cohere-transcribe-14-lang-int8-2026-04-01/resolve/main/decoder.int8.onnx",
+                    ),
+                    size = 153_250_705L,
+                ),
+                AsrModelFile(
+                    name = "tokens.txt",
+                    url = "https://huggingface.co/csukuangfj2/sherpa-onnx-cohere-transcribe-14-lang-int8-2026-04-01/resolve/main/tokens.txt",
+                    mirrorUrls = listOf(
+                        "https://hf-mirror.com/csukuangfj2/sherpa-onnx-cohere-transcribe-14-lang-int8-2026-04-01/resolve/main/tokens.txt",
+                    ),
+                    size = 207_437L,
+                ),
+            ),
+        ),
     )
 
     fun selectedModel(): AsrModel {
@@ -306,6 +408,7 @@ class AsrModelManager @Inject constructor(
             }
             model.files.forEach { file ->
                 val target = File(dir, file.name)
+                target.parentFile?.mkdirs()
                 if (target.exists() && ((file.size == 0L && target.length() > 0L) || target.length() == file.size)) {
                     downloaded += file.size
                     reportProgress()

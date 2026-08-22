@@ -39,8 +39,9 @@ class AsrBenchmarkActivity : ComponentActivity() {
         }
         val threadsOverride = intent.getStringExtra(EXTRA_THREADS)?.toIntOrNull()?.coerceIn(1, 16)
         val warm = intent.getBooleanExtra(EXTRA_WARM, false)
+        val language = intent.getStringExtra(EXTRA_LANG)
         val startMs = System.currentTimeMillis()
-        Log.i(TAG, "benchmark start model=${model.id} wav=$wavPath warm=$warm threads=${threadsOverride ?: "default"}")
+        Log.i(TAG, "benchmark start model=${model.id} wav=$wavPath warm=$warm threads=${threadsOverride ?: "default"} language=${language ?: "default"}")
         Thread {
             if (warm) {
                 val warmStart = System.currentTimeMillis()
@@ -62,6 +63,7 @@ class AsrBenchmarkActivity : ComponentActivity() {
                 },
                 threadsOverride = threadsOverride,
                 useCachedEngine = warm,
+                language = language,
             )
         }.start()
     }
@@ -72,5 +74,6 @@ class AsrBenchmarkActivity : ComponentActivity() {
         private const val EXTRA_MODEL = "model"
         private const val EXTRA_THREADS = "threads"
         private const val EXTRA_WARM = "warm"
+        private const val EXTRA_LANG = "lang"
     }
 }

@@ -118,13 +118,14 @@ class LocalAsrManager @Inject constructor(
         onError: (String) -> Unit,
         threadsOverride: Int? = null,
         useCachedEngine: Boolean = false,
+        language: String? = null,
     ) {
         val engine = if (useCachedEngine) {
             currentEngine()
         } else {
             createEngine(model, threadsOverride)
         }
-        engine.recognizeFile(wavPath, onResult, onError)
+        engine.recognizeFile(wavPath, onResult, onError, language)
     }
 
     private fun createEngine(model: AsrModel, threadsOverride: Int? = null): AsrEngine {
@@ -145,6 +146,15 @@ class LocalAsrManager @Inject constructor(
             )
 
             AsrModelKind.SENSEVOICE_OFFLINE -> SenseVoiceAsrEngine(context, dir, threads)
+            AsrModelKind.QWEN3_ASR_OFFLINE,
+            AsrModelKind.COHERE_TRANSCRIBE_OFFLINE,
+            -> OfflineLlmAsrEngine(
+                context,
+                dir,
+                model.kind,
+                threads,
+                model.language,
+            )
         }
     }
 

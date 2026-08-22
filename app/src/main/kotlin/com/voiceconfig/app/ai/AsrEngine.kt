@@ -18,5 +18,6 @@ interface AsrEngine {
         wavPath: String,
         onResult: (String) -> Unit,
         onError: (String) -> Unit,
+        language: String? = null,
     )
 }

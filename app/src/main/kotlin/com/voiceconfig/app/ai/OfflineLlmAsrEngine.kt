@@ -9,24 +9,29 @@ import android.os.Looper
 import android.util.Log
 import com.k2fsa.sherpa.onnx.FeatureConfig
 import com.k2fsa.sherpa.onnx.HomophoneReplacerConfig
+import com.k2fsa.sherpa.onnx.OfflineCohereTranscribeModelConfig
 import com.k2fsa.sherpa.onnx.OfflineModelConfig
+import com.k2fsa.sherpa.onnx.OfflineQwen3AsrModelConfig
 import com.k2fsa.sherpa.onnx.OfflineRecognizer
 import com.k2fsa.sherpa.onnx.OfflineRecognizerConfig
-import com.k2fsa.sherpa.onnx.OfflineSenseVoiceModelConfig
-import java.io.File
+import com.k2fsa.sherpa.onnx.OfflineStream
 import java.io.DataInputStream
+import java.io.File
 import java.io.FileInputStream
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.math.abs
 
 /**
- * SenseVoice-small 离线识别引擎（非流式）。
- * 录音到静音后一次性识别，适合“说完再出结果”的对比测试。
+ * 非流式 LLM-ASR 引擎，目前支持：
+ * - Qwen3-ASR 0.6B ONNX int8
+ * - Cohere Transcribe ONNX int8
  */
-class SenseVoiceAsrEngine(
+class OfflineLlmAsrEngine(
     private val context: Context,
     private val modelDir: String,
+    private val modelKind: AsrModelKind,
     private val numThreads: Int = 2,
+    private val defaultLanguage: String = "",
 ) : AsrEngine {
 
     private val mainHandler = Handler(Looper.getMainLooper())
@@ -38,8 +43,26 @@ class SenseVoiceAsrEngine(
         private const val TIMING_TAG = "VoiceConfigAsrTiming"
     }
 
-    override fun isModelAvailable(): Boolean =
-        listOf("$modelDir/model.int8.onnx", "$modelDir/tokens.txt").all { File(it).exists() }
+    override fun isModelAvailable(): Boolean {
+        val required = when (modelKind) {
+            AsrModelKind.QWEN3_ASR_OFFLINE -> listOf(
+                "$modelDir/conv_frontend.onnx",
+                "$modelDir/encoder.int8.onnx",
+                "$modelDir/decoder.int8.onnx",
+                "$modelDir/tokenizer/merges.txt",
+                "$modelDir/tokenizer/vocab.json",
+                "$modelDir/tokenizer/tokenizer_config.json",
+            )
+            AsrModelKind.COHERE_TRANSCRIBE_OFFLINE -> listOf(
+                "$modelDir/encoder.int8.onnx",
+                "$modelDir/encoder.int8.onnx.data",
+                "$modelDir/decoder.int8.onnx",
+                "$modelDir/tokens.txt",
+            )
+            else -> emptyList()
+        }
+        return required.all { File(it).exists() }
+    }
 
     override fun cancel() {
         synchronized(lock) {
@@ -79,14 +102,12 @@ class SenseVoiceAsrEngine(
                     bufferSize,
                 )
                 record.startRecording()
+                val start = System.currentTimeMillis()
                 val shortBuf = ShortArray(minBuf)
                 val samples = ArrayList<Float>(sampleRate * 30)
-                val start = System.currentTimeMillis()
-                var speechStartedAt: Long? = null
                 var speechStarted = false
-                var silenceMs = 0L
                 var lastVoiceAt = start
-                var endpointAt: Long? = null
+                var silenceMs = 0L
 
                 while (!stopRequested.get() && System.currentTimeMillis() - start < maxDurationMs) {
                     val read = record.read(shortBuf, 0, shortBuf.size)
@@ -100,13 +121,11 @@ class SenseVoiceAsrEngine(
                     val rms = energy / read
                     if (rms > 0.01) {
                         speechStarted = true
-                        if (speechStartedAt == null) speechStartedAt = System.currentTimeMillis()
                         lastVoiceAt = System.currentTimeMillis()
                         silenceMs = 0
                     } else if (speechStarted) {
                         silenceMs = System.currentTimeMillis() - lastVoiceAt
                         if (silenceMs >= 1_200) {
-                            endpointAt = System.currentTimeMillis()
                             break
                         }
                     }
@@ -125,20 +144,20 @@ class SenseVoiceAsrEngine(
                 }
 
                 val recordEndAt = System.currentTimeMillis()
-                val decodeStartAt = recordEndAt
                 val rec = getRecognizer()
                 val modelReadyAt = System.currentTimeMillis()
                 val stream = rec.createStream()
+                configureStream(stream, defaultLanguage)
                 stream.acceptWaveform(samples.toFloatArray(), sampleRate)
                 rec.decode(stream)
                 val text = rec.getResult(stream).text
                 val finishAt = System.currentTimeMillis()
                 Log.i(
                     TIMING_TAG,
-                    "sensevoice total=${finishAt - start}ms " +
-                        "speechStart=${speechStartedAt?.minus(start) ?: -1}ms " +
+                    "${modelKind.name.lowercase()} total=${finishAt - start}ms " +
+                        "speechStart=${lastVoiceAt - start}ms " +
                         "recordEnd=${recordEndAt - start}ms " +
-                        "modelInit=${modelReadyAt - decodeStartAt}ms " +
+                        "modelInit=${modelReadyAt - recordEndAt}ms " +
                         "decode=${finishAt - modelReadyAt}ms " +
                         "final=$text",
                 )
@@ -150,7 +169,7 @@ class SenseVoiceAsrEngine(
                     mainHandler.post { onError("没有听清，请再说一次") }
                 }
             } catch (e: Exception) {
-                mainHandler.post { onError(e.message ?: "SenseVoice 识别失败") }
+                mainHandler.post { onError(e.message ?: "离线大模型识别失败") }
             } finally {
                 synchronized(lock) {
                     if (currentCancel === cancelFn) {
@@ -175,14 +194,17 @@ class SenseVoiceAsrEngine(
                 val rec = getRecognizer()
                 val modelReadyAt = System.currentTimeMillis()
                 val stream = rec.createStream()
+                configureStream(stream, language ?: defaultLanguage)
                 stream.acceptWaveform(samples, 16_000)
                 rec.decode(stream)
                 val text = rec.getResult(stream).text
                 val finishAt = System.currentTimeMillis()
                 Log.i(
                     TIMING_TAG,
-                    "sensevoice-file total=${finishAt - requestStart}ms readWav=${readWavMs}ms " +
-                        "modelInit=${modelReadyAt - requestStart - readWavMs}ms decode=${finishAt - modelReadyAt}ms " +
+                    "${modelKind.name.lowercase()}-file total=${finishAt - requestStart}ms " +
+                        "readWav=${readWavMs}ms " +
+                        "modelInit=${modelReadyAt - requestStart - readWavMs}ms " +
+                        "decode=${finishAt - modelReadyAt}ms " +
                         "text=$text",
                 )
                 stream.release()
@@ -195,6 +217,15 @@ class SenseVoiceAsrEngine(
                 mainHandler.post { onError(e.message ?: "文件识别失败") }
             }
         }.start()
+    }
+
+    private fun configureStream(stream: OfflineStream, language: String) {
+        if (modelKind == AsrModelKind.COHERE_TRANSCRIBE_OFFLINE) {
+            val lang = language.ifBlank { defaultLanguage.ifBlank { "zh" } }
+            stream.setOption("language", lang)
+            stream.setOption("use_punct", "true")
+            stream.setOption("use_itn", "true")
+        }
     }
 
     private fun readWav(path: String): FloatArray {
@@ -212,11 +243,11 @@ class SenseVoiceAsrEngine(
                 val size = readLeInt(input)
                 when (id) {
                     "fmt " -> {
-                        readLeShort(input) // audio format
+                        readLeShort(input)
                         channels = readLeShort(input)
                         sampleRate = readLeInt(input)
-                        readLeInt(input) // byte rate
-                        readLeShort(input) // block align
+                        readLeInt(input)
+                        readLeShort(input)
                         bitsPerSample = readLeShort(input)
                         if (size > 16) input.skipBytes(size - 16)
                     }
@@ -285,21 +316,41 @@ class SenseVoiceAsrEngine(
         synchronized(lock) {
             recognizer?.let { return it }
             val offlineModelConfig = OfflineModelConfig().apply {
-                senseVoice = OfflineSenseVoiceModelConfig(
-                    "$modelDir/model.int8.onnx",
-                    "auto",
-                    true,
-                )
-                tokens = "$modelDir/tokens.txt"
+                when (modelKind) {
+                    AsrModelKind.QWEN3_ASR_OFFLINE -> {
+                        qwen3Asr = OfflineQwen3AsrModelConfig(
+                            "$modelDir/conv_frontend.onnx",
+                            "$modelDir/encoder.int8.onnx",
+                            "$modelDir/decoder.int8.onnx",
+                            "$modelDir/tokenizer",
+                            512,
+                            128,
+                            1e-6f,
+                            0.8f,
+                            42,
+                            "",
+                        )
+                        modelType = "qwen3_asr"
+                    }
+                    AsrModelKind.COHERE_TRANSCRIBE_OFFLINE -> {
+                        cohereTranscribe = OfflineCohereTranscribeModelConfig(
+                            "$modelDir/encoder.int8.onnx",
+                            "$modelDir/decoder.int8.onnx",
+                            defaultLanguage,
+                            true,
+                            true,
+                        )
+                        tokens = "$modelDir/tokens.txt"
+                        modelType = "cohere-transcribe"
+                    }
+                    else -> error("Unsupported offline LLM ASR kind: $modelKind")
+                }
                 numThreads = numThreads
                 debug = false
                 provider = "cpu"
-                modelType = "sensevoice"
-                modelingUnit = "cjkchar"
-                bpeVocab = ""
             }
             val config = OfflineRecognizerConfig().apply {
-                featConfig = FeatureConfig(16_000, 80, 0f)
+                featConfig = FeatureConfig(16_000, 128, 0f)
                 modelConfig = offlineModelConfig
                 hr = HomophoneReplacerConfig("", "", "")
                 decodingMethod = "greedy_search"

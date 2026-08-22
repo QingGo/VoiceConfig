@@ -61,7 +61,7 @@ def push_wav(serial, wav_path):
     print(f"pushed {wav_path} to app private files")
 
 
-def launch_bench(serial, model_id, threads=None, warm=False):
+def launch_bench(serial, model_id, threads=None, warm=False, lang=None):
     args = [
         "shell", "am", "start", "-n", f"{PACKAGE}/{ACTIVITY}",
         "--es", "wav", REMOTE_WAV,
@@ -71,6 +71,8 @@ def launch_bench(serial, model_id, threads=None, warm=False):
         args += ["--es", "threads", str(threads)]
     if warm:
         args += ["--ez", "warm", "true"]
+    if lang:
+        args += ["--es", "lang", lang]
     proc = adb(serial, args)
     if proc.returncode != 0:
         raise RuntimeError(f"launch failed: {proc.stderr}")
@@ -113,10 +115,10 @@ def load_cases(path):
         return json.load(f)["cases"]
 
 
-def run_one(serial, wav_path, model_id, threads=None, warm=False):
+def run_one(serial, wav_path, model_id, threads=None, warm=False, lang=None):
     push_wav(serial, wav_path)
     clear_logcat(serial)
-    launch_bench(serial, model_id, threads=threads, warm=warm)
+    launch_bench(serial, model_id, threads=threads, warm=warm, lang=lang)
     output = collect_result(serial)
     return parse_bench(output)
 
@@ -137,6 +139,7 @@ def main():
     parser.add_argument("--model", default="sherpa-ctc-2025")
     parser.add_argument("--threads", type=int, default=None, help="覆盖 CPU 线程数")
     parser.add_argument("--warm", action="store_true", help="先预热再识别（验证 warm 路径）")
+    parser.add_argument("--lang", default=None, help="Cohere Transcribe 语言代码，如 zh/en/de/ja")
     parser.add_argument("--iterations", type=int, default=1)
     args = parser.parse_args()
 
@@ -156,7 +159,7 @@ def main():
                 print(f"skip {case_id}: no wav file")
                 continue
             print(f"--- {case_id} ---")
-            parsed = run_one(args.serial, wav, args.model, args.threads, args.warm)
+            parsed = run_one(args.serial, wav, args.model, args.threads, args.warm, args.lang)
             parsed["case_id"] = case_id
             parsed["expected_text"] = case.get("text")
             parsed["keywords"] = case.get("keywords", [])
@@ -183,7 +186,7 @@ def main():
     results = []
     for i in range(args.iterations):
         print(f"--- iteration {i + 1} ---")
-        parsed = run_one(args.serial, args.wav, args.model, args.threads, args.warm)
+        parsed = run_one(args.serial, args.wav, args.model, args.threads, args.warm, args.lang)
         results.append(parsed)
         if "text" in parsed:
             print(f"result: {parsed['text']}")
