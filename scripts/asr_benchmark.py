@@ -18,6 +18,7 @@
 """
 
 import argparse
+import base64
 import json
 import os
 import re
@@ -29,6 +30,7 @@ PACKAGE = "com.voiceconfig.app"
 ACTIVITY = ".AsrBenchmarkActivity"
 BENCH_TAG = "AsrBenchmark"
 TIMING_TAG = "VoiceConfigAsrTiming"
+REMOTE_WAV = "/data/user/0/com.voiceconfig.app/files/asr_test.wav"
 
 
 def adb(serial, args):
@@ -44,16 +46,25 @@ def clear_logcat(serial):
 
 
 def push_wav(serial, wav_path):
-    proc = adb(serial, ["push", wav_path, "/sdcard/voiceconfig_asr_test.wav"])
+    """通过 base64 + run-as 写入 App 私有 files 目录，避开 scoped storage 权限。"""
+    with open(wav_path, "rb") as f:
+        b64 = base64.b64encode(f.read()).decode("ascii")
+    remote_cmd = f"run-as {PACKAGE} sh -c 'base64 -d > {REMOTE_WAV}'"
+    proc = subprocess.run(
+        ["adb"] + (["-s", serial] if serial else []) + ["shell", remote_cmd],
+        input=b64,
+        capture_output=True,
+        text=True,
+    )
     if proc.returncode != 0:
         raise RuntimeError(f"push failed: {proc.stderr}")
-    print(f"pushed {wav_path}")
+    print(f"pushed {wav_path} to app private files")
 
 
 def launch_bench(serial, model_id):
     proc = adb(serial, [
         "shell", "am", "start", "-n", f"{PACKAGE}/{ACTIVITY}",
-        "--es", "wav", "/sdcard/voiceconfig_asr_test.wav",
+        "--es", "wav", REMOTE_WAV,
         "--es", "model", model_id,
     ])
     if proc.returncode != 0:
