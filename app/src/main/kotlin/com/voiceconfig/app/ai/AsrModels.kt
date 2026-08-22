@@ -97,7 +97,7 @@ class AsrModelManager @Inject constructor(
                     mirrorUrls = listOf(
                         "https://hf-mirror.com/csukuangfj/sherpa-onnx-streaming-zipformer-bilingual-zh-en-2023-02-20/resolve/main/encoder-epoch-99-avg-1.int8.onnx",
                     ),
-                    size = 0L,
+                    size = 181_895_032L,
                 ),
                 AsrModelFile(
                     name = "decoder-epoch-99-avg-1.int8.onnx",
@@ -105,7 +105,7 @@ class AsrModelManager @Inject constructor(
                     mirrorUrls = listOf(
                         "https://hf-mirror.com/csukuangfj/sherpa-onnx-streaming-zipformer-bilingual-zh-en-2023-02-20/resolve/main/decoder-epoch-99-avg-1.int8.onnx",
                     ),
-                    size = 0L,
+                    size = 13_091_040L,
                 ),
                 AsrModelFile(
                     name = "joiner-epoch-99-avg-1.int8.onnx",
@@ -113,7 +113,7 @@ class AsrModelManager @Inject constructor(
                     mirrorUrls = listOf(
                         "https://hf-mirror.com/csukuangfj/sherpa-onnx-streaming-zipformer-bilingual-zh-en-2023-02-20/resolve/main/joiner-epoch-99-avg-1.int8.onnx",
                     ),
-                    size = 0L,
+                    size = 3_228_404L,
                 ),
                 AsrModelFile(
                     name = "tokens.txt",
@@ -121,7 +121,7 @@ class AsrModelManager @Inject constructor(
                     mirrorUrls = listOf(
                         "https://hf-mirror.com/csukuangfj/sherpa-onnx-streaming-zipformer-bilingual-zh-en-2023-02-20/resolve/main/tokens.txt",
                     ),
-                    size = 0L,
+                    size = 56_317L,
                 ),
             ),
         ),
