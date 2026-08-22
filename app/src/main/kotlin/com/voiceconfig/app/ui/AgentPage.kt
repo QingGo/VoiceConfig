@@ -325,7 +325,7 @@ private fun SkillLibraryDialog(
                             Column(Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                     Text(
-                                        text = skill.text,
+                                        text = skill.name,
                                         style = MaterialTheme.typography.bodyLarge,
                                         modifier = Modifier.weight(1f),
                                     )
@@ -343,13 +343,24 @@ private fun SkillLibraryDialog(
                                         },
                                     )
                                 }
+                                if (skill.description.isNotBlank()) {
+                                    Text(
+                                        text = skill.description,
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        maxLines = 2,
+                                    )
+                                }
                                 Text(
-                                    text = "${skill.steps.size} 步 · 成功 ${skill.successCount} 次 · 使用 ${skill.useCount} 次",
+                                    text = "${skill.steps.size} 步 · 成功 ${skill.successCount} 次 · 使用 ${skill.useCount} 次 · v${skill.version}",
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
                                 Text(
-                                    text = skill.steps.joinToString(" → ") { "${it.toolName}(${it.args.take(40)})" }.take(160),
+                                    text = skill.steps.joinToString(" → ") {
+                                        val purpose = if (it.purpose.isNotBlank()) " [${it.purpose}]" else ""
+                                        "${it.toolName}(${it.args.take(40)})$purpose"
+                                    }.take(180),
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     maxLines = 3,

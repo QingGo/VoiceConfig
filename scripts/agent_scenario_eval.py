@@ -122,6 +122,7 @@ def summarize_run(run):
         "tool_count": len(tool_calls),
         "failed_tools": [e.get("tool") for e in tool_results if not e.get("ok")],
         "declined": len(declines),
+        "duration_ms": finished.get("duration_ms"),
     }
 
 
@@ -148,6 +149,7 @@ def compute_metrics(summaries):
         "passed": passed,
         "success_rate": round(passed / total * 100, 1) if total else 0,
         "avg_tool_count": avg_steps,
+        "avg_duration_ms": round(sum(r.get("duration_ms") or 0 for r in summaries) / total, 1) if total else 0,
         "declined_sensitive_count": declined,
         "human_intervention_rate": round(declined / total * 100, 1) if total else 0,
         "top_failure_reasons": [{"reason": k, "count": v} for k, v in failed_reasons.most_common(10)],

@@ -1,0 +1,50 @@
+[
+  {
+    "name": "设置工作日闹钟",
+    "text": "帮我设置一个每个工作日早上7点半的闹钟",
+    "expect": "07:30",
+    "timeout": 180,
+    "estimated_seconds": 60,
+    "category": "clock"
+  },
+  {
+    "name": "添加联系人",
+    "text": "帮我添加一个联系人，名字叫李四，电话13800138000",
+    "expect": "李四",
+    "timeout": 180,
+    "estimated_seconds": 60,
+    "category": "contacts"
+  },
+  {
+    "name": "创建日历会议",
+    "text": "帮我创建一个明天下午3点的日历事件，标题叫周会，时长1小时",
+    "expect": "周会",
+    "timeout": 180,
+    "estimated_seconds": 75,
+    "category": "calendar"
+  },
+  {
+    "name": "Chrome搜索并打开结果",
+    "text": "打开Chrome，搜索Android 15发布时间，然后打开第一个搜索结果",
+    "expect": "Android 15",
+    "timeout": 240,
+    "estimated_seconds": 90,
+    "category": "browser"
+  },
+  {
+    "name": "模糊语音设置闹钟",
+    "text": "帮哦设个闹钟名天七点半",
+    "expect": "07:30",
+    "timeout": 180,
+    "estimated_seconds": 45,
+    "category": "asr"
+  },
+  {
+    "name": "打开设置搜索勿扰",
+    "text": "帮我打开设置，搜索勿扰模式",
+    "expect": "勿扰",
+    "timeout": 180,
+    "estimated_seconds": 60,
+    "category": "settings"
+  }
+]

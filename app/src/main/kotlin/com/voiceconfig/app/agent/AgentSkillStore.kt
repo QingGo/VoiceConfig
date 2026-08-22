@@ -77,7 +77,11 @@ class AgentSkillStore @Inject constructor(
         } else {
             val skill = AgentSkill(
                 id = "skill_${now}",
+                name = buildSkillName(normalized),
+                description = "用户意图：$normalized",
                 text = normalized,
+                tags = guessTags(normalized),
+                whenToUse = normalized,
                 steps = newSteps,
                 createdAt = now,
                 updatedAt = now,
@@ -87,6 +91,7 @@ class AgentSkillStore @Inject constructor(
                 lastRunId = runId,
                 lastSessionId = sourceSessionId,
                 lastResult = "success",
+                version = 1,
             )
             skills + skill
         }
@@ -129,6 +134,8 @@ class AgentSkillStore @Inject constructor(
                                 AgentSkillStep(
                                     toolName = step.optString("toolName"),
                                     args = step.optString("args"),
+                                    purpose = step.optString("purpose"),
+                                    expected = step.optString("expected"),
                                 ),
                             )
                         }
@@ -136,11 +143,19 @@ class AgentSkillStore @Inject constructor(
                     add(
                         AgentSkill(
                             id = obj.optString("id"),
+                            name = obj.optString("name", obj.optString("text", "技能")),
+                            description = obj.optString("description"),
                             text = obj.optString("text"),
+                            tags = runCatching {
+                                val arr = obj.optJSONArray("tags")
+                                if (arr == null) emptyList() else (0 until arr.length()).map { arr.optString(it) }
+                            }.getOrDefault(emptyList()),
+                            whenToUse = obj.optString("whenToUse"),
                             steps = steps,
                             createdAt = obj.optLong("createdAt"),
                             updatedAt = obj.optLong("updatedAt"),
                             successCount = obj.optInt("successCount", 1),
+                            failCount = obj.optInt("failCount", 0),
                             useCount = obj.optInt("useCount", 0),
                             status = runCatching {
                                 AgentSkillStatus.valueOf(obj.optString("status", AgentSkillStatus.APPROVED.name))
@@ -148,6 +163,7 @@ class AgentSkillStore @Inject constructor(
                             lastRunId = obj.optString("lastRunId"),
                             lastSessionId = obj.optLong("lastSessionId").takeIf { it != 0L },
                             lastResult = obj.optString("lastResult"),
+                            version = obj.optInt("version", 1),
                         ),
                     )
                 }
@@ -165,26 +181,52 @@ class AgentSkillStore @Inject constructor(
                 stepsArr.put(
                     JSONObject()
                         .put("toolName", step.toolName)
-                        .put("args", step.args),
+                        .put("args", step.args)
+                        .put("purpose", step.purpose)
+                        .put("expected", step.expected),
                 )
             }
+            val tagsArr = JSONArray()
+            skill.tags.forEach { tagsArr.put(it) }
             arr.put(
                 JSONObject()
                     .put("id", skill.id)
+                    .put("name", skill.name)
+                    .put("description", skill.description)
                     .put("text", skill.text)
+                    .put("tags", tagsArr)
+                    .put("whenToUse", skill.whenToUse)
                     .put("steps", stepsArr)
                     .put("createdAt", skill.createdAt)
                     .put("updatedAt", skill.updatedAt)
                     .put("successCount", skill.successCount)
+                    .put("failCount", skill.failCount)
                     .put("useCount", skill.useCount)
                     .put("status", skill.status.name)
                     .put("lastRunId", skill.lastRunId)
                     .put("lastSessionId", skill.lastSessionId ?: 0L)
-                    .put("lastResult", skill.lastResult),
+                    .put("lastResult", skill.lastResult)
+                    .put("version", skill.version),
             )
         }
         prefs.edit().putString(KEY_SKILLS, arr.toString()).apply()
         _skills.value = skills
+    }
+
+    private fun buildSkillName(text: String): String {
+        val trimmed = text.trim().take(24)
+        return trimmed.ifBlank { "未命名技能" }
+    }
+
+    private fun guessTags(text: String): List<String> {
+        val tags = mutableListOf<String>()
+        if (text.contains("闹钟") || text.contains("提醒") || text.contains("定时")) tags += "定时"
+        if (text.contains("联系人") || text.contains("电话")) tags += "联系人"
+        if (text.contains("日历") || text.contains("会议") || text.contains("事件")) tags += "日历"
+        if (text.contains("设置") || text.contains("开关")) tags += "设置"
+        if (text.contains("搜索") || text.contains("查找")) tags += "搜索"
+        if (text.contains("咖啡") || text.contains("点") || text.contains("下单")) tags += "生活"
+        return tags.distinct().take(5)
     }
 
     private fun similarity(a: String, b: String): Double {
@@ -202,19 +244,27 @@ class AgentSkillStore @Inject constructor(
 
 data class AgentSkill(
     val id: String,
+    val name: String,
+    val description: String,
     val text: String,
+    val tags: List<String> = emptyList(),
+    val whenToUse: String = "",
     val steps: List<AgentSkillStep>,
     val createdAt: Long,
     val updatedAt: Long,
     val successCount: Int,
+    val failCount: Int = 0,
     val useCount: Int = 0,
     val status: AgentSkillStatus = AgentSkillStatus.APPROVED,
     val lastRunId: String = "",
     val lastSessionId: Long? = null,
     val lastResult: String = "",
+    val version: Int = 1,
 )
 
 data class AgentSkillStep(
     val toolName: String,
     val args: String,
+    val purpose: String = "",
+    val expected: String = "",
 )

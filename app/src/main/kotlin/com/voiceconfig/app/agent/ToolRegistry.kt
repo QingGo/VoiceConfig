@@ -26,9 +26,19 @@ class ToolRegistry {
 
     fun tools(): List<AgentTool> = tools.values.toList()
 
+    fun tools(group: ToolGroup): List<AgentTool> =
+        tools.values.filter { it.metadata.group == group }
+
+    fun coreTools(): List<AgentTool> = tools(ToolGroup.CORE)
+
     fun descriptions(): String = tools.values.joinToString("\n") {
         "- ${it.name}: ${it.description}"
     }
+
+    fun descriptions(group: ToolGroup): String =
+        tools(group).joinToString("\n") { "- ${it.name}: ${it.description}" }
+
+    fun coreDescriptions(): String = descriptions(ToolGroup.CORE)
 
     fun size(): Int = tools.size
 }

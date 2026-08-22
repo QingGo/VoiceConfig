@@ -42,6 +42,33 @@ class AgentSession @Inject constructor(
 
     fun historySnapshot(): List<AgentMessage> = history.toList()
 
+    /**
+     * 后台/自动化执行入口：临时使用独立 history，执行结束后恢复手动会话上下文。
+     * 适用于定时 Agent 任务、立即执行等不希望污染用户当前会话的场景。
+     */
+    suspend fun sendIsolated(
+        userText: String,
+        maxRounds: Int = 60,
+        skills: List<AgentSkill> = emptyList(),
+        verifyPolicy: AgentVerificationPolicy = AgentVerificationPolicy(),
+        onSensitiveAction: suspend (SensitiveActionRequest) -> Boolean = { false },
+    ): AgentTurnResult {
+        val saved = history.toList()
+        history.clear()
+        return try {
+            send(
+                userText = userText,
+                maxRounds = maxRounds,
+                skills = skills,
+                verifyPolicy = verifyPolicy,
+                onSensitiveAction = onSensitiveAction,
+            )
+        } finally {
+            history.clear()
+            history.addAll(saved)
+        }
+    }
+
     suspend fun send(
         userText: String,
         maxRounds: Int = 60,
@@ -68,8 +95,14 @@ class AgentSession @Inject constructor(
         var latestScreenHeight: Int? = null
         var autoVerifyCount = 0
         var lastAutoVerifyAt = 0L
+        val startedAtMs = System.currentTimeMillis()
+        var llmWaitMs = 0L
+        var toolExecMs = 0L
+        var verifyMs = 0L
+        var rounds = 0
 
         for (round in 0 until maxRounds) {
+            rounds++
             latestScreenBase64 = null
             latestScreenWidth = null
             latestScreenHeight = null
@@ -88,7 +121,8 @@ class AgentSession @Inject constructor(
                     "has_screenshot" to pruneImageHistory(historySnapshot()).any { it.imageBase64 != null },
                 ),
             )
-            val response = chatClient.streamWithTools(systemPrompt, pruneImageHistory(historySnapshot()), toolRegistry.tools(), onStreamEvent) ?: run {
+            val llmStartMs = System.currentTimeMillis()
+            val response = chatClient.streamWithTools(systemPrompt, pruneImageHistory(historySnapshot()), toolRegistry.coreTools(), onStreamEvent) ?: run {
                 val detail = chatClient.lastError?.let { "：$it" } ?: ""
                 val error = "模型未返回结果$detail"
                 trace.log(runId, "llm_error", mapOf("round" to round, "error" to error))
@@ -96,6 +130,8 @@ class AgentSession @Inject constructor(
                 onMessage(history.last())
                 return AgentTurnResult(ok = false, message = error, toolCalls = allToolCalls, history = historySnapshot(), runId = runId)
             }
+
+            llmWaitMs += System.currentTimeMillis() - llmStartMs
 
             // 把 assistant 消息（含 reasoning/tool_calls）追加到历史
             val assistantContent = response.content ?: ""
@@ -133,13 +169,18 @@ class AgentSession @Inject constructor(
                     return AgentTurnResult(ok = false, message = error, toolCalls = allToolCalls, history = historySnapshot(), runId = runId)
                 }
                 val finalText = assistantContent.ifBlank { "（无文本回复）" }
-                trace.log(runId, "run_finished", mapOf("ok" to true, "message" to finalText, "tool_call_count" to allToolCalls.size))
+                trace.log(runId, "run_finished", mapOf("ok" to true, "message" to finalText, "tool_call_count" to allToolCalls.size, "duration_ms" to (System.currentTimeMillis() - startedAtMs)))
                 return AgentTurnResult(
                     ok = true,
                     message = finalText,
                     toolCalls = allToolCalls,
                     history = historySnapshot(),
                     runId = runId,
+                    durationMs = System.currentTimeMillis() - startedAtMs,
+                    llmWaitMs = llmWaitMs,
+                    toolExecMs = toolExecMs,
+                    verifyMs = verifyMs,
+                    rounds = rounds,
                 )
             }
 
@@ -211,8 +252,10 @@ class AgentSession @Inject constructor(
                     continue
                 }
                 trace.log(runId, "tool_call", mapOf("tool" to toolCall.name, "args" to args))
+                val toolStartMs = System.currentTimeMillis()
                 val result = runCatching { tool.execute(args) }
                     .getOrElse { ToolResult.failure(it.message ?: it.javaClass.simpleName) }
+                toolExecMs += System.currentTimeMillis() - toolStartMs
                 onStep(
                     AgentStepUi(
                         index = stepIndex,
@@ -266,6 +309,7 @@ class AgentSession @Inject constructor(
                 ) {
                     autoVerifyCount++
                     lastAutoVerifyAt = System.currentTimeMillis()
+                    val verifyStartMs = System.currentTimeMillis()
                     val verify = runCatching { toolRegistry.get("read_screen")?.execute(emptyMap()) }.getOrNull()
                     val verifyImage = verify?.data?.get("image_base64") as? String
                     if (verify?.ok == true && !verifyImage.isNullOrBlank()) {
@@ -275,6 +319,7 @@ class AgentSession @Inject constructor(
                         val path = trace.saveScreenshot(runId, verifyImage, "auto_verify_${toolCall.name}")
                         trace.log(runId, "auto_verify", mapOf("tool" to toolCall.name, "path" to path, "base64_length" to verifyImage.length))
                     }
+                    verifyMs += System.currentTimeMillis() - verifyStartMs
                 }
 
                 if (cancelled) {
@@ -308,13 +353,18 @@ class AgentSession @Inject constructor(
             val status = if (step.result.ok) "✅" else "❌"
             "$status ${step.call.tool}(${step.call.args}) -> ${step.result.message}"
         }
-        trace.log(runId, "run_finished", mapOf("ok" to allSteps.all { it.result.ok }, "message" to summary.ifBlank { "达到最大轮数" }, "tool_call_count" to allToolCalls.size))
+        trace.log(runId, "run_finished", mapOf("ok" to allSteps.all { it.result.ok }, "message" to summary.ifBlank { "达到最大轮数" }, "tool_call_count" to allToolCalls.size, "duration_ms" to (System.currentTimeMillis() - startedAtMs)))
         return AgentTurnResult(
             ok = allSteps.all { it.result.ok },
             message = summary.ifBlank { "达到最大轮数" },
             toolCalls = allToolCalls,
             history = historySnapshot(),
             runId = runId,
+            durationMs = System.currentTimeMillis() - startedAtMs,
+            llmWaitMs = llmWaitMs,
+            toolExecMs = toolExecMs,
+            verifyMs = verifyMs,
+            rounds = rounds,
         )
     }
 
@@ -353,7 +403,7 @@ class AgentSession @Inject constructor(
     }
 
     private fun buildSystemPrompt(skills: List<AgentSkill> = emptyList()): String {
-        val toolDesc = toolRegistry.descriptions()
+        val toolDesc = toolRegistry.coreDescriptions()
         val skillText = if (skills.isEmpty()) {
             ""
         } else {
@@ -361,8 +411,13 @@ class AgentSession @Inject constructor(
                 appendLine()
                 appendLine("历史成功路径参考（仅作参考，必须结合当前界面重新验证）：")
                 skills.forEachIndexed { index, skill ->
-                    appendLine("${index + 1}. 用户原话：${skill.text}")
-                    appendLine("   成功步骤：${skill.steps.joinToString(" -> ") { it.toolName + "(" + it.args.take(120) + ")" }}")
+                    appendLine("${index + 1}. 技能：${skill.name}")
+                    if (skill.description.isNotBlank()) appendLine("   说明：${skill.description}")
+                    if (skill.whenToUse.isNotBlank()) appendLine("   适用：${skill.whenToUse}")
+                    appendLine("   成功步骤：${skill.steps.joinToString(" -> ") { step ->
+                        val purpose = if (step.purpose.isNotBlank()) " // ${step.purpose}" else ""
+                        step.toolName + "(" + step.args.take(120) + ")" + purpose
+                    }}")
                 }
             }
         }
@@ -395,6 +450,11 @@ data class AgentTurnResult(
     val toolCalls: List<ToolCall>,
     val history: List<AgentMessage>,
     val runId: String = "",
+    val durationMs: Long = 0,
+    val llmWaitMs: Long = 0,
+    val toolExecMs: Long = 0,
+    val verifyMs: Long = 0,
+    val rounds: Int = 0,
 )
 
 

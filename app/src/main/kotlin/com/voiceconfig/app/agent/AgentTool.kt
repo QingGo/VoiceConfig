@@ -21,6 +21,12 @@ interface AgentTool {
     suspend fun execute(args: Map<String, Any?>): ToolResult
 }
 
+enum class ToolGroup {
+    CORE,
+    ADVANCED,
+    DEBUG,
+}
+
 enum class ToolRisk {
     READ_ONLY,
     LOW,
@@ -31,6 +37,7 @@ enum class ToolRisk {
 
 data class AgentToolMetadata(
     val category: String = "通用",
+    val group: ToolGroup = ToolGroup.ADVANCED,
     val risk: ToolRisk = ToolRisk.READ_ONLY,
     val mutatesUi: Boolean = false,
     val requiresAutoVerify: Boolean = false,
@@ -48,6 +55,7 @@ object AgentToolMetadataRegistry {
     private val byName: Map<String, AgentToolMetadata> = mapOf(
         "open_app" to AgentToolMetadata(
             category = "应用",
+            group = ToolGroup.CORE,
             risk = ToolRisk.MEDIUM,
             mutatesUi = true,
             requiresAutoVerify = true,
@@ -55,10 +63,12 @@ object AgentToolMetadataRegistry {
         ),
         "find_app" to AgentToolMetadata(
             category = "应用",
+            group = ToolGroup.CORE,
             risk = ToolRisk.READ_ONLY,
         ),
         "run_shell" to AgentToolMetadata(
             category = "系统",
+            group = ToolGroup.ADVANCED,
             risk = ToolRisk.SENSITIVE,
             mutatesUi = true,
             requiresAutoVerify = true,
@@ -67,21 +77,25 @@ object AgentToolMetadataRegistry {
         ),
         "read_ui" to AgentToolMetadata(
             category = "感知",
+            group = ToolGroup.ADVANCED,
             risk = ToolRisk.READ_ONLY,
             needsShizuku = true,
         ),
         "read_screen" to AgentToolMetadata(
             category = "感知",
+            group = ToolGroup.ADVANCED,
             risk = ToolRisk.READ_ONLY,
             needsShizuku = true,
         ),
         "get_screen_state" to AgentToolMetadata(
             category = "感知",
+            group = ToolGroup.CORE,
             risk = ToolRisk.READ_ONLY,
             needsShizuku = true,
         ),
         "tap" to AgentToolMetadata(
             category = "交互",
+            group = ToolGroup.CORE,
             risk = ToolRisk.MEDIUM,
             mutatesUi = true,
             requiresAutoVerify = true,
@@ -89,6 +103,7 @@ object AgentToolMetadataRegistry {
         ),
         "tap_text" to AgentToolMetadata(
             category = "交互",
+            group = ToolGroup.CORE,
             risk = ToolRisk.MEDIUM,
             mutatesUi = true,
             requiresAutoVerify = true,
@@ -96,11 +111,13 @@ object AgentToolMetadataRegistry {
         ),
         "review_tap" to AgentToolMetadata(
             category = "感知",
+            group = ToolGroup.ADVANCED,
             risk = ToolRisk.READ_ONLY,
             needsShizuku = true,
         ),
         "input_text" to AgentToolMetadata(
             category = "交互",
+            group = ToolGroup.CORE,
             risk = ToolRisk.MEDIUM,
             mutatesUi = true,
             requiresAutoVerify = true,
@@ -108,6 +125,7 @@ object AgentToolMetadataRegistry {
         ),
         "swipe" to AgentToolMetadata(
             category = "交互",
+            group = ToolGroup.CORE,
             risk = ToolRisk.MEDIUM,
             mutatesUi = true,
             requiresAutoVerify = true,
@@ -115,6 +133,7 @@ object AgentToolMetadataRegistry {
         ),
         "press_key" to AgentToolMetadata(
             category = "交互",
+            group = ToolGroup.CORE,
             risk = ToolRisk.MEDIUM,
             mutatesUi = true,
             requiresAutoVerify = true,
@@ -122,36 +141,44 @@ object AgentToolMetadataRegistry {
         ),
         "wait" to AgentToolMetadata(
             category = "控制",
+            group = ToolGroup.CORE,
             risk = ToolRisk.READ_ONLY,
         ),
         "notify" to AgentToolMetadata(
             category = "通知",
+            group = ToolGroup.CORE,
             risk = ToolRisk.LOW,
         ),
         "web_search" to AgentToolMetadata(
             category = "信息",
+            group = ToolGroup.CORE,
             risk = ToolRisk.READ_ONLY,
         ),
         "file_write" to AgentToolMetadata(
             category = "文件",
+            group = ToolGroup.DEBUG,
             risk = ToolRisk.HIGH,
             sensitive = true,
         ),
         "file_read" to AgentToolMetadata(
             category = "文件",
+            group = ToolGroup.DEBUG,
             risk = ToolRisk.READ_ONLY,
         ),
         "clipboard_read" to AgentToolMetadata(
             category = "剪贴板",
+            group = ToolGroup.DEBUG,
             risk = ToolRisk.READ_ONLY,
         ),
         "logcat_read" to AgentToolMetadata(
             category = "调试",
+            group = ToolGroup.DEBUG,
             risk = ToolRisk.READ_ONLY,
             needsShizuku = true,
         ),
         "open_file" to AgentToolMetadata(
             category = "文件",
+            group = ToolGroup.DEBUG,
             risk = ToolRisk.MEDIUM,
             mutatesUi = true,
         ),

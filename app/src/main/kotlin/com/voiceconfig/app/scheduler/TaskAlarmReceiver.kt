@@ -117,7 +117,7 @@ class TaskAlarmReceiver : BroadcastReceiver() {
         }
         val prompt = task.agentPrompt ?: task.rawText
         val skills = agentSkillStore.relevant(prompt)
-        val result = agentSession.send(
+        val result = agentSession.sendIsolated(
             userText = prompt,
             skills = skills,
             verifyPolicy = AgentVerificationPolicy(
@@ -127,8 +127,6 @@ class TaskAlarmReceiver : BroadcastReceiver() {
             onSensitiveAction = {
                 apiKeyStore.agentAutoConfirmSensitiveActions
             },
-            onMessage = {},
-            onStep = {},
         )
         return if (result.ok) {
             ExecutionResult.success(ExecutionMode.AGENT).copy(message = result.message)

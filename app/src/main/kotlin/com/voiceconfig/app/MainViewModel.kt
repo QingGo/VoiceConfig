@@ -478,7 +478,7 @@ class MainViewModel @Inject constructor(
             val result = runCatching {
                 if (task.actionType == ActionType.AGENT) {
                     val prompt = task.agentPrompt ?: task.rawText
-                    val agentResult = agentSession.send(
+                    val agentResult = agentSession.sendIsolated(
                         userText = prompt,
                         skills = agentSkillStore.relevant(prompt),
                         verifyPolicy = AgentVerificationPolicy(
@@ -488,8 +488,6 @@ class MainViewModel @Inject constructor(
                         onSensitiveAction = {
                             apiKeyStore.agentAutoConfirmSensitiveActions
                         },
-                        onMessage = {},
-                        onStep = {},
                     )
                     if (agentResult.ok) {
                         ExecutionResult.success(ExecutionMode.AGENT).copy(message = agentResult.message)
