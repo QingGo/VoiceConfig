@@ -3,8 +3,14 @@ package com.voiceconfig.app.scheduler
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import com.voiceconfig.app.agent.AgentSession
+import com.voiceconfig.app.agent.AgentSkillStore
+import com.voiceconfig.app.agent.AgentVerificationPolicy
+import com.voiceconfig.app.ai.ApiKeyStore
 import com.voiceconfig.core.executor.ExecutionEngine
 import com.voiceconfig.core.executor.ExecutionRequest
+import com.voiceconfig.core.executor.ExecutionResult
+import com.voiceconfig.core.model.ActionType
 import com.voiceconfig.core.model.ExecutionLog
 import com.voiceconfig.core.model.ExecutionMode
 import com.voiceconfig.core.model.ExecutionStatus
@@ -27,6 +33,9 @@ class TaskAlarmReceiver : BroadcastReceiver() {
     @Inject lateinit var executionEngine: ExecutionEngine
     @Inject lateinit var taskScheduler: TaskScheduler
     @Inject lateinit var nextRunCalculator: NextRunCalculator
+    @Inject lateinit var agentSession: AgentSession
+    @Inject lateinit var agentSkillStore: AgentSkillStore
+    @Inject lateinit var apiKeyStore: ApiKeyStore
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
@@ -40,17 +49,21 @@ class TaskAlarmReceiver : BroadcastReceiver() {
             try {
                 val task = taskRepository.getTask(taskId) ?: return@launch
                 val startedAt = System.currentTimeMillis()
-                val result = executionEngine.execute(
-                    ExecutionRequest(
-                        task = task,
-                        requestedMode = when (task.executionMode) {
-                            ExecutionMode.AUTO ->
-                                if (!task.deepLink.isNullOrBlank()) ExecutionMode.DEEP_LINK
-                                else ExecutionMode.SHIZUKU
-                            else -> task.executionMode
-                        },
-                    ),
-                )
+                val result = if (task.actionType == ActionType.AGENT) {
+                    executeAgentTask(task)
+                } else {
+                    executionEngine.execute(
+                        ExecutionRequest(
+                            task = task,
+                            requestedMode = when (task.executionMode) {
+                                ExecutionMode.AUTO ->
+                                    if (!task.deepLink.isNullOrBlank()) ExecutionMode.DEEP_LINK
+                                    else ExecutionMode.SHIZUKU
+                                else -> task.executionMode
+                            },
+                        ),
+                    )
+                }
                 executionLogRepository.add(
                     ExecutionLog(
                         taskId = task.id,
@@ -91,6 +104,40 @@ class TaskAlarmReceiver : BroadcastReceiver() {
             } finally {
                 pendingResult.finish()
             }
+        }
+    }
+
+    private suspend fun executeAgentTask(task: com.voiceconfig.core.model.Task): ExecutionResult {
+        if (apiKeyStore.deepSeekApiKey.isBlank()) {
+            return ExecutionResult.failure(
+                mode = ExecutionMode.AGENT,
+                errorCode = "NO_API_KEY",
+                message = "未配置 DeepSeek API Key，无法执行智能助手任务",
+            )
+        }
+        val prompt = task.agentPrompt ?: task.rawText
+        val skills = agentSkillStore.relevant(prompt)
+        val result = agentSession.send(
+            userText = prompt,
+            skills = skills,
+            verifyPolicy = AgentVerificationPolicy(
+                enabled = apiKeyStore.agentAutoVerifyEnabled,
+                maxPerRun = apiKeyStore.agentMaxAutoVerifies,
+            ),
+            onSensitiveAction = {
+                apiKeyStore.agentAutoConfirmSensitiveActions
+            },
+            onMessage = {},
+            onStep = {},
+        )
+        return if (result.ok) {
+            ExecutionResult.success(ExecutionMode.AGENT).copy(message = result.message)
+        } else {
+            ExecutionResult.failure(
+                mode = ExecutionMode.AGENT,
+                errorCode = "AGENT_FAILED",
+                message = result.message,
+            )
         }
     }
 

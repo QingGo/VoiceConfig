@@ -10,6 +10,7 @@ data class TaskDraft(
     val targetPackage: String? = null,
     val targetActivity: String? = null,
     val deepLink: String? = null,
+    val agentPrompt: String? = null,
     val executionMode: ExecutionMode = ExecutionMode.AUTO,
     val confidence: Double = 0.0,
 )

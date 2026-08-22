@@ -162,6 +162,14 @@ class ConditionTriggerHandler @Inject constructor(
                     mapOf("title" to rule.name, "content" to "触发条件已满足"),
                 )
             }
+            ActionType.AGENT -> {
+                toolRegistry.get("notify")?.execute(
+                    mapOf(
+                        "title" to rule.name,
+                        "content" to "复杂任务需要智能助手执行，请手动在「智能助手」中发起",
+                    ),
+                )
+            }
         }
     }
 }

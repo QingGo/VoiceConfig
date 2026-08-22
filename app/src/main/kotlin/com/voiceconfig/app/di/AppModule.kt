@@ -64,7 +64,7 @@ object AppModule {
             VoiceConfigDatabase::class.java,
             "voice_config.db",
         )
-            .addMigrations(VoiceConfigDatabase.MIGRATION_1_2, VoiceConfigDatabase.MIGRATION_2_3, VoiceConfigDatabase.MIGRATION_3_4, VoiceConfigDatabase.MIGRATION_4_5, VoiceConfigDatabase.MIGRATION_5_6, VoiceConfigDatabase.MIGRATION_6_7, VoiceConfigDatabase.MIGRATION_7_8)
+            .addMigrations(VoiceConfigDatabase.MIGRATION_1_2, VoiceConfigDatabase.MIGRATION_2_3, VoiceConfigDatabase.MIGRATION_3_4, VoiceConfigDatabase.MIGRATION_4_5, VoiceConfigDatabase.MIGRATION_5_6, VoiceConfigDatabase.MIGRATION_6_7, VoiceConfigDatabase.MIGRATION_7_8, VoiceConfigDatabase.MIGRATION_8_9)
             .build()
 
     @Provides

@@ -20,6 +20,7 @@ class RuleBasedNlpParser(
     override fun parse(input: String): TaskDraft? {
         val text = input.trim()
         if (text.isBlank()) return null
+        if (looksLikeComplexTask(text)) return null
 
         val schedule = timeParser.parse(text)
         val actionType = detectActionType(text)
@@ -47,6 +48,15 @@ class RuleBasedNlpParser(
             executionMode = if (actionType == ActionType.NOTIFY) ExecutionMode.NOTIFICATION else ExecutionMode.AUTO,
             confidence = confidence(schedule, actionType, target),
         )
+    }
+
+    private fun looksLikeComplexTask(text: String): Boolean {
+        val complexWords = listOf(
+            "点单", "点咖啡", "下单", "购买", "结算", "支付", "付款",
+            "填写", "提交", "打卡", "选择", "切换", "查找", "搜索并",
+            "输入", "登录", "注册", "预约", "订", "领券", "签到",
+        )
+        return complexWords.any { text.contains(it, ignoreCase = true) }
     }
 
     private fun detectActionType(text: String): ActionType {

@@ -503,6 +503,7 @@ fun MainScreen(viewModel: MainViewModel) {
                 when (page) {
                     0 -> MainScreenContent(
                         uiState = uiState,
+                        deepSeekApiKey = deepSeekApiKey,
                         installedAppLabels = installedAppLabels,
                         isListening = isListening,
                         isPreparing = isPreparing,
@@ -1164,6 +1165,7 @@ fun MainScreen(viewModel: MainViewModel) {
 @Composable
 fun MainScreenContent(
     uiState: MainUiState,
+    deepSeekApiKey: String = "",
     installedAppLabels: Map<String, String>,
     tasks: List<Task>,
     templates: List<Template>,
@@ -1243,6 +1245,21 @@ fun MainScreenContent(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
+        if (deepSeekApiKey.isBlank()) {
+            item {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.tertiaryContainer),
+                ) {
+                    Text(
+                        text = "当前未配置大模型，仅支持提醒、定时打开 App、定时通知等简单任务；复杂多步任务请先在设置中配置 DeepSeek API Key。",
+                        modifier = Modifier.padding(12.dp),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onTertiaryContainer,
+                    )
+                }
+            }
+        }
         uiState.parseMessage?.let {
             item {
                 Text(text = it, style = MaterialTheme.typography.bodyMedium)
@@ -1266,6 +1283,7 @@ fun MainScreenContent(
                         val previewAction = when (draft.actionType) {
                             ActionType.NOTIFY -> "提醒"
                             ActionType.OPEN_DEEPLINK -> "打开${draft.deepLink ?: "页面"}"
+                            ActionType.AGENT -> "智能助手执行"
                             else -> "打开${displayAppName(draft.targetPackage, installedAppLabels)}"
                         }
                         Text(
@@ -1590,6 +1608,13 @@ private fun TaskRow(
                     text = formatTaskTitle(task, installedAppLabels),
                     style = MaterialTheme.typography.bodyLarge,
                 )
+                if (task.actionType == ActionType.AGENT) {
+                    Text(
+                        text = "智能助手 · 自动执行",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.primary,
+                    )
+                }
                 Text(
                     text = formatScheduleText(task.schedule),
                     style = MaterialTheme.typography.bodySmall,
@@ -1814,6 +1839,7 @@ private fun formatTaskTitle(task: Task, installedAppLabels: Map<String, String> 
             }
         }
         ActionType.OPEN_DEEPLINK -> "打开${task.deepLink ?: "页面"}"
+        ActionType.AGENT -> task.title.removePrefix("智能助手：").ifBlank { task.title }
         else -> "打开${displayAppName(task.targetPackage, installedAppLabels)}"
     }
 }

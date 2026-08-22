@@ -6,4 +6,5 @@ enum class ActionType {
     NOTIFY,
     SHORTCUT,
     UI_ACTION,
+    AGENT,
 }

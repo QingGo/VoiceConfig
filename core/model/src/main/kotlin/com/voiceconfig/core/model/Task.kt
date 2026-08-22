@@ -13,6 +13,7 @@ data class Task(
     val targetPackage: String? = null,
     val targetActivity: String? = null,
     val deepLink: String? = null,
+    val agentPrompt: String? = null,
     val executionMode: ExecutionMode,
     val nextRunAtEpochMillis: Long? = null,
     val createdAtEpochMillis: Long,

@@ -12,7 +12,7 @@ import org.junit.Test
 class VoiceConfigMigrationTest {
 
     @Test
-    fun `migrations from v1 to v8 create expected columns`() {
+    fun `migrations from v1 to v9 create expected columns`() {
         val conn = DriverManager.getConnection("jdbc:sqlite::memory:")
         try {
             createV1Schema(conn)
@@ -24,8 +24,9 @@ class VoiceConfigMigrationTest {
             VoiceConfigDatabase.MIGRATION_5_6.migrate(db)
             VoiceConfigDatabase.MIGRATION_6_7.migrate(db)
         VoiceConfigDatabase.MIGRATION_7_8.migrate(db)
+        VoiceConfigDatabase.MIGRATION_8_9.migrate(db)
 
-            assertTrue(columns(conn, "tasks").containsAll(setOf("id", "rawText", "title", "enabled", "scheduleType", "time", "date", "daysOfWeek", "intervalMinutes", "actionType", "targetPackage", "targetActivity", "deepLink", "executionMode", "nextRunAtEpochMillis", "createdAtEpochMillis", "updatedAtEpochMillis")))
+            assertTrue(columns(conn, "tasks").containsAll(setOf("id", "rawText", "title", "enabled", "scheduleType", "time", "date", "daysOfWeek", "intervalMinutes", "actionType", "targetPackage", "targetActivity", "deepLink", "agentPrompt", "executionMode", "nextRunAtEpochMillis", "createdAtEpochMillis", "updatedAtEpochMillis")))
             assertTrue(columns(conn, "execution_logs").containsAll(setOf("id", "taskId", "scheduledAtEpochMillis", "startedAtEpochMillis", "finishedAtEpochMillis", "status", "executionMode", "errorCode", "message", "agentSessionId")))
             assertTrue(columns(conn, "app_aliases").containsAll(setOf("id", "alias", "packageName", "activityName", "source")))
             assertTrue(columns(conn, "templates").containsAll(setOf("id", "name", "description", "category", "configJson", "usageCount")))

@@ -40,7 +40,7 @@ import com.voiceconfig.data.local.entity.TriggerRuleEntity
         AgentStepEntity::class,
         TaskEventEntity::class,
     ],
-    version = 8,
+    version = 9,
     exportSchema = false,
 )
 abstract class VoiceConfigDatabase : RoomDatabase() {
@@ -204,6 +204,12 @@ abstract class VoiceConfigDatabase : RoomDatabase() {
                 )
                 db.execSQL("CREATE INDEX IF NOT EXISTS `index_agent_steps_sessionId` ON `agent_steps` (`sessionId`)")
                 db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_agent_steps_session_runId_stepIndex` ON `agent_steps` (`sessionId`, `runId`, `stepIndex`)")
+            }
+        }
+
+        val MIGRATION_8_9 = object : Migration(8, 9) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE `tasks` ADD COLUMN `agentPrompt` TEXT")
             }
         }
     }

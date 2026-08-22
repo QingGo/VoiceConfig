@@ -209,6 +209,7 @@ class DeepSeekNlpParser @Inject constructor(
                 targetPackage = optNullableString(root, "targetPackage"),
                 targetActivity = optNullableString(root, "targetActivity"),
                 deepLink = optNullableString(root, "deepLink"),
+                agentPrompt = optNullableString(root, "agentPrompt"),
                 executionMode = executionMode,
                 confidence = root.optDouble("confidence", 0.0),
             )
@@ -272,11 +273,12 @@ class DeepSeekNlpParser @Inject constructor(
                 "daysOfWeek": ["MONDAY"] 或 null,
                 "intervalMinutes": 30 或 null
               },
-              "actionType": "OPEN_APP" 或 "OPEN_DEEPLINK" 或 "NOTIFY" 或 "SHORTCUT" 或 "UI_ACTION",
+              "actionType": "OPEN_APP" 或 "OPEN_DEEPLINK" 或 "NOTIFY" 或 "SHORTCUT" 或 "UI_ACTION" 或 "AGENT",
               "targetPackage": "应用包名" 或 null,
               "targetActivity": "Activity 名" 或 null,
               "deepLink": "URL" 或 null,
-              "executionMode": "AUTO" 或 "NOTIFICATION" 或 "DEEP_LINK" 或 "SHIZUKU",
+              "agentPrompt": "给 Agent 执行的清晰指令" 或 null,
+              "executionMode": "AUTO" 或 "NOTIFICATION" 或 "DEEP_LINK" 或 "SHIZUKU" 或 "AGENT",
               "confidence": 0.0 到 1.0
             }
 
@@ -287,6 +289,9 @@ class DeepSeekNlpParser @Inject constructor(
             - OPEN_APP 必须尽量填 targetPackage；不知道包名时填 null，不要编造包名。
             - 打开网页/URL 用 OPEN_DEEPLINK，deepLink 填完整 URL。
             - 提醒用 NOTIFY。
+            - 复杂/多步任务（点咖啡、填写表单、打卡、下单、查找、跨多个页面）用 AGENT，不要拆成 OPEN_APP。
+            - AGENT 时 agentPrompt 必须填写一个清晰、简洁、修正语音识别错字后的任务指令；rawText 保留用户原始说法。
+            - 简单任务（定时提醒、打开某个 App、打开链接）不要用 AGENT。
             - 修改类输入（如“不是8点，改成9点”）也要尽量还原成完整任务 JSON。
 
             常见应用包名（只列常用，未列出且不确定就填 null）：

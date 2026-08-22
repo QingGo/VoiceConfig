@@ -259,6 +259,11 @@ class MainViewModel @Inject constructor(
                             } else {
                                 d
                             }
+                        } else if (d.actionType == ActionType.AGENT) {
+                            d.copy(
+                                agentPrompt = d.agentPrompt?.takeIf { it.isNotBlank() } ?: input,
+                                executionMode = ExecutionMode.AGENT,
+                            )
                         } else {
                             d
                         }
@@ -275,10 +280,24 @@ class MainViewModel @Inject constructor(
                     isParsing = false,
                     parsedDraft = draft,
                     parseMessage = when {
-                        draft == null -> "未能理解，请换一种说法（$source）"
+                        draft == null -> {
+                            val noKey = apiKeyStore.deepSeekApiKey.isBlank()
+                            when {
+                                noKey -> "当前未配置 DeepSeek，仅支持提醒/定时打开App等简单任务；复杂任务需先配置大模型"
+                                deepSeekNlpParser.lastError != null && !deepSeekNlpParser.lastUsedRemote ->
+                                    "解析失败：${deepSeekNlpParser.lastError}；复杂任务需要大模型或检查网络，简单任务仍可使用"
+                                else -> "未能理解，请换一种说法（$source）"
+                            }
+                        }
                         draft.schedule != null && draft.confidence < AUTO_CREATE_THRESHOLD ->
                             "已识别，但置信度较低，请确认后创建（$source）"
-                        else -> "解析成功，请确认任务（$source）"
+                        else -> {
+                            if (draft.actionType == ActionType.AGENT) {
+                                "将使用智能助手执行，保存后到点自动运行（$source）"
+                            } else {
+                                "解析成功，请确认任务（$source）"
+                            }
+                        }
                     },
                     manualPackage = "",
                     manualDeepLink = "",
@@ -334,13 +353,22 @@ class MainViewModel @Inject constructor(
 
             val task = Task(
                 rawText = draft.rawText,
-                title = draft.rawText.take(30),
+                title = if (draft.actionType == ActionType.AGENT) {
+                    "智能助手：${draft.rawText.take(24)}"
+                } else {
+                    draft.rawText.take(30)
+                },
                 schedule = schedule,
                 actionType = draft.actionType,
                 targetPackage = effectiveTargetPackage,
                 targetActivity = draft.targetActivity,
                 deepLink = effectiveDeepLink,
-                executionMode = draft.executionMode,
+                agentPrompt = if (draft.actionType == ActionType.AGENT) {
+                    (draft.agentPrompt ?: draft.rawText).trim().ifBlank { draft.rawText }
+                } else {
+                    null
+                },
+                executionMode = if (draft.actionType == ActionType.AGENT) ExecutionMode.AGENT else draft.executionMode,
                 nextRunAtEpochMillis = nextRunAt,
                 createdAtEpochMillis = now,
                 updatedAtEpochMillis = now,
@@ -448,12 +476,38 @@ class MainViewModel @Inject constructor(
                 else -> task.executionMode
             }
             val result = runCatching {
-                executionEngine.execute(
-                    ExecutionRequest(
-                        task = task,
-                        requestedMode = requestedMode,
-                    ),
-                )
+                if (task.actionType == ActionType.AGENT) {
+                    val prompt = task.agentPrompt ?: task.rawText
+                    val agentResult = agentSession.send(
+                        userText = prompt,
+                        skills = agentSkillStore.relevant(prompt),
+                        verifyPolicy = AgentVerificationPolicy(
+                            enabled = apiKeyStore.agentAutoVerifyEnabled,
+                            maxPerRun = apiKeyStore.agentMaxAutoVerifies,
+                        ),
+                        onSensitiveAction = {
+                            apiKeyStore.agentAutoConfirmSensitiveActions
+                        },
+                        onMessage = {},
+                        onStep = {},
+                    )
+                    if (agentResult.ok) {
+                        ExecutionResult.success(ExecutionMode.AGENT).copy(message = agentResult.message)
+                    } else {
+                        ExecutionResult.failure(
+                            mode = ExecutionMode.AGENT,
+                            errorCode = "AGENT_FAILED",
+                            message = agentResult.message,
+                        )
+                    }
+                } else {
+                    executionEngine.execute(
+                        ExecutionRequest(
+                            task = task,
+                            requestedMode = requestedMode,
+                        ),
+                    )
+                }
             }.getOrElse { e ->
                 ExecutionResult.failure(
                     mode = requestedMode,

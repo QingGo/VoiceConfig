@@ -21,6 +21,7 @@ data class TaskEntity(
     val targetPackage: String?,
     val targetActivity: String?,
     val deepLink: String?,
+    val agentPrompt: String? = null,
     val executionMode: ExecutionMode,
     val nextRunAtEpochMillis: Long?,
     val createdAtEpochMillis: Long,
