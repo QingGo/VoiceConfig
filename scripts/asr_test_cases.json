@@ -1,13 +1,70 @@
 {
   "name": "VoiceConfig ASR 固定测试集",
-  "description": "用于真机/离线 benchmark 的语音用例描述。实际 WAV 放 test_audio/ 下，文件名对应 case id。",
+  "description": "用于真机/离线 benchmark 的语音用例描述。实际 WAV 放 test_audio/ 下，文件通过 wav 字段映射。",
   "cases": [
-    {"id": "zh_open_settings", "text": "帮我打开设置", "lang": "zh", "keywords": ["设置"]},
-    {"id": "zh_set_alarm", "text": "帮我定一个八点半的闹钟", "lang": "zh", "keywords": ["闹钟", "八点半"]},
-    {"id": "en_open_chrome", "text": "Open Chrome", "lang": "en", "keywords": ["Chrome"]},
-    {"id": "en_open_github", "text": "打开 GitHub", "lang": "mixed", "keywords": ["GitHub"]},
-    {"id": "en_open_whatsapp", "text": "打开 WhatsApp", "lang": "mixed", "keywords": ["WhatsApp"]},
-    {"id": "mixed_search_email", "text": "打开 Gmail 搜索邮件", "lang": "mixed", "keywords": ["Gmail", "邮件"]},
-    {"id": "long_sentence", "text": "帮我打开日历创建一个明天的下午三点的会议", "lang": "zh", "keywords": ["日历", "会议"]}
+    {
+      "id": "zh_clear_1",
+      "wav": "1.wav",
+      "text": "重点呢，想谈三个问题。首先呢，就是这一轮全球金融动荡的表现。",
+      "lang": "zh",
+      "keywords": [
+        "重点",
+        "金融"
+      ]
+    },
+    {
+      "id": "zh_clear_0",
+      "wav": "0.wav",
+      "text": "对我做了介绍啊。那么我想说的是呢，大家如果对我的研究感兴趣呢。",
+      "lang": "zh",
+      "keywords": [
+        "介绍",
+        "研究"
+      ]
+    },
+    {
+      "id": "en_clear",
+      "wav": "en_multilingual.wav",
+      "text": "After early nightfall, the yellow lamps would light up here and there. The squalid quarter of the brothels.",
+      "lang": "en",
+      "keywords": [
+        "yellow",
+        "lamps"
+      ]
+    },
+    {
+      "id": "zh_8k_lowrate",
+      "wav": "8k.wav",
+      "text": "",
+      "lang": "zh",
+      "keywords": []
+    },
+    {
+      "id": "zh_dialect",
+      "wav": "funasr_dia_hunan.wav",
+      "text": "",
+      "lang": "zh",
+      "keywords": []
+    },
+    {
+      "id": "zh_noise",
+      "wav": "zh_noise.wav",
+      "text": "重点呢，想谈三个问题。首先呢，就是这一轮全球金融动荡的表现。",
+      "lang": "zh",
+      "keywords": [
+        "重点",
+        "金融"
+      ]
+    },
+    {
+      "id": "zh_en_mixed",
+      "wav": "mixed_zh_en.wav",
+      "text": "重点呢，想谈三个问题。首先呢，就是这一轮全球金融动荡的表现。 After early nightfall, the yellow lamps would light up here and there. The squalid quarter of the brothels.",
+      "lang": "mixed",
+      "keywords": [
+        "重点",
+        "yellow"
+      ]
+    }
   ]
 }

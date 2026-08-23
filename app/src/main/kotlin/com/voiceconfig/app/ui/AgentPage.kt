@@ -88,7 +88,12 @@ fun AgentPage(
     reasoningText: String,
     input: String,
     onInputChange: (String) -> Unit,
+    hasDeepSeekKey: Boolean = true,
+    agentVoiceAutoSend: Boolean = false,
+    onAgentVoiceAutoSendChange: (Boolean) -> Unit = {},
     initialLogTaskId: Long? = null,
+    canResumeTask: Boolean = false,
+    onResumeTask: () -> Unit = {},
     agentThinkingEnabled: Boolean,
     agentReasoningEffort: String,
     onAgentThinkingEnabledChange: (Boolean) -> Unit,
@@ -107,6 +112,7 @@ fun AgentPage(
     onDeleteSkill: (String) -> Unit = {},
     onOpenTask: (Long) -> Unit = {},
     onOpenAutomation: () -> Unit = {},
+    onOpenSettings: () -> Unit = {},
 ) {
     var showAgentThinking by remember { mutableStateOf(false) }
     var showSkills by remember { mutableStateOf(false) }
@@ -188,6 +194,13 @@ fun AgentPage(
                         },
                     )
                     DropdownMenuItem(
+                        text = { Text("全局设置") },
+                        onClick = {
+                            moreMenuExpanded = false
+                            onOpenSettings()
+                        },
+                    )
+                    DropdownMenuItem(
                         text = { Text("自动化任务") },
                         onClick = {
                             moreMenuExpanded = false
@@ -202,6 +215,39 @@ fun AgentPage(
                                 onClearSession(selectedSessionId)
                             },
                         )
+                    }
+                }
+            }
+        }
+
+        if (canResumeTask) {
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 12.dp, vertical = 4.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                ),
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "有未完成的任务",
+                            style = MaterialTheme.typography.titleSmall,
+                        )
+                        Text(
+                            text = "可以继续上次的计划",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSecondaryContainer,
+                        )
+                    }
+                    Button(onClick = onResumeTask) {
+                        Text("继续")
                     }
                 }
             }
@@ -232,6 +278,9 @@ fun AgentPage(
             onDeleteSession = onDeleteSession,
             onClearSession = onClearSession,
             showInput = selectedSessionId != null,
+            hasDeepSeekKey = hasDeepSeekKey,
+            agentVoiceAutoSend = agentVoiceAutoSend,
+            onAgentVoiceAutoSendChange = onAgentVoiceAutoSendChange,
         )
     }
 
@@ -461,6 +510,9 @@ private fun ConversationTab(
     onDeleteSession: (Long) -> Unit,
     onClearSession: (Long) -> Unit,
     showInput: Boolean = true,
+    hasDeepSeekKey: Boolean = true,
+    agentVoiceAutoSend: Boolean = false,
+    onAgentVoiceAutoSendChange: (Boolean) -> Unit = {},
     onApproveSkill: (String) -> Unit = {},
     onRejectSkill: (String) -> Unit = {},
     onDeleteSkill: (String) -> Unit = {},
@@ -516,11 +568,36 @@ private fun ConversationTab(
                         Column(
                             verticalArrangement = Arrangement.spacedBy(8.dp),
                         ) {
+                            if (!hasDeepSeekKey) {
+                                Text(
+                                    "尚未配置 DeepSeek API Key，Agent 复杂任务暂不可用；可先使用简单自动化。",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.error,
+                                )
+                            }
                             Text(
                                 "还没有会话，点击“新建”开始。创建后会在会话列表中保留历史。",
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
+                            Text(
+                                "试试这些：",
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                            Row(
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                listOf("打开设置", "创建喝水提醒", "打开微信").forEach { suggestion ->
+                                    FilledTonalButton(
+                                        onClick = { onInputChange(suggestion) },
+                                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                                    ) {
+                                        Text(suggestion, style = MaterialTheme.typography.labelMedium)
+                                    }
+                                }
+                            }
                             Button(onClick = onNewSession) {
                                 Icon(
                                     imageVector = Icons.Default.Add,
@@ -555,28 +632,56 @@ private fun ConversationTab(
         }
 
         if (showInput) {
-            Row(
+            Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    .padding(horizontal = 8.dp, vertical = 4.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp),
             ) {
-                OutlinedTextField(
-                    value = input,
-                    onValueChange = onInputChange,
-                    modifier = Modifier.weight(1f),
-                    placeholder = { Text("输入指令…") },
-                    singleLine = true,
-                    enabled = !isAgentBusy,
-                )
-                if (isAgentBusy) {
-                    Button(onClick = onStop) {
-                        Text("停止")
-                    }
-                } else {
-                    Button(onClick = onSend, enabled = input.isNotBlank()) {
-                        Text("发送")
+                if (!hasDeepSeekKey) {
+                    Text(
+                        "未配置 DeepSeek API Key：Agent 无法执行复杂任务。可在“设置 → AI”中配置。",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                }
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        "语音识别后自动发送到 Agent",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Spacer(modifier = Modifier.weight(1f))
+                    androidx.compose.material3.Switch(
+                        checked = agentVoiceAutoSend,
+                        onCheckedChange = onAgentVoiceAutoSendChange,
+                        enabled = hasDeepSeekKey,
+                    )
+                }
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    OutlinedTextField(
+                        value = input,
+                        onValueChange = onInputChange,
+                        modifier = Modifier.weight(1f),
+                        placeholder = { Text("输入指令…") },
+                        singleLine = true,
+                        enabled = !isAgentBusy,
+                    )
+                    if (isAgentBusy) {
+                        Button(onClick = onStop) {
+                            Text("停止")
+                        }
+                    } else {
+                        Button(onClick = onSend, enabled = input.isNotBlank()) {
+                            Text("发送")
+                        }
                     }
                 }
             }

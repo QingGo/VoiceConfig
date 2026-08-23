@@ -1,0 +1,11 @@
+[
+  {
+    "name": "瑞幸确认支付页（60秒目标）",
+    "text": "帮我点一杯瑞幸的冰美式",
+    "expect": "确认订单,确认下单,提交订单,去支付,立即支付,去结算,支付,确认",
+    "timeout": 90,
+    "estimated_seconds": 60,
+    "category": "coffee",
+    "preStop": ["com.lucky.luckyclient"]
+  }
+]

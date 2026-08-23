@@ -48,10 +48,7 @@ skills-lock.json
 
 # Only README screenshots are tracked; dev screenshots stay local
 screenshots/*
-!screenshots/readme_home.png
-!screenshots/readme_agent.png
-!screenshots/readme_settings.png
-!screenshots/readme_templates.png
+!screenshots/readme_*.png
 
 # Python
 __pycache__/
@@ -69,3 +66,13 @@ docs/
 
 # UI regression temp dump
 .vc_ui_regression.xml
+
+# Native ASR JNI outputs (build from scripts/build_transcribe_cpp_android.sh)
+app/src/main/jniLibs/
+
+# Local ASR benchmark persistence
+benchmark_results/
+*.sqlite3
+
+# Transcribe.cpp checkout (built locally / by CI, not committed)
+third_party/

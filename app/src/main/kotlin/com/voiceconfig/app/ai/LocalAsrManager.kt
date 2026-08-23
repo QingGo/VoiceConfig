@@ -33,6 +33,41 @@ class LocalAsrManager @Inject constructor(
 
     fun availableModels(): List<AsrModel> = modelManager.models
 
+    /** 正式分级：默认 UI 只展示 production 模型。 */
+    fun productionModels(): List<AsrModel> =
+        modelManager.models.filter { it.tier == AsrModelTier.PRODUCTION }
+
+    fun visibleModels(
+        includeExperimental: Boolean = false,
+        includeHidden: Boolean = false,
+    ): List<AsrModel> = modelManager.models.filter { model ->
+        when (model.tier) {
+            AsrModelTier.PRODUCTION -> true
+            AsrModelTier.EXPERIMENTAL -> includeExperimental
+            AsrModelTier.HIDDEN -> includeHidden
+        }
+    }
+
+    /** 简单设备参数推荐：大核/多核设备固定 4 线程，低端设备用 2 线程保证可用性。 */
+    fun recommendedThreads(): Int {
+        val cores = Runtime.getRuntime().availableProcessors()
+        return if (cores >= 6) 4 else 2
+    }
+
+    fun recommendedProvider(): String = "cpu"
+
+    fun recommendedModelId(): String = AsrModelManager.RECOMMENDED_MODEL_ID
+
+    fun recommendedModel(): AsrModel =
+        modelManager.models.firstOrNull { it.id == AsrModelManager.RECOMMENDED_MODEL_ID }
+            ?: modelManager.models.firstOrNull { it.builtin }
+            ?: modelManager.models.first()
+
+    fun defaultModel(): AsrModel =
+        modelManager.models.firstOrNull { it.id == AsrModelManager.DEFAULT_MODEL_ID }
+            ?: modelManager.models.firstOrNull { it.builtin }
+            ?: modelManager.models.first()
+
     fun selectedModel(): AsrModel = modelManager.selectedModel()
 
     fun selectModel(id: String) {
@@ -162,6 +197,13 @@ class LocalAsrManager @Inject constructor(
                 threads,
                 model.language,
                 provider,
+            )
+
+            AsrModelKind.TRANSCRIBE_CPP_OFFLINE -> TranscribeCppAsrEngine(
+                modelDir = dir,
+                numThreads = threads,
+                defaultLanguage = model.language,
+                modelFileName = model.files.firstOrNull()?.name ?: "Qwen3-ASR-0.6B-Q4_K_M.gguf",
             )
         }
     }

@@ -29,12 +29,15 @@ import com.voiceconfig.app.agent.AgentSession
 import com.voiceconfig.app.agent.AgentSkill
 import com.voiceconfig.app.agent.AgentSkillStatus
 import com.voiceconfig.app.agent.AgentSkillStore
+import com.voiceconfig.app.agent.TaskPlanStore
 import com.voiceconfig.app.agent.AgentVerificationPolicy
 import com.voiceconfig.app.agent.AgentStepStatus
 import com.voiceconfig.app.agent.AgentStepUi
 import com.voiceconfig.app.agent.SensitiveActionRequest
 import com.voiceconfig.app.ai.ApiKeyStore
 import com.voiceconfig.app.ai.DeepSeekNlpParser
+import com.voiceconfig.app.ai.VoiceIntent
+import com.voiceconfig.app.ai.VoiceIntentType
 import com.voiceconfig.app.scheduler.TriggerRuleScheduler
 import com.voiceconfig.app.di.UserAliasRegistry
 import com.voiceconfig.data.local.entity.AgentMessageEntity
@@ -88,6 +91,7 @@ class MainViewModel @Inject constructor(
     private val agentHistoryRepository: AgentHistoryRepository,
     private val agentSession: AgentSession,
     private val agentSkillStore: AgentSkillStore,
+    private val taskPlanStore: TaskPlanStore,
 ) : ViewModel() {
 
     init {
@@ -148,6 +152,15 @@ class MainViewModel @Inject constructor(
     private val _agentReasoningText = MutableStateFlow("")
     val agentReasoningText: StateFlow<String> = _agentReasoningText.asStateFlow()
 
+    private val _agentDraft = MutableStateFlow("")
+    val agentDraft: StateFlow<String> = _agentDraft.asStateFlow()
+
+    private var lastVoiceSessionId: String? = null
+    private var lastVoiceText: String = ""
+
+    private val _agentVoiceAutoSend = MutableStateFlow(apiKeyStore.agentVoiceAutoSend)
+    val agentVoiceAutoSend: StateFlow<Boolean> = _agentVoiceAutoSend.asStateFlow()
+
     val agentSessions: StateFlow<List<AgentSessionEntity>> = agentHistoryRepository.observeSessions()
         .stateIn(
             scope = viewModelScope,
@@ -204,6 +217,9 @@ class MainViewModel @Inject constructor(
 
     private val _agentSteps = MutableStateFlow<List<AgentStepUi>>(emptyList())
     val agentSteps: StateFlow<List<AgentStepUi>> = _agentSteps.asStateFlow()
+
+    private val _canResumeTask = MutableStateFlow(false)
+    val canResumeTask: StateFlow<Boolean> = _canResumeTask.asStateFlow()
     private val _lastAgentRunDurationMs = MutableStateFlow<Long?>(null)
     val lastAgentRunDurationMs: StateFlow<Long?> = _lastAgentRunDurationMs.asStateFlow()
 
@@ -308,12 +324,7 @@ class MainViewModel @Inject constructor(
                     lastAiParseError = deepSeekNlpParser.lastParseError,
                 )
             }
-            if (draft != null &&
-                draft.schedule != null &&
-                draft.confidence >= AUTO_CREATE_THRESHOLD
-            ) {
-                confirmCreate()
-            }
+            // 语音/输入只生成预览，不再自动创建定时任务，避免一句话产生多个重复目标。
         }
     }
 
@@ -739,6 +750,19 @@ class MainViewModel @Inject constructor(
                 _lastAgentRunDurationMs.value = agentHistoryRepository.getSession(latest)?.lastRunDurationMs
             }
         }
+        viewModelScope.launch {
+            _canResumeTask.value = taskPlanStore.loadActive() != null
+        }
+    }
+
+    fun resumeLastTask() {
+        if (_isAgentBusy.value) return
+        viewModelScope.launch {
+            val plan = taskPlanStore.loadActive()
+            if (plan != null) {
+                sendAgentMessage("继续上次任务")
+            }
+        }
     }
 
     fun selectAgentSession(sessionId: Long) {
@@ -803,6 +827,74 @@ class MainViewModel @Inject constructor(
         _agentStreamText.value = "正在停止..."
     }
 
+    fun onAgentInputChange(value: String) {
+        _agentDraft.value = value
+    }
+
+    fun clearAgentDraft() {
+        _agentDraft.value = ""
+    }
+
+    fun setAgentVoiceAutoSend(enabled: Boolean) {
+        apiKeyStore.agentVoiceAutoSend = enabled
+        _agentVoiceAutoSend.value = enabled
+    }
+
+    fun submitAgentDraft() {
+        val text = _agentDraft.value.trim()
+        if (text.isNotBlank() && !_isAgentBusy.value) {
+            sendAgentMessage(text)
+            _agentDraft.value = ""
+        }
+    }
+
+    /** 统一语音入口：所有 ASR 结果都应通过这里进入 Home/Agent 管道。 */
+    fun submitVoiceResult(
+        text: String,
+        asrEngine: String = "unknown",
+        language: String? = null,
+        confidence: Float? = null,
+        toAgent: Boolean = false,
+        autoParse: Boolean = true,
+        voiceSessionId: String? = null,
+    ) {
+        val normalized = text.trim()
+        if (normalized.isBlank()) return
+        if (voiceSessionId != null && voiceSessionId == lastVoiceSessionId && normalized == lastVoiceText) {
+            // 同一个语音会话的重复 final 结果，忽略，避免创建重复目标。
+            return
+        }
+        if (voiceSessionId != null) {
+            lastVoiceSessionId = voiceSessionId
+            lastVoiceText = normalized
+        }
+        val intent = VoiceIntent.fromText(text, asrEngine, language, confidence)
+        submitVoiceIntent(intent, toAgent = toAgent, autoParse = autoParse)
+    }
+
+    fun submitVoiceIntent(
+        intent: VoiceIntent,
+        toAgent: Boolean = false,
+        autoParse: Boolean = true,
+    ) {
+        if (intent.isBlank) return
+        val resolved = intent.copy(
+            intentType = if (toAgent) VoiceIntentType.AGENT else VoiceIntentType.SIMPLE_TASK,
+        )
+        if (toAgent) {
+            _agentDraft.value = resolved.normalized
+            if (_agentVoiceAutoSend.value && apiKeyStore.deepSeekApiKey.isNotBlank()) {
+                sendAgentMessage(resolved.normalized)
+                _agentDraft.value = ""
+            }
+        } else {
+            onInputChange(resolved.normalized)
+            if (autoParse) {
+                parse()
+            }
+        }
+    }
+
     fun sendAgentMessage(text: String) {
         if (text.isBlank() || _isAgentBusy.value) return
         viewModelScope.launch {
@@ -823,10 +915,18 @@ class MainViewModel @Inject constructor(
                     enabled = apiKeyStore.agentAutoVerifyEnabled,
                     maxPerRun = apiKeyStore.agentMaxAutoVerifies,
                 )
+                val resumeIntent = text.contains("继续") || text.contains("恢复") || text.contains("接着做")
+                val resumePlan = if (resumeIntent) {
+                    taskPlanStore.loadActive()
+                } else {
+                    null
+                }
+                if (resumePlan != null) taskPlanStore.set(resumePlan)
                 val result = agentSession.send(
                     text,
                     skills = relevantSkills,
                     verifyPolicy = verifyPolicy,
+                    plan = resumePlan,
                     onSensitiveAction = { request -> confirmSensitiveAction(request) },
                     onStep = { step ->
                         _agentSteps.update { current ->

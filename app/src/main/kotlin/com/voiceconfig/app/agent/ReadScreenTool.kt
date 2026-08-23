@@ -33,7 +33,7 @@ class ReadScreenTool @Inject constructor(
     private var cachedHeight: Int = 0
 
     override val name: String = "read_screen"
-    override val description: String = "截取当前屏幕并返回带坐标网格的画面，适合需要看界面、图片、小程序按钮位置时使用；参数：{\"gridStep\":100,\"maxDimension\":1280}（可选，网格间隔像素默认200，最长边像素0表示不缩图）"
+    override val description: String = "截取当前屏幕并返回带坐标网格的画面，适合需要看界面、图片、小程序按钮位置时使用；参数：{\"gridStep\":100,\"maxDimension\":800}（可选，网格间隔像素默认200，最长边像素0表示不缩图）"
 
     override suspend fun execute(args: Map<String, Any?>): ToolResult {
         if (!shizuku.isAvailable()) {
@@ -80,9 +80,16 @@ class ReadScreenTool @Inject constructor(
         val dimension = Regex("""(\d+)\s*x\s*(\d+)""")
             .find(sizeResult.stdout)
             ?.let { it.groupValues[1].toIntOrNull() to it.groupValues[2].toIntOrNull() }
-        val maxDimension = (args["maxDimension"] as? Number)?.toInt()?.coerceIn(0, 4096) ?: 0
+        val maxDimension = (args["maxDimension"] as? Number)?.toInt()?.coerceIn(0, 4096) ?: 800
         val gridStartMs = System.currentTimeMillis()
-        val gridImage = addCoordinateGrid(image, gridStep, maxDimension)
+        var gridImage = addCoordinateGrid(image, gridStep, maxDimension)
+        val annotations = (args["annotations"] as? List<*>)?.filterIsInstance<Map<*, *>>() ?: emptyList()
+        val annotate = (args["annotate"] as? Boolean) ?: annotations.isNotEmpty()
+        if (annotate && annotations.isNotEmpty() && dimension != null && dimension.first != null && dimension.second != null) {
+            val annotateStartMs = System.currentTimeMillis()
+            gridImage = annotateImage(gridImage, annotations, dimension.first ?: 0, dimension.second ?: 0)
+            timingMs["annotate_ms"] = System.currentTimeMillis() - annotateStartMs
+        }
         timingMs["grid_encode_ms"] = System.currentTimeMillis() - gridStartMs
         timingMs["total_ms"] = System.currentTimeMillis() - totalStartMs
         synchronized(this) {
@@ -101,6 +108,74 @@ class ReadScreenTool @Inject constructor(
                 "has_grid" to true,
                 "timingMs" to timingMs,
             ),
+        )
+    }
+
+    private fun annotateImage(
+        imageBase64: String,
+        annotations: List<Map<*, *>>,
+        originalWidth: Int,
+        originalHeight: Int,
+    ): String {
+        return runCatching {
+            val bytes = Base64.decode(imageBase64, Base64.DEFAULT)
+            val src = BitmapFactory.decodeByteArray(bytes, 0, bytes.size) ?: return@runCatching imageBase64
+            val out = src.copy(Bitmap.Config.ARGB_8888, true)
+            val canvas = Canvas(out)
+            val scaleX = out.width.toFloat() / originalWidth
+            val scaleY = out.height.toFloat() / originalHeight
+            val paint = Paint().apply {
+                color = Color.argb(220, 0, 120, 255)
+                style = Paint.Style.STROKE
+                strokeWidth = 4f
+            }
+            val textPaint = Paint().apply {
+                color = Color.argb(255, 0, 0, 255)
+                textSize = 28f
+                typeface = Typeface.DEFAULT_BOLD
+            }
+            annotations.forEachIndexed { index, ann ->
+                val boundsValue = ann["bounds"]
+                val rect = when (boundsValue) {
+                    is String -> parseBoundsString(boundsValue)?.let {
+                        android.graphics.Rect(
+                            (it[0] * scaleX).toInt(),
+                            (it[1] * scaleY).toInt(),
+                            (it[2] * scaleX).toInt(),
+                            (it[3] * scaleY).toInt(),
+                        )
+                    }
+                    is List<*> -> {
+                        val nums = boundsValue.mapNotNull { (it as? Number)?.toInt() }
+                        if (nums.size >= 4) android.graphics.Rect(
+                            (nums[0] * scaleX).toInt(),
+                            (nums[1] * scaleY).toInt(),
+                            (nums[2] * scaleX).toInt(),
+                            (nums[3] * scaleY).toInt(),
+                        ) else null
+                    }
+                    else -> null
+                }
+                if (rect != null) {
+                    canvas.drawRect(rect, paint)
+                    val label = (ann["id"] ?: (index + 1)).toString()
+                    canvas.drawText(label, rect.left + 4f, rect.top + 30f, textPaint)
+                }
+            }
+            val baos = ByteArrayOutputStream()
+            out.compress(Bitmap.CompressFormat.JPEG, 85, baos)
+            out.recycle()
+            Base64.encodeToString(baos.toByteArray(), Base64.NO_WRAP)
+        }.getOrElse { imageBase64 }
+    }
+
+    private fun parseBoundsString(bounds: String): IntArray? {
+        val m = Regex("""\[(\d+),(\d+)\]\[(\d+),(\d+)\]""").find(bounds) ?: return null
+        return intArrayOf(
+            m.groupValues[1].toIntOrNull() ?: return null,
+            m.groupValues[2].toIntOrNull() ?: return null,
+            m.groupValues[3].toIntOrNull() ?: return null,
+            m.groupValues[4].toIntOrNull() ?: return null,
         )
     }
 
@@ -142,7 +217,7 @@ class ReadScreenTool @Inject constructor(
             }
 
             val baos = ByteArrayOutputStream()
-            out.compress(Bitmap.CompressFormat.PNG, 90, baos)
+            out.compress(Bitmap.CompressFormat.JPEG, 85, baos)
             out.recycle()
             Base64.encodeToString(baos.toByteArray(), Base64.NO_WRAP)
         }.getOrElse { imageBase64 }

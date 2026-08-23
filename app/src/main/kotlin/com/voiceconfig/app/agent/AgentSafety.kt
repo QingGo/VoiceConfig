@@ -22,7 +22,9 @@ class AgentSafety {
         return when (toolName) {
             "run_shell", "file_write" -> true
             "tap_text", "tap", "input_text", "swipe", "open_app", "open_file" ->
-                SENSITIVE_KEYWORDS.any { text.contains(it, ignoreCase = true) }
+                // 进入下单/结算页的“立即购买/去结算”不是最终支付，允许执行；
+                // 只有真正支付/提交/删除等最终动作才需要确认。
+                FINAL_ACTION_KEYWORDS.any { text.contains(it, ignoreCase = true) }
             else -> false
         }
     }
@@ -33,12 +35,12 @@ class AgentSafety {
     }
 
     private companion object {
-        val SENSITIVE_KEYWORDS = listOf(
-            "支付", "立即支付", "确认支付", "免密支付", "付款",
-            "提交订单", "确认订单", "下单", "购买", "结算",
-            "发送", "删除", "清空", "退出登录", "注销",
-            "同意", "授权", "确认", "提交", "转账", "汇款",
+        val FINAL_ACTION_KEYWORDS = listOf(
+            "提交订单", "确认支付", "立即支付", "确认付款", "免密支付", "付款",
+            "支付", "删除", "清空", "退出登录", "注销",
+            "同意", "授权", "确认订单", "确认下单", "提交", "转账", "汇款",
             "充值", "贷款", "签约", "安装", "卸载", "允许",
+            "发送", "立即购买",
         )
     }
 }

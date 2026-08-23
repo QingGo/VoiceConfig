@@ -5,3 +5,11 @@
 -keep class rikka.shizuku.** { *; }
 -keep interface rikka.shizuku.** { *; }
 -dontwarn rikka.shizuku.**
+
+# ASR native JNI / reflection
+-keep class com.voiceconfig.app.ai.TranscribeCppAsrEngine { *; }
+-keepclasseswithmembernames class com.voiceconfig.app.ai.TranscribeCppAsrEngine {
+    native <methods>;
+}
+-keep class com.k2fsa.sherpa.onnx.** { *; }
+-dontwarn com.k2fsa.sherpa.onnx.**

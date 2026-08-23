@@ -95,8 +95,10 @@ def launch_app(serial):
     adb(serial, ["shell", "am", "start", "-n", f"{PACKAGE}/{ACTIVITY}"])
 
 
-def send_scenario(serial, text, new_session=True):
+def send_scenario(serial, text, new_session=True, pre_stop_packages=()):
     """通过 debug broadcast 发送一个 Agent 场景。"""
+    if pre_stop_packages:
+        stop_packages(serial, pre_stop_packages)
     launch_app(serial)
     args = [
         "shell", "am", "broadcast",
@@ -209,7 +211,22 @@ def compute_metrics(summaries):
     }
 
 
-def run_and_evaluate(serial, text, timeout=90, expected=None):
+def stop_app(serial):
+    try:
+        adb(serial, ["shell", "am", "force-stop", PACKAGE])
+    except Exception:
+        pass
+
+
+def stop_packages(serial, packages):
+    for pkg in packages:
+        try:
+            adb(serial, ["shell", "am", "force-stop", pkg])
+        except Exception:
+            pass
+
+
+def run_and_evaluate(serial, text, timeout=90, expected=None, pre_stop_packages=()):
     local = os.path.join(tempfile.gettempdir(), "voiceconfig_agent_trace_eval.log")
     # 每次运行前拉取当前设备最新 trace 作为基线，避免跨设备临时文件污染。
     try:
@@ -218,34 +235,37 @@ def run_and_evaluate(serial, text, timeout=90, expected=None):
         pass
     before = Path(local).read_text(encoding="utf-8") if Path(local).exists() else ""
     before_count = len(before.splitlines())
-    send_scenario(serial, text)
-    # 等待执行结束：轮询 run_finished 数量增加。
-    deadline = time.time() + timeout
-    while time.time() < deadline:
-        time.sleep(3)
-        try:
-            data = pull_trace(serial, local)
-        except RuntimeError:
-            continue
-        entries = parse_trace(data)
-        if len(entries) > before_count:
-            # 找到本次 user_input 到 run_finished
-            new_entries = entries[before_count:]
-            runs = extract_runs(new_entries)
-            if runs and runs[-1].get("run_finished") is not None:
-                result = summarize_run(runs[-1])
-                if expected:
-                    verified = verify_expected(serial, expected)
-                    result["expected"] = expected
-                    result["verified"] = verified
-                    result["ok"] = result["ok"] and bool(verified)
-                    result["verification"] = "PASS" if verified else "FAIL"
-                    if not verified:
-                        result["failure_category"] = "VERIFY_FAIL"
-                else:
-                    result["verification"] = "NO_EXPECTED"
-                return result
-    return {"input": text, "ok": False, "message": "timeout", "tool_count": 0, "failed_tools": [], "declined": 0, "verification": "TIMEOUT"}
+    try:
+        send_scenario(serial, text, pre_stop_packages=pre_stop_packages)
+        # 等待执行结束：轮询 run_finished 数量增加。
+        deadline = time.time() + timeout
+        while time.time() < deadline:
+            time.sleep(3)
+            try:
+                data = pull_trace(serial, local)
+            except RuntimeError:
+                continue
+            entries = parse_trace(data)
+            if len(entries) > before_count:
+                # 找到本次 user_input 到 run_finished
+                new_entries = entries[before_count:]
+                runs = extract_runs(new_entries)
+                if runs and runs[-1].get("run_finished") is not None:
+                    result = summarize_run(runs[-1])
+                    if expected:
+                        verified = verify_expected(serial, expected)
+                        result["expected"] = expected
+                        result["verified"] = verified
+                        result["ok"] = result["ok"] and bool(verified)
+                        result["verification"] = "PASS" if verified else "FAIL"
+                        if not verified:
+                            result["failure_category"] = "VERIFY_FAIL"
+                    else:
+                        result["verification"] = "NO_EXPECTED"
+                    return result
+        return {"input": text, "ok": False, "message": "timeout", "tool_count": 0, "failed_tools": [], "declined": 0, "verification": "TIMEOUT"}
+    finally:
+        stop_app(serial)
 
 
 def load_scenarios(path):
@@ -262,10 +282,12 @@ def main():
     p_run.add_argument("--text", required=True)
     p_run.add_argument("--timeout", type=int, default=90)
     p_run.add_argument("--expect", default=None, help="场景级验证关键词")
+    p_run.add_argument("--stop-packages", default=None, help="运行前强制停止的包名，逗号分隔，例如 com.lucky.luckyclient")
 
     p_suite = sub.add_parser("suite", help="运行一组场景")
     p_suite.add_argument("--scenarios", required=True)
     p_suite.add_argument("--timeout", type=int, default=90)
+    p_suite.add_argument("--stop-packages", default=None, help="运行前强制停止的包名，逗号分隔")
 
     p_analyze = sub.add_parser("analyze", help="分析本地 trace")
     p_analyze.add_argument("--trace", required=True)
@@ -280,16 +302,19 @@ def main():
     args = parser.parse_args()
 
     if args.command == "run":
-        result = run_and_evaluate(args.serial, args.text, args.timeout, args.expect)
+        pre_stop = tuple(p for p in (args.stop_packages or "").split(",") if p.strip())
+        result = run_and_evaluate(args.serial, args.text, args.timeout, args.expect, pre_stop)
         print(json.dumps(result, ensure_ascii=False, indent=2))
         return 0 if result["ok"] else 1
 
     if args.command == "suite":
         scenarios = load_scenarios(args.scenarios)
+        stop_default = tuple(p for p in (args.stop_packages or "").split(",") if p.strip())
         results = []
         for sc in scenarios:
             print(f"==> {sc.get('name', sc['text'])}")
-            result = run_and_evaluate(args.serial, sc["text"], sc.get("timeout", args.timeout), sc.get("expect"))
+            pre_stop = tuple(sc.get("preStop", [])) or stop_default
+            result = run_and_evaluate(args.serial, sc["text"], sc.get("timeout", args.timeout), sc.get("expect"), pre_stop)
             result["name"] = sc.get("name", sc["text"])
             if "expected" not in result:
                 result["expected"] = sc.get("expect")

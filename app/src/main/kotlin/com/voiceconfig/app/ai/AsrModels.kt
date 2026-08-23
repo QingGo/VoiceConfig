@@ -6,10 +6,17 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import java.io.File
 import java.net.HttpURLConnection
 import java.net.URL
+import java.security.MessageDigest
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+
+enum class AsrModelTier {
+    PRODUCTION,
+    EXPERIMENTAL,
+    HIDDEN,
+}
 
 enum class AsrModelKind {
     SHERPA_STREAMING_TRANSDUCER,
@@ -19,6 +26,7 @@ enum class AsrModelKind {
     SENSEVOICE_OFFLINE,
     QWEN3_ASR_OFFLINE,
     COHERE_TRANSCRIBE_OFFLINE,
+    TRANSCRIBE_CPP_OFFLINE,
 }
 
 data class AsrModelFile(
@@ -26,6 +34,7 @@ data class AsrModelFile(
     val url: String,
     val size: Long,
     val mirrorUrls: List<String> = emptyList(),
+    val sha256: String? = null,
 )
 
 data class AsrModel(
@@ -41,6 +50,7 @@ data class AsrModel(
     val modelType: String = "zipformer",
     val language: String = "",
     val provider: String = "cpu",
+    val tier: AsrModelTier = AsrModelTier.PRODUCTION,
 )
 
 @Singleton
@@ -55,7 +65,7 @@ class AsrModelManager @Inject constructor(
             id = "sherpa-zh-14m-2023",
             displayName = "Sherpa Zipformer 14M（内置）",
             kind = AsrModelKind.SHERPA_STREAMING_TRANSDUCER,
-            description = "当前内置流式模型，约 1400 万参数 / 25MB，稳定保底。",
+            description = "默认内置流式模型，约 1400 万参数 / 25MB，保证安装包小且开箱可用。若追求更高识别准确率，建议下载下方 Paraformer 中英流式模型。",
             builtin = true,
             assetDir = "sherpa-onnx-streaming-zipformer-zh-14M-2023-02-23",
         ),
@@ -93,68 +103,10 @@ class AsrModelManager @Inject constructor(
             ),
         ),
         AsrModel(
-            id = "sherpa-bilingual-zh-en-2023",
-            displayName = "Sherpa Zipformer 中英双语流式 2023（旧实验）",
-            kind = AsrModelKind.SHERPA_STREAMING_TRANSDUCER,
-            description = "旧版双语模型，模拟器复测中文有重复字问题；中英混合建议优先使用 2025 多语流式模型。",
-            threads = 4,
-            modelingUnit = "bpe",
-            files = listOf(
-                AsrModelFile(
-                    name = "encoder-epoch-99-avg-1.int8.onnx",
-                    url = "https://huggingface.co/csukuangfj/sherpa-onnx-streaming-zipformer-bilingual-zh-en-2023-02-20/resolve/main/encoder-epoch-99-avg-1.int8.onnx",
-                    mirrorUrls = listOf(
-                        "https://hf-mirror.com/csukuangfj/sherpa-onnx-streaming-zipformer-bilingual-zh-en-2023-02-20/resolve/main/encoder-epoch-99-avg-1.int8.onnx",
-                    ),
-                    size = 181_895_032L,
-                ),
-                AsrModelFile(
-                    name = "decoder-epoch-99-avg-1.int8.onnx",
-                    url = "https://huggingface.co/csukuangfj/sherpa-onnx-streaming-zipformer-bilingual-zh-en-2023-02-20/resolve/main/decoder-epoch-99-avg-1.int8.onnx",
-                    mirrorUrls = listOf(
-                        "https://hf-mirror.com/csukuangfj/sherpa-onnx-streaming-zipformer-bilingual-zh-en-2023-02-20/resolve/main/decoder-epoch-99-avg-1.int8.onnx",
-                    ),
-                    size = 13_091_040L,
-                ),
-                AsrModelFile(
-                    name = "joiner-epoch-99-avg-1.int8.onnx",
-                    url = "https://huggingface.co/csukuangfj/sherpa-onnx-streaming-zipformer-bilingual-zh-en-2023-02-20/resolve/main/joiner-epoch-99-avg-1.int8.onnx",
-                    mirrorUrls = listOf(
-                        "https://hf-mirror.com/csukuangfj/sherpa-onnx-streaming-zipformer-bilingual-zh-en-2023-02-20/resolve/main/joiner-epoch-99-avg-1.int8.onnx",
-                    ),
-                    size = 3_228_404L,
-                ),
-                AsrModelFile(
-                    name = "bpe.model",
-                    url = "https://huggingface.co/csukuangfj/sherpa-onnx-streaming-zipformer-bilingual-zh-en-2023-02-20/resolve/main/bpe.model",
-                    mirrorUrls = listOf(
-                        "https://hf-mirror.com/csukuangfj/sherpa-onnx-streaming-zipformer-bilingual-zh-en-2023-02-20/resolve/main/bpe.model",
-                    ),
-                    size = 244_836L,
-                ),
-                AsrModelFile(
-                    name = "bpe.vocab",
-                    url = "https://huggingface.co/csukuangfj/sherpa-onnx-streaming-zipformer-bilingual-zh-en-2023-02-20/resolve/main/bpe.vocab",
-                    mirrorUrls = listOf(
-                        "https://hf-mirror.com/csukuangfj/sherpa-onnx-streaming-zipformer-bilingual-zh-en-2023-02-20/resolve/main/bpe.vocab",
-                    ),
-                    size = 12_564L,
-                ),
-                AsrModelFile(
-                    name = "tokens.txt",
-                    url = "https://huggingface.co/csukuangfj/sherpa-onnx-streaming-zipformer-bilingual-zh-en-2023-02-20/resolve/main/tokens.txt",
-                    mirrorUrls = listOf(
-                        "https://hf-mirror.com/csukuangfj/sherpa-onnx-streaming-zipformer-bilingual-zh-en-2023-02-20/resolve/main/tokens.txt",
-                    ),
-                    size = 56_317L,
-                ),
-            ),
-        ),
-        AsrModel(
             id = "sherpa-paraformer-bilingual-zh-en",
             displayName = "Sherpa Paraformer 中英流式",
             kind = AsrModelKind.SHERPA_STREAMING_PARAFORMER,
-            description = "流式 Paraformer 中英双语 int8，约 237MB，支持普通话/河南话/天津话/四川话等。",
+            description = "推荐的高性能中英双语流式模型，int8 约 237MB，支持普通话/河南话/天津话/四川话等；识别准确率通常优于内置模型，需额外下载。",
             threads = 4,
             files = listOf(
                 AsrModelFile(
@@ -239,6 +191,7 @@ class AsrModelManager @Inject constructor(
             displayName = "SenseVoice Small（非流式）",
             kind = AsrModelKind.SENSEVOICE_OFFLINE,
             description = "非流式，中文短句准确率高，但模型较大（约 239MB）。",
+            tier = AsrModelTier.EXPERIMENTAL,
             files = listOf(
                 AsrModelFile(
                     name = "model.int8.onnx",
@@ -260,10 +213,11 @@ class AsrModelManager @Inject constructor(
         ),
         AsrModel(
             id = "qwen3-asr-0.6b-int8",
-            displayName = "Qwen3-ASR 0.6B int8（非流式，高精度）",
+            displayName = "Qwen3-ASR 0.6B int8（非流式，实验性）",
             kind = AsrModelKind.QWEN3_ASR_OFFLINE,
             description = "Qwen3-ASR 0.6B ONNX int8，中英混合准确率高；模型较大，约 987MB。",
             threads = 4,
+            tier = AsrModelTier.EXPERIMENTAL,
             files = listOf(
                 AsrModelFile(
                     name = "conv_frontend.onnx",
@@ -316,44 +270,22 @@ class AsrModelManager @Inject constructor(
             ),
         ),
         AsrModel(
-            id = "cohere-transcribe-14-lang-int8",
-            displayName = "Cohere Transcribe 14语言 int8（非流式）",
-            kind = AsrModelKind.COHERE_TRANSCRIBE_OFFLINE,
-            description = "Cohere Transcribe 14语言 int8，支持中英等多语种；体积约 2.9GB，适合有存储空间的高精度场景。",
+            id = "qwen3-asr-0.6b-q4-km-gguf",
+            displayName = "Qwen3-ASR 0.6B Q4_K_M（transcribe.cpp 离线）",
+            kind = AsrModelKind.TRANSCRIBE_CPP_OFFLINE,
+            description = "Qwen3-ASR 0.6B GGUF Q4_K_M，通过 transcribe.cpp 运行；约 562MB，实机中文总耗时约 3.4s，是当前最优的高精度离线路径。",
             threads = 4,
-            language = "zh",
+            language = "",
+            provider = "cpu",
             files = listOf(
                 AsrModelFile(
-                    name = "encoder.int8.onnx",
-                    url = "https://huggingface.co/csukuangfj2/sherpa-onnx-cohere-transcribe-14-lang-int8-2026-04-01/resolve/main/encoder.int8.onnx",
+                    name = "Qwen3-ASR-0.6B-Q4_K_M.gguf",
+                    url = "https://huggingface.co/handy-computer/Qwen3-ASR-0.6B-gguf/resolve/main/Qwen3-ASR-0.6B-Q4_K_M.gguf",
                     mirrorUrls = listOf(
-                        "https://hf-mirror.com/csukuangfj2/sherpa-onnx-cohere-transcribe-14-lang-int8-2026-04-01/resolve/main/encoder.int8.onnx",
+                        "https://hf-mirror.com/handy-computer/Qwen3-ASR-0.6B-gguf/resolve/main/Qwen3-ASR-0.6B-Q4_K_M.gguf",
                     ),
-                    size = 3_090_822L,
-                ),
-                AsrModelFile(
-                    name = "encoder.int8.onnx.data",
-                    url = "https://huggingface.co/csukuangfj2/sherpa-onnx-cohere-transcribe-14-lang-int8-2026-04-01/resolve/main/encoder.int8.onnx.data",
-                    mirrorUrls = listOf(
-                        "https://hf-mirror.com/csukuangfj2/sherpa-onnx-cohere-transcribe-14-lang-int8-2026-04-01/resolve/main/encoder.int8.onnx.data",
-                    ),
-                    size = 2_731_503_072L,
-                ),
-                AsrModelFile(
-                    name = "decoder.int8.onnx",
-                    url = "https://huggingface.co/csukuangfj2/sherpa-onnx-cohere-transcribe-14-lang-int8-2026-04-01/resolve/main/decoder.int8.onnx",
-                    mirrorUrls = listOf(
-                        "https://hf-mirror.com/csukuangfj2/sherpa-onnx-cohere-transcribe-14-lang-int8-2026-04-01/resolve/main/decoder.int8.onnx",
-                    ),
-                    size = 153_250_705L,
-                ),
-                AsrModelFile(
-                    name = "tokens.txt",
-                    url = "https://huggingface.co/csukuangfj2/sherpa-onnx-cohere-transcribe-14-lang-int8-2026-04-01/resolve/main/tokens.txt",
-                    mirrorUrls = listOf(
-                        "https://hf-mirror.com/csukuangfj2/sherpa-onnx-cohere-transcribe-14-lang-int8-2026-04-01/resolve/main/tokens.txt",
-                    ),
-                    size = 207_437L,
+                    size = 589_560_480L,
+                    sha256 = "5b58f32a58ffa2c8783e0b0963485623e286e6272d953dfc9e28bc3447dee0c0",
                 ),
             ),
         ),
@@ -411,9 +343,14 @@ class AsrModelManager @Inject constructor(
                 val target = File(dir, file.name)
                 target.parentFile?.mkdirs()
                 if (target.exists() && ((file.size == 0L && target.length() > 0L) || target.length() == file.size)) {
-                    downloaded += file.size
-                    reportProgress()
-                    return@forEach
+                    val actualHash = file.sha256?.let { sha256Of(target) }
+                    if (actualHash == null || actualHash.equals(file.sha256, ignoreCase = true)) {
+                        downloaded += file.size
+                        reportProgress()
+                        return@forEach
+                    }
+                    // Hash mismatch: remove and re-download below.
+                    target.delete()
                 }
                 val candidates = (file.mirrorUrls + file.url).distinct()
                 var lastError: Exception? = null
@@ -437,6 +374,11 @@ class AsrModelManager @Inject constructor(
                         }
                         output.close()
                         input.close()
+                        val actualHash = file.sha256?.let { sha256Of(target) }
+                        if (actualHash != null && !actualHash.equals(file.sha256, ignoreCase = true)) {
+                            target.delete()
+                            throw RuntimeException("SHA-256 校验失败: ${file.name}")
+                        }
                         completed = true
                     } catch (e: Exception) {
                         lastError = e
@@ -452,6 +394,19 @@ class AsrModelManager @Inject constructor(
         }
     }
 
+    private fun sha256Of(file: File): String {
+        val digest = MessageDigest.getInstance("SHA-256")
+        file.inputStream().use { input ->
+            val buf = ByteArray(64 * 1024)
+            while (true) {
+                val read = input.read(buf)
+                if (read < 0) break
+                if (read > 0) digest.update(buf, 0, read)
+            }
+        }
+        return digest.digest().joinToString("") { "%02x".format(it) }
+    }
+
     fun deleteModel(model: AsrModel) {
         if (model.builtin) return
         File(context.filesDir, "models/${model.id}").deleteRecursively()
@@ -459,6 +414,7 @@ class AsrModelManager @Inject constructor(
 
     companion object {
         private const val KEY_SELECTED = "selected_asr_model"
-        const val DEFAULT_MODEL_ID = "sherpa-multilingual-2025"
+        const val DEFAULT_MODEL_ID = "sherpa-zh-14m-2023"
+        const val RECOMMENDED_MODEL_ID = "sherpa-paraformer-bilingual-zh-en"
     }
 }

@@ -43,6 +43,30 @@ object AgentToolSchemas {
         "read_screen" -> objectSchema(
             "gridStep" to integer("网格间隔像素，可选 50/100/200/400，默认200；越细越容易定位但图片更密"),
         )
+        "get_screen_state" -> objectSchema(
+            "maxNodes" to integer("最多返回 UI 节点数"),
+            "includeImage" to JSONObject().apply {
+                put("type", "boolean")
+                put("description", "是否包含截图；默认 false，只有需要看图标/视觉布局时才 true")
+            },
+        )
+        "dismiss_popups" -> objectSchema(
+            "maxAttempts" to integer("最多尝试关闭次数，默认3"),
+        )
+        "task_plan" -> objectSchema(
+            "action" to string("create/update/wait_user/get"),
+            "goal" to string("目标描述，create 时必填"),
+            "steps" to JSONObject().apply {
+                put("type", "array")
+                put("items", JSONObject().apply { put("type", "string") })
+                put("description", "步骤标题列表，create 时可选")
+            },
+            "stepId" to string("步骤 id，update 时必填"),
+            "status" to string("步骤状态：PENDING/IN_PROGRESS/COMPLETED/FAILED/BLOCKED/SKIPPED"),
+            "evidence" to string("完成该步骤的 UI/事实证据"),
+            "note" to string("备注"),
+            "reason" to string("等待用户的原因"),
+        )
         "tap" -> objectSchema(
             "x" to integer("屏幕绝对 X 坐标"),
             "y" to integer("屏幕绝对 Y 坐标"),

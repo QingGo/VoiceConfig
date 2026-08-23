@@ -93,12 +93,25 @@ object AgentToolMetadataRegistry {
             risk = ToolRisk.READ_ONLY,
             needsShizuku = true,
         ),
+        "dismiss_popups" to AgentToolMetadata(
+            category = "交互",
+            group = ToolGroup.CORE,
+            risk = ToolRisk.MEDIUM,
+            mutatesUi = true,
+            requiresAutoVerify = false,
+            needsShizuku = true,
+        ),
+        "task_plan" to AgentToolMetadata(
+            category = "计划",
+            group = ToolGroup.CORE,
+            risk = ToolRisk.READ_ONLY,
+        ),
         "tap" to AgentToolMetadata(
             category = "交互",
             group = ToolGroup.CORE,
             risk = ToolRisk.MEDIUM,
             mutatesUi = true,
-            requiresAutoVerify = true,
+            requiresAutoVerify = false,
             needsShizuku = true,
         ),
         "tap_text" to AgentToolMetadata(
@@ -106,7 +119,7 @@ object AgentToolMetadataRegistry {
             group = ToolGroup.CORE,
             risk = ToolRisk.MEDIUM,
             mutatesUi = true,
-            requiresAutoVerify = true,
+            requiresAutoVerify = false,
             needsShizuku = true,
         ),
         "review_tap" to AgentToolMetadata(
@@ -120,7 +133,7 @@ object AgentToolMetadataRegistry {
             group = ToolGroup.CORE,
             risk = ToolRisk.MEDIUM,
             mutatesUi = true,
-            requiresAutoVerify = true,
+            requiresAutoVerify = false,
             needsShizuku = true,
         ),
         "swipe" to AgentToolMetadata(
@@ -128,7 +141,7 @@ object AgentToolMetadataRegistry {
             group = ToolGroup.CORE,
             risk = ToolRisk.MEDIUM,
             mutatesUi = true,
-            requiresAutoVerify = true,
+            requiresAutoVerify = false,
             needsShizuku = true,
         ),
         "press_key" to AgentToolMetadata(
@@ -136,7 +149,7 @@ object AgentToolMetadataRegistry {
             group = ToolGroup.CORE,
             risk = ToolRisk.MEDIUM,
             mutatesUi = true,
-            requiresAutoVerify = true,
+            requiresAutoVerify = false,
             needsShizuku = true,
         ),
         "wait" to AgentToolMetadata(

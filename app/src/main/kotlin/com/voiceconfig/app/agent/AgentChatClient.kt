@@ -232,7 +232,9 @@ open class AgentChatClient @Inject constructor(
                     put("tools", AgentToolSchemas.build(tools))
                     put("tool_choice", "auto")
                     put("stream", true)
+                    put("stream_options", JSONObject().put("include_usage", true))
                 }
+                val requestBytes = body.toString().toByteArray(Charsets.UTF_8).size
 
                 conn.outputStream.use { it.write(body.toString().toByteArray(Charsets.UTF_8)) }
                 val code = conn.responseCode
@@ -244,6 +246,7 @@ open class AgentChatClient @Inject constructor(
                 }
 
                 val streamStartMs = System.currentTimeMillis()
+                var usageJson: JSONObject? = null
                 var firstTokenAtMs: Long? = null
                 var reasoningStartedAt: Long? = null
                 var contentStartedAt: Long? = null
@@ -259,6 +262,7 @@ open class AgentChatClient @Inject constructor(
                         if (data == "[DONE]") break
                         Log.d(TAG, "SSE: $data")
                         val chunk = runCatching { JSONObject(data) }.getOrNull() ?: continue
+                        chunk.optJSONObject("usage")?.let { usageJson = it }
                         val choice = chunk.optJSONArray("choices")?.optJSONObject(0) ?: continue
                         choice.optString("finish_reason").takeIf { it.isNotBlank() && it != "null" }?.let {
                             finishReason = it
@@ -303,6 +307,7 @@ open class AgentChatClient @Inject constructor(
                 }
                 val outputMs = (nowMs - streamStartMs - thinkingMs).coerceAtLeast(0)
                 val ttftMs = (firstTokenAtMs?.minus(requestStartMs) ?: nowMs - requestStartMs).coerceAtLeast(0)
+                val usage = usageJson ?: JSONObject()
                 val response = AgentChatResponse(
                     content = content.toString().takeIf { it.isNotBlank() },
                     reasoningContent = reasoning.toString().takeIf { it.isNotBlank() },
@@ -311,6 +316,12 @@ open class AgentChatClient @Inject constructor(
                     thinkingMs = thinkingMs,
                     outputMs = outputMs,
                     ttftMs = ttftMs,
+                    requestBytes = requestBytes,
+                    promptCacheHitTokens = usage.optLong("prompt_cache_hit_tokens", 0L),
+                    promptCacheMissTokens = usage.optLong("prompt_cache_miss_tokens", 0L),
+                    promptTokens = usage.optLong("prompt_tokens", 0L),
+                    completionTokens = usage.optLong("completion_tokens", 0L),
+                    totalTokens = usage.optLong("total_tokens", 0L),
                 )
                 onEvent(AgentStreamEvent.Done(response))
                 response
@@ -427,6 +438,12 @@ data class AgentChatResponse(
     val thinkingMs: Long = 0,
     val outputMs: Long = 0,
     val ttftMs: Long = 0,
+    val requestBytes: Int = 0,
+    val promptCacheHitTokens: Long = 0,
+    val promptCacheMissTokens: Long = 0,
+    val promptTokens: Long = 0,
+    val completionTokens: Long = 0,
+    val totalTokens: Long = 0,
 )
 
 

@@ -30,6 +30,7 @@ import com.voiceconfig.data.local.dao.AiDebugLogDao
 import com.voiceconfig.data.local.dao.AppAliasDao
 import com.voiceconfig.data.local.dao.ExecutionLogDao
 import com.voiceconfig.data.local.dao.TaskDao
+import com.voiceconfig.data.local.dao.TaskPlanDao
 import com.voiceconfig.data.local.dao.TemplateDao
 import com.voiceconfig.data.local.dao.TaskEventDao
 import com.voiceconfig.data.local.dao.TriggerRuleDao
@@ -64,7 +65,7 @@ object AppModule {
             VoiceConfigDatabase::class.java,
             "voice_config.db",
         )
-            .addMigrations(VoiceConfigDatabase.MIGRATION_1_2, VoiceConfigDatabase.MIGRATION_2_3, VoiceConfigDatabase.MIGRATION_3_4, VoiceConfigDatabase.MIGRATION_4_5, VoiceConfigDatabase.MIGRATION_5_6, VoiceConfigDatabase.MIGRATION_6_7, VoiceConfigDatabase.MIGRATION_7_8, VoiceConfigDatabase.MIGRATION_8_9, VoiceConfigDatabase.MIGRATION_9_10, VoiceConfigDatabase.MIGRATION_10_11, VoiceConfigDatabase.MIGRATION_11_12, VoiceConfigDatabase.MIGRATION_12_13)
+            .addMigrations(VoiceConfigDatabase.MIGRATION_1_2, VoiceConfigDatabase.MIGRATION_2_3, VoiceConfigDatabase.MIGRATION_3_4, VoiceConfigDatabase.MIGRATION_4_5, VoiceConfigDatabase.MIGRATION_5_6, VoiceConfigDatabase.MIGRATION_6_7, VoiceConfigDatabase.MIGRATION_7_8, VoiceConfigDatabase.MIGRATION_8_9, VoiceConfigDatabase.MIGRATION_9_10, VoiceConfigDatabase.MIGRATION_10_11, VoiceConfigDatabase.MIGRATION_11_12, VoiceConfigDatabase.MIGRATION_12_13, VoiceConfigDatabase.MIGRATION_13_14)
             .build()
 
     @Provides
@@ -93,6 +94,15 @@ object AppModule {
 
     @Provides
     fun provideTaskEventDao(database: VoiceConfigDatabase): TaskEventDao = database.taskEventDao()
+
+    @Provides
+    fun provideTaskPlanDao(database: VoiceConfigDatabase): TaskPlanDao = database.taskPlanDao()
+
+    @Provides
+    @Singleton
+    fun provideTaskPlanPersistence(
+        repository: com.voiceconfig.app.agent.TaskPlanRepository,
+    ): com.voiceconfig.app.agent.TaskPlanPersistence = repository
 
     @Provides
     fun provideTriggerRuleDao(database: VoiceConfigDatabase): TriggerRuleDao = database.triggerRuleDao()
@@ -211,6 +221,8 @@ object AppModule {
         readUiTool: com.voiceconfig.app.agent.ReadUiTool,
         readScreenTool: com.voiceconfig.app.agent.ReadScreenTool,
         getScreenStateTool: com.voiceconfig.app.agent.GetScreenStateTool,
+        dismissPopupsTool: com.voiceconfig.app.agent.DismissPopupsTool,
+        taskPlanTool: com.voiceconfig.app.agent.TaskPlanTool,
         tapTool: com.voiceconfig.app.agent.TapTool,
         tapTextTool: com.voiceconfig.app.agent.TapTextTool,
         reviewTapTool: com.voiceconfig.app.agent.ReviewTapTool,
@@ -234,6 +246,8 @@ object AppModule {
         readUiTool = readUiTool,
         readScreenTool = readScreenTool,
         getScreenStateTool = getScreenStateTool,
+        dismissPopupsTool = dismissPopupsTool,
+        taskPlanTool = taskPlanTool,
         tapTool = tapTool,
         tapTextTool = tapTextTool,
         reviewTapTool = reviewTapTool,

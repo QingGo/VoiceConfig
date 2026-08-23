@@ -12,6 +12,26 @@ import kotlinx.coroutines.flow.asStateFlow
  *   --es text "打开瑞幸咖啡点一杯冰美式" --ez send true --ez newSession true
  */
 object AgentTestBridge {
+    /**
+     * 模拟“本地 ASR 识别完成”后的首页闭环：
+     * 填入创建面板并（默认）自动解析/创建。
+     */
+    data class HomeSpeech(
+        val text: String,
+        val parse: Boolean = true,
+    )
+
+    private val _homeSpeech = MutableStateFlow<HomeSpeech?>(null)
+    val homeSpeech: StateFlow<HomeSpeech?> = _homeSpeech.asStateFlow()
+
+    fun submitHomeSpeech(speech: HomeSpeech) {
+        _homeSpeech.value = speech
+    }
+
+    fun clearHomeSpeech() {
+        _homeSpeech.value = null
+    }
+
     data class Command(
         val text: String,
         val send: Boolean = false,

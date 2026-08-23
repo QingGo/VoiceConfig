@@ -11,9 +11,9 @@ VoiceConfig（言控）是一个 Android Jetpack Compose 应用。它不只是�
 
 ## 界面截图
 
-| 首页 | 智能助手 | 设置 | 模板库 |
+| 自动化 | 智能助手 | 设置 | 模板库 |
 | --- | --- | --- | --- |
-| ![首页](screenshots/readme_home.png) | ![智能助手](screenshots/readme_agent.png) | ![设置](screenshots/readme_settings.png) | ![模板库](screenshots/readme_templates.png) |
+| ![自动化](screenshots/readme_home_new.png) | ![智能助手](screenshots/readme_agent_new.png) | ![设置](screenshots/readme_settings_new.png) | ![模板库](screenshots/readme_templates_new.png) |
 
 ## 工作原理
 
@@ -104,6 +104,9 @@ VoiceConfig 不是“只会聊天”的助手，而是把语言理解、手机�
 
 - 本地数据库：任务、会话、执行记录、模板
 - 本地 ASR：支持离线语音识别模型
+  - sherpa-onnx：日常流式识别（默认内置 Zipformer 14M，APK 体积小、开箱可用）
+  - Sherpa Paraformer 中英流式：性能推荐模型，需额外下载（约 237MB）
+  - transcribe.cpp / Qwen3-ASR GGUF：高质量离线识别，支持 arm64-v8a 与 x86_64
 - API Key 仅保存在应用本地
 - 构建产物、本地调试数据、内部文档默认不进入 Git
 
@@ -170,22 +173,34 @@ core:
 
 - Material 3 + Jetpack Compose
 - 支持深色模式
-- 首页：任务列表 + 模板库 + 执行记录
-- Agent 页面：会话列表 / 对话详情；更多菜单包含推理设置、经验库、Agent 运行记录
-- 首页创建面板默认收起，悬浮麦克风为主要语音入口
+- **默认进入「智能助手」**：复杂多步任务、跨 App 操作、工具调用、轨迹回放
+- **自动化页（第二 Tab）**：简单定时任务、模板库、条件触发器、执行记录
+- Agent 页面：会话列表 / 对话详情；更多菜单包含推理设置、经验库、Agent 运行记录、全局设置
+- 悬浮麦克风为主要语音入口，支持自动化页与 Agent 页语音
 - 智能助手会话列表支持按时间分组、重命名、删除、清空；对话详情可返回会话列表
-- 设置页：
-  - DeepSeek API Key 隐藏/显示
-  - 模型选择
-  - DeepSeek 思考模式
-  - Agent 推理设置与推理强度
-  - Agent 自动截图验证开关与次数限制
-  - 开发者调试折叠
+- 全局设置页，按领域分区：
+  - 模型与密钥
+  - 智能助手行为
+  - 语音识别
+  - 条件触发器
+  - 权限与系统
+  - 高级/调试
 - 模板库：
   - 分类 Chip
   - 存为模板 / 管理 / 导入导出
 
 ## 快速开始
+
+### 0. （可选）构建 transcribe.cpp 原生库
+
+transcribe.cpp / Qwen3-ASR GGUF 引擎需要本地编译的 `libtranscribe_jni.so`。
+首次构建或升级 transcribe.cpp 后执行：
+
+```bash
+./scripts/build_transcribe_cpp_android.sh
+```
+
+脚本默认构建 `arm64-v8a` 与 `x86_64`，输出到 `app/src/main/jniLibs/`（该目录已 gitignore）。
 
 ### 1. 构建 APK
 
@@ -218,6 +233,35 @@ adb install -r app/build/outputs/apk/debug/app-debug.apk
 3. 在 App 的“权限体检”中确认 Shizuku 状态为 ✅。
 
 之后，“打开 App”类任务会优先通过 Shizuku 自动打开。
+
+### 没有 Shizuku 时能做什么？
+
+**仍然可以：**
+- 创建定时提醒、通知；
+- 创建定时打开 Deep Link；
+- 使用无障碍服务读取界面、点击文字/按钮；
+- 使用智能助手读屏、点击、输入、滑动等基础操作；
+- 使用本地/在线 ASR 进行语音识别；
+- 查看任务、模板、执行记录和 Agent 轨迹。
+
+**缺少 Shizuku 时受限较多的部分：**
+- 通过 shell 直接打开任意 App 的高级能力；
+- 部分系统级操作；
+- 某些需要 root 权限的自动化路径。
+
+**建议：**
+安装并授权 [Shizuku](https://shizuku.rikka.app/) 后，大部分高级自动化能力可以解锁。
+多数普通用户仍可在无 Shizuku 环境下使用提醒、无障碍 Agent 操作等基础功能。
+
+## 版本与发布
+
+- 当前版本：`0.1.0`
+- 构建产物：`app/build/outputs/apk/debug/app-debug.apk`
+- 打 Tag 自动发布：在 GitHub 推送 `v0.1.0` 格式的 tag 后，CI 会自动构建并在 GitHub Release 中附上 APK。
+  ```bash
+  git tag v0.1.0
+  git push origin v0.1.0
+  ```
 
 ## 开发与测试
 
@@ -260,6 +304,17 @@ python scripts/agent_scenario_eval.py --serial emulator-5554 pull --analyze
 
 ```bash
 scripts/adb_connect.sh 192.168.1.100 42889
+```
+
+模拟器本地 ASR 闭环（调试桥，仅 debug 包可用）：
+
+```bash
+# 1) 先推送 WAV 到 App 私有目录
+adb push test.wav /data/local/tmp/test.wav
+adb shell run-as com.voiceconfig.app cp /data/local/tmp/test.wav files/test.wav
+
+# 2) 触发“文件 ASR -> 解析 -> 创建任务”
+adb shell am broadcast -a com.voiceconfig.app.DEBUG_ASR_FILE   --es wav /data/user/0/com.voiceconfig.app/files/test.wav   --es model sherpa-ctc-2025 --ez parse true
 ```
 
 ## 项目结构

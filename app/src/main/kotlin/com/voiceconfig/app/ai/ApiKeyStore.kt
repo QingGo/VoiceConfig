@@ -78,6 +78,12 @@ class ApiKeyStore @Inject constructor(
             prefs.edit().putInt(KEY_AGENT_MAX_AUTO_VERIFY, value.coerceIn(0, 20)).apply()
         }
 
+    var agentVoiceAutoSend: Boolean
+        get() = prefs.getBoolean(KEY_AGENT_VOICE_AUTO_SEND, false)
+        set(value) {
+            prefs.edit().putBoolean(KEY_AGENT_VOICE_AUTO_SEND, value).apply()
+        }
+
     companion object {
         private const val KEY_API_KEY = "deepseek_api_key"
         private const val KEY_MODEL = "deepseek_model"
@@ -89,6 +95,7 @@ class ApiKeyStore @Inject constructor(
         private const val KEY_AGENT_AUTO_VERIFY_ENABLED = "agent_auto_verify_enabled"
         private const val KEY_AGENT_MAX_AUTO_VERIFY = "agent_max_auto_verifies"
         private const val KEY_AGENT_IMAGE_DETAIL_LOW = "agent_image_detail_low"
+        private const val KEY_AGENT_VOICE_AUTO_SEND = "agent_voice_auto_send"
         const val DEFAULT_MAX_AUTO_VERIFY = 2
         const val DEFAULT_MODEL = "deepseek-v4-flash-vision-exp"
 

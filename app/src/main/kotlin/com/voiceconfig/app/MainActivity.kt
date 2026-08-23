@@ -150,6 +150,37 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    private val debugAsrReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            val text = intent?.getStringExtra("text")?.takeIf { it.isNotBlank() } ?: return
+            val parse = intent.getBooleanExtra("parse", true)
+            AgentTestBridge.submitHomeSpeech(AgentTestBridge.HomeSpeech(text = text, parse = parse))
+        }
+    }
+
+    private val debugAsrFileReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            val wavPath = intent?.getStringExtra("wav")?.takeIf { it.isNotBlank() } ?: return
+            val modelId = intent?.getStringExtra("model") ?: localAsrManager.selectedModel().id
+            val parse = intent.getBooleanExtra("parse", true)
+            val model = localAsrManager.availableModels().firstOrNull { it.id == modelId } ?: return
+            Thread {
+                localAsrManager.recognizeFile(
+                    model = model,
+                    wavPath = wavPath,
+                    onResult = { text ->
+                        if (text.isNotBlank()) {
+                            AgentTestBridge.submitHomeSpeech(AgentTestBridge.HomeSpeech(text = text, parse = parse))
+                        }
+                    },
+                    onError = { message ->
+                        android.util.Log.e("AsrDebugFile", "ASR file failed: $message")
+                    },
+                )
+            }.start()
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         val isDebuggable = (applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE) != 0
@@ -160,8 +191,20 @@ class MainActivity : ComponentActivity() {
                     IntentFilter("com.voiceconfig.app.DEBUG_AGENT_INPUT"),
                     Context.RECEIVER_EXPORTED,
                 )
+                registerReceiver(
+                    debugAsrReceiver,
+                    IntentFilter("com.voiceconfig.app.DEBUG_ASR_RESULT"),
+                    Context.RECEIVER_EXPORTED,
+                )
+                registerReceiver(
+                    debugAsrFileReceiver,
+                    IntentFilter("com.voiceconfig.app.DEBUG_ASR_FILE"),
+                    Context.RECEIVER_EXPORTED,
+                )
             } else {
                 registerReceiver(debugAgentReceiver, IntentFilter("com.voiceconfig.app.DEBUG_AGENT_INPUT"))
+                registerReceiver(debugAsrReceiver, IntentFilter("com.voiceconfig.app.DEBUG_ASR_RESULT"))
+                registerReceiver(debugAsrFileReceiver, IntentFilter("com.voiceconfig.app.DEBUG_ASR_FILE"))
             }
         }
         setContent {
@@ -180,6 +223,8 @@ class MainActivity : ComponentActivity() {
     override fun onDestroy() {
         super.onDestroy()
         runCatching { unregisterReceiver(debugAgentReceiver) }
+        runCatching { unregisterReceiver(debugAsrReceiver) }
+        runCatching { unregisterReceiver(debugAsrFileReceiver) }
     }
 }
 
@@ -205,12 +250,15 @@ fun MainScreen(viewModel: MainViewModel) {
     val agentSessions by viewModel.agentSessions.collectAsState()
     val agentMessages by viewModel.agentMessages.collectAsState()
     val agentSteps by viewModel.agentSteps.collectAsState()
+    val canResumeTask by viewModel.canResumeTask.collectAsState()
     val lastAgentRunDurationMs by viewModel.lastAgentRunDurationMs.collectAsState()
     val taskEvents by viewModel.taskEvents.collectAsState()
     val selectedAgentSessionId by viewModel.selectedAgentSessionId.collectAsState()
     val isAgentBusy by viewModel.isAgentBusy.collectAsState()
     val agentStreamText by viewModel.agentStreamText.collectAsState()
     val agentReasoningText by viewModel.agentReasoningText.collectAsState()
+    val agentDraft by viewModel.agentDraft.collectAsState()
+    val agentVoiceAutoSend by viewModel.agentVoiceAutoSend.collectAsState()
     var showAiSettings by remember { mutableStateOf(false) }
     var draftApiKey by remember { mutableStateOf("") }
     var draftModel by remember { mutableStateOf("") }
@@ -225,8 +273,8 @@ fun MainScreen(viewModel: MainViewModel) {
     var agentInitialTab by remember { mutableIntStateOf(0) }
     var agentTabIndex by remember { mutableIntStateOf(0) }
     var agentLogTaskId by remember { mutableStateOf<Long?>(null) }
-    var agentInput by remember { mutableStateOf("") }
     val debugCommand by AgentTestBridge.command.collectAsState()
+    val debugHomeSpeech by AgentTestBridge.homeSpeech.collectAsState()
     var showCreatePanel by remember { mutableStateOf(false) }
     val snackbarHostState = remember { SnackbarHostState() }
     LaunchedEffect(uiState.parseMessage) {
@@ -241,6 +289,17 @@ fun MainScreen(viewModel: MainViewModel) {
             snackbarHostState.showSnackbar(message)
         }
     }
+    LaunchedEffect(debugHomeSpeech) {
+        val speech = debugHomeSpeech ?: return@LaunchedEffect
+        showCreatePanel = true
+        viewModel.submitVoiceResult(
+            text = speech.text,
+            asrEngine = "debug-bridge",
+            toAgent = false,
+            autoParse = speech.parse,
+        )
+        AgentTestBridge.clearHomeSpeech()
+    }
     LaunchedEffect(debugCommand) {
         val command = debugCommand ?: return@LaunchedEffect
         if (command.text.isNotBlank()) {
@@ -248,10 +307,10 @@ fun MainScreen(viewModel: MainViewModel) {
                 viewModel.clearSelectedAgentSession()
                 agentTabIndex = AgentNavigation.TAB_CONVERSATION
             }
-            agentInput = command.text
+            viewModel.onAgentInputChange(command.text)
             if (command.send) {
                 viewModel.sendAgentMessage(command.text.trim())
-                agentInput = ""
+                viewModel.clearAgentDraft()
             }
         }
         AgentTestBridge.clear()
@@ -290,6 +349,7 @@ fun MainScreen(viewModel: MainViewModel) {
         }
     }
     var asrSelectedId by remember { mutableStateOf(localAsrManager?.selectedModel()?.id ?: "") }
+    var showExperimentalAsr by remember { mutableStateOf(false) }
     var asrDownloadingId by remember { mutableStateOf<String?>(null) }
     var asrDownloadProgress by remember { mutableStateOf(0f) }
     var asrErrors by remember { mutableStateOf<Map<String, String>>(emptyMap()) }
@@ -321,6 +381,9 @@ fun MainScreen(viewModel: MainViewModel) {
 
     var activeSpeechConsumer by remember { mutableStateOf<(String) -> Unit>({ viewModel.onInputChange(it) }) }
     var pendingSpeechConsumer by remember { mutableStateOf<(String) -> Unit>({ viewModel.onInputChange(it) }) }
+    var pendingSpeechPartialConsumer by remember { mutableStateOf<(String) -> Unit>({}) }
+    var voiceSessionCounter by remember { mutableStateOf(0L) }
+    var pendingVoiceSessionId by remember { mutableStateOf<String?>(null) }
 
     val speechLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.StartActivityForResult(),
@@ -337,6 +400,7 @@ fun MainScreen(viewModel: MainViewModel) {
 
     fun startListening(
         onResult: (String) -> Unit = { viewModel.onInputChange(it) },
+        onPartial: (String) -> Unit = {},
         onError: (String) -> Unit = { viewModel.setParseMessage(it) },
     ) {
         activeSpeechConsumer = onResult
@@ -349,7 +413,7 @@ fun MainScreen(viewModel: MainViewModel) {
             isPreparing = false
             isListening = true
             localAsrManager?.recognize(
-                onPartialResult = onResult,
+                onPartialResult = onPartial,
                 onResult = { text ->
                     isListening = false
                     onResult(text)
@@ -410,7 +474,7 @@ fun MainScreen(viewModel: MainViewModel) {
                     ?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
                     ?.firstOrNull()
                 if (!text.isNullOrBlank()) {
-                    onResult(text)
+                    onPartial(text)
                 }
             }
             override fun onEvent(eventType: Int, params: Bundle?) {}
@@ -423,7 +487,7 @@ fun MainScreen(viewModel: MainViewModel) {
         ActivityResultContracts.RequestPermission(),
     ) { granted ->
         if (granted) {
-            startListening(onResult = pendingSpeechConsumer)
+            startListening(onResult = pendingSpeechConsumer, onPartial = pendingSpeechPartialConsumer)
         }
     }
 
@@ -434,11 +498,22 @@ fun MainScreen(viewModel: MainViewModel) {
                 speechRecognizer?.stopListening()
                 isListening = false
             } else {
-                pendingSpeechConsumer = { viewModel.onInputChange(it) }
+                voiceSessionCounter++
+                val voiceSession = "home_voice_$voiceSessionCounter"
+                pendingVoiceSessionId = voiceSession
+                pendingSpeechConsumer = { text ->
+                    viewModel.submitVoiceResult(
+                        text = text,
+                        asrEngine = if (localAsrManager?.isModelAvailable() == true) "local-asr" else "system",
+                        toAgent = false,
+                        voiceSessionId = voiceSession,
+                    )
+                }
+                pendingSpeechPartialConsumer = { viewModel.onInputChange(it) }
                 val granted = Build.VERSION.SDK_INT < Build.VERSION_CODES.M ||
                     context.checkSelfPermission(android.Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
                 if (granted) {
-                    startListening(onResult = pendingSpeechConsumer)
+                    startListening(onResult = pendingSpeechConsumer, onPartial = pendingSpeechPartialConsumer)
                 } else {
                     audioPermissionLauncher.launch(android.Manifest.permission.RECORD_AUDIO)
                 }
@@ -454,12 +529,24 @@ fun MainScreen(viewModel: MainViewModel) {
                 speechRecognizer?.stopListening()
                 isListening = false
             } else {
-                pendingSpeechConsumer = { text -> agentInput = text }
+                voiceSessionCounter++
+                val voiceSession = "agent_voice_$voiceSessionCounter"
+                pendingVoiceSessionId = voiceSession
+                pendingSpeechConsumer = { text ->
+                    viewModel.submitVoiceResult(
+                        text = text,
+                        asrEngine = if (localAsrManager?.isModelAvailable() == true) "local-asr" else "system",
+                        toAgent = true,
+                        voiceSessionId = voiceSession,
+                    )
+                }
+                pendingSpeechPartialConsumer = { viewModel.onAgentInputChange(it) }
                 val granted = Build.VERSION.SDK_INT < Build.VERSION_CODES.M ||
                     context.checkSelfPermission(android.Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
                 if (granted) {
                     startListening(
                         onResult = pendingSpeechConsumer,
+                        onPartial = pendingSpeechPartialConsumer,
                         onError = { viewModel.setParseMessage(it) },
                     )
                 } else {
@@ -478,7 +565,7 @@ fun MainScreen(viewModel: MainViewModel) {
         viewModel.parse()
     }
 
-    val pagerState = rememberPagerState { 2 }
+    val pagerState = rememberPagerState(initialPage = 1) { 2 }
     LaunchedEffect(pagerState.currentPage) {
         showAgentPage = pagerState.currentPage == 1
         if (showAgentPage) {
@@ -488,14 +575,7 @@ fun MainScreen(viewModel: MainViewModel) {
 
     Box(modifier = Modifier.fillMaxSize()) {
     Column(modifier = Modifier.fillMaxSize()) {
-        TabRow(selectedTabIndex = pagerState.currentPage) {
-            Tab(
-                selected = pagerState.currentPage == 0,
-                onClick = {
-                    scope.launch { pagerState.animateScrollToPage(0) }
-                },
-                text = { Text("自动化") },
-            )
+        TabRow(selectedTabIndex = if (pagerState.currentPage == 1) 0 else 1) {
             Tab(
                 selected = pagerState.currentPage == 1,
                 onClick = {
@@ -505,6 +585,13 @@ fun MainScreen(viewModel: MainViewModel) {
                     scope.launch { pagerState.animateScrollToPage(1) }
                 },
                 text = { Text("智能助手") },
+            )
+            Tab(
+                selected = pagerState.currentPage == 0,
+                onClick = {
+                    scope.launch { pagerState.animateScrollToPage(0) }
+                },
+                text = { Text("自动化") },
             )
         }
         Box(
@@ -619,9 +706,14 @@ fun MainScreen(viewModel: MainViewModel) {
                         isAgentBusy = isAgentBusy,
                         streamText = agentStreamText,
                         reasoningText = agentReasoningText,
-                        input = agentInput,
-                        onInputChange = { agentInput = it },
+                        input = agentDraft,
+                        onInputChange = viewModel::onAgentInputChange,
+                        hasDeepSeekKey = deepSeekApiKey.isNotBlank(),
+                        agentVoiceAutoSend = agentVoiceAutoSend,
+                        onAgentVoiceAutoSendChange = viewModel::setAgentVoiceAutoSend,
                         initialLogTaskId = agentLogTaskId,
+                        canResumeTask = canResumeTask,
+                        onResumeTask = viewModel::resumeLastTask,
                         agentThinkingEnabled = agentDeepSeekThinkingEnabled,
                         agentReasoningEffort = agentDeepSeekReasoningEffort,
                         onAgentThinkingEnabledChange = viewModel::setAgentDeepSeekThinkingEnabled,
@@ -632,11 +724,11 @@ fun MainScreen(viewModel: MainViewModel) {
                         onSelectSession = viewModel::selectAgentSession,
                         onSend = viewModel::sendAgentMessage,
                         onNewSession = {
-                            agentInput = ""
+                            viewModel.clearAgentDraft()
                             viewModel.newAgentSession()
                         },
                         onShowSessions = {
-                            agentInput = ""
+                            viewModel.clearAgentDraft()
                             viewModel.clearSelectedAgentSession()
                         },
                         onStop = viewModel::stopAgent,
@@ -651,6 +743,9 @@ fun MainScreen(viewModel: MainViewModel) {
                         },
                         onOpenAutomation = {
                             scope.launch { pagerState.animateScrollToPage(0) }
+                        },
+                        onOpenSettings = {
+                            showAiSettings = true
                         },
                     )
                 }
@@ -711,6 +806,14 @@ fun MainScreen(viewModel: MainViewModel) {
         )
     }
     if (showAiSettings) {
+        SettingsScreen(
+            viewModel = viewModel,
+            localAsrManager = localAsrManager,
+            aiDebugLogs = aiDebugLogs,
+            triggerRules = triggerRules,
+            onClose = { showAiSettings = false },
+        )
+    } else if (false) {
         AlertDialog(
             onDismissRequest = { showAiSettings = false },
             properties = DialogProperties(usePlatformDefaultWidth = false),
@@ -924,9 +1027,23 @@ fun MainScreen(viewModel: MainViewModel) {
                         }
                     }
                     HorizontalDivider()
-                    Text(text = "语音识别引擎", style = MaterialTheme.typography.titleSmall)
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(text = "语音识别引擎", style = MaterialTheme.typography.titleSmall)
+                        Spacer(modifier = Modifier.weight(1f))
+                        TextButton(onClick = { showExperimentalAsr = !showExperimentalAsr }) {
+                            Text(if (showExperimentalAsr) "隐藏实验模型" else "显示实验模型")
+                        }
+                    }
                     if (localAsrManager != null) {
-                        localAsrManager.availableModels().forEach { model ->
+                        Text(
+                            text = "设备建议：${localAsrManager.recommendedThreads()} 线程 · ${localAsrManager.recommendedProvider()} · 默认 ${localAsrManager.recommendedModelId()}",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        localAsrManager.visibleModels(
+                            includeExperimental = showExperimentalAsr,
+                            includeHidden = false,
+                        ).forEach { model ->
                             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                     RadioButton(
@@ -935,6 +1052,7 @@ fun MainScreen(viewModel: MainViewModel) {
                                             if (localAsrManager.isDownloaded(model)) {
                                                 localAsrManager.selectModel(model.id)
                                                 asrSelectedId = model.id
+                                                scope.launch { localAsrManager.warmUp() }
                                             }
                                         },
                                     )
@@ -951,6 +1069,7 @@ fun MainScreen(viewModel: MainViewModel) {
                                             onClick = {
                                                 localAsrManager.selectModel(model.id)
                                                 asrSelectedId = model.id
+                                                scope.launch { localAsrManager.warmUp() }
                                             },
                                             enabled = asrSelectedId != model.id,
                                         ) {
@@ -986,7 +1105,9 @@ fun MainScreen(viewModel: MainViewModel) {
                                                             asrErrors = asrErrors + (model.id to (e.message ?: "下载失败"))
                                                         }
                                                         asrDownloadingId = null
+                                                        localAsrManager.selectModel(model.id)
                                                         asrSelectedId = model.id
+                                                        scope.launch { localAsrManager.warmUp() }
                                                     }
                                                 },
                                             ) {
@@ -1218,6 +1339,7 @@ fun MainScreenContent(
     var showLogs by remember { mutableStateOf(false) }
     var showSaveTemplate by remember { mutableStateOf(false) }
     var draftTemplateName by remember { mutableStateOf("") }
+    var noKeyHintDismissed by remember { mutableStateOf(false) }
     val sortedTemplates = templates.sortedByDescending { it.usageCount }
     BackHandler(enabled = showCreatePanel) {
         onCreatePanelChange(false)
@@ -1257,23 +1379,31 @@ fun MainScreenContent(
         }
         item {
             Text(
-                text = "首页适合简单定时任务；复杂指令 / 工具调用 / 调试请用「智能助手」。",
+                text = "适合简单定时任务；复杂指令 / 工具调用 / 调试请用「智能助手」。",
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
-        if (deepSeekApiKey.isBlank()) {
+        if (deepSeekApiKey.isBlank() && !noKeyHintDismissed) {
             item {
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.tertiaryContainer),
                 ) {
-                    Text(
-                        text = "当前未配置大模型，仅支持提醒、定时打开 App、定时通知等简单任务；复杂多步任务请先在设置中配置 DeepSeek API Key。",
-                        modifier = Modifier.padding(12.dp),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onTertiaryContainer,
-                    )
+                    Row(
+                        modifier = Modifier.padding(start = 12.dp, end = 4.dp, top = 8.dp, bottom = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(
+                            text = "当前未配置大模型，仅支持提醒、定时打开 App、定时通知等简单任务；复杂多步任务请先在设置中配置 DeepSeek API Key。",
+                            modifier = Modifier.weight(1f),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onTertiaryContainer,
+                        )
+                        TextButton(onClick = { noKeyHintDismissed = true }) {
+                            Text("知道了")
+                        }
+                    }
                 }
             }
         }
@@ -1900,7 +2030,7 @@ private fun TemplatesOverlay(
                     }
                 } else {
                     TextButton(onClick = onNewTemplate) {
-                        Text("存为模板")
+                        Text("新建模板")
                     }
                 }
                 Box {

@@ -19,6 +19,7 @@ import javax.inject.Singleton
 class OpenAppTool @Inject constructor(
     @ApplicationContext private val context: Context,
     private val shizuku: ShizukuCommandRunner,
+    private val dismissPopupsTool: DismissPopupsTool,
 ) : AgentTool {
 
     override val name: String = "open_app"
@@ -58,13 +59,15 @@ class OpenAppTool @Inject constructor(
             val failure = ShizukuExecutionChannel.isLaunchFailure(result.stderr)
             if (result.ok && !failure) {
                 val verified = verifyForeground(packageName)
+                val popup = tryDismissPopupsAfterOpen()
                 return ToolResult.success(
-                    if (verified) "已打开并确认 ${packageName ?: deepLink}" else "已打开 ${packageName ?: deepLink}",
+                    if (verified) "已打开并确认 ${packageName ?: deepLink}${popup?.let { "；已自动关闭弹窗" } ?: ""}" else "已打开 ${packageName ?: deepLink}",
                     mapOf(
                         "mode" to "shizuku",
                         "package" to (packageName ?: ""),
                         "deepLink" to (deepLink ?: ""),
                         "verified" to verified,
+                        "autoDismiss" to (popup ?: emptyMap<String, Any?>()),
                     ),
                 )
             }
@@ -96,9 +99,30 @@ class OpenAppTool @Inject constructor(
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             }
             context.startActivity(intent)
-            ToolResult.success("已打开 ${packageName ?: deepLink}", mapOf("mode" to "intent"))
+            val popup = tryDismissPopupsAfterOpen()
+            ToolResult.success(
+                "已打开 ${packageName ?: deepLink}${popup?.let { "；已自动关闭弹窗" } ?: ""}",
+                mapOf("mode" to "intent", "autoDismiss" to (popup ?: emptyMap<String, Any?>())),
+            )
         } catch (e: Exception) {
             ToolResult.failure("打开失败：${e.message}", mapOf("mode" to "intent"))
+        }
+    }
+
+    private suspend fun tryDismissPopupsAfterOpen(): Map<String, Any?>? {
+        if (!shizuku.isAvailable()) return null
+        delay(300)
+        val result = runCatching {
+            dismissPopupsTool.dismissFast()
+        }.getOrNull() ?: return null
+        return if (result.ok) {
+            mapOf(
+                "ok" to true,
+                "message" to result.message,
+                "actions" to (result.data["actions"] ?: emptyList<Any?>()),
+            )
+        } else {
+            null
         }
     }
 

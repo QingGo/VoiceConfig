@@ -45,7 +45,8 @@ object UiDumpParser {
                 ).joinToString("|")
             }
             .sortedWith(
-                compareByDescending<UiNode> { it.clickable || it.focusable },
+                compareBy<UiNode> { if (it.text.isNotBlank() || it.contentDesc.isNotBlank()) 0 else 1 }
+                    .thenByDescending { it.clickable || it.focusable },
             )
             .take(maxNodes)
         if (nodes.isEmpty()) {
@@ -65,6 +66,43 @@ object UiDumpParser {
         }
         val omitted = lines.size - kept.size
         return kept.joinToString("\n") + "\n...（UI 树过长已省略 $omitted 个节点）"
+    }
+
+    fun summarizeNodes(
+        nodes: List<UiNode>,
+        maxNodes: Int = 120,
+        maxChars: Int = 4000,
+    ): String {
+        val filtered = nodes
+            .filter { it.enabled && (it.hasLabel || it.clickable || it.focusable) }
+            .distinctBy { node ->
+                listOf(
+                    node.text,
+                    node.contentDesc,
+                    node.resourceId,
+                    node.bounds,
+                    node.className,
+                    node.clickable.toString(),
+                    node.focusable.toString(),
+                ).joinToString("|")
+            }
+            .sortedWith(
+                compareBy<UiNode> { if (it.text.isNotBlank() || it.contentDesc.isNotBlank()) 0 else 1 }
+                    .thenByDescending { it.clickable || it.focusable },
+            )
+            .take(maxNodes)
+        if (filtered.isEmpty()) return "(未发现可交互或带文本的节点)"
+        val lines = filtered.map(::renderNode)
+        val total = lines.sumOf { it.length + 1 }
+        if (total <= maxChars) return lines.joinToString("\n")
+        val kept = mutableListOf<String>()
+        var used = 0
+        for (line in lines) {
+            if (used + line.length + 1 > maxChars && kept.isNotEmpty()) break
+            kept += line
+            used += line.length + 1
+        }
+        return kept.joinToString("\n") + "\n...（UI 树过长已省略 ${lines.size - kept.size} 个节点）"
     }
 
     private fun renderNode(node: UiNode): String {

@@ -6,6 +6,17 @@ import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
 import android.os.Bundle
 
+data class AccessibilityUiSnapshot(
+    val text: String,
+    val contentDesc: String,
+    val resourceId: String,
+    val className: String,
+    val bounds: String,
+    val clickable: Boolean,
+    val focusable: Boolean,
+    val packageName: String = "",
+)
+
 /**
  * 无 Shizuku 时的 AccessibilityService 降级通道。
  *
@@ -67,6 +78,37 @@ class AgentAccessibilityService : AccessibilityService() {
         for (i in 0 until node.childCount) {
             node.getChild(i)?.let { collect(it, depth + 1, sb) }
         }
+    }
+
+    private fun collectNodes(node: AccessibilityNodeInfo, depth: Int, out: MutableList<AccessibilityUiSnapshot>) {
+        val bounds = android.graphics.Rect()
+        node.getBoundsInScreen(bounds)
+        val text = node.text?.toString().orEmpty()
+        val desc = node.contentDescription?.toString().orEmpty()
+        val id = node.viewIdResourceName.orEmpty()
+        val cls = node.className?.toString().orEmpty()
+        if (text.isNotBlank() || desc.isNotBlank() || id.isNotBlank() || node.isClickable || node.isFocusable) {
+            out += AccessibilityUiSnapshot(
+                text = text,
+                contentDesc = desc,
+                resourceId = id,
+                className = cls,
+                bounds = "[${bounds.left},${bounds.top}][${bounds.right},${bounds.bottom}]",
+                clickable = node.isClickable,
+                focusable = node.isFocusable,
+                packageName = node.packageName?.toString().orEmpty(),
+            )
+        }
+        for (i in 0 until node.childCount) {
+            node.getChild(i)?.let { collectNodes(it, depth + 1, out) }
+        }
+    }
+
+    private fun snapshotNodes(): List<AccessibilityUiSnapshot> {
+        val root = activeRoot ?: return emptyList()
+        val out = mutableListOf<AccessibilityUiSnapshot>()
+        collectNodes(root, 0, out)
+        return out
     }
 
     private fun clickByText(text: String): Boolean {
@@ -140,6 +182,8 @@ class AgentAccessibilityService : AccessibilityService() {
             private set
 
         fun currentSnapshot(): String? = instance?.snapshotText()
+
+        fun currentNodes(): List<AccessibilityUiSnapshot> = instance?.snapshotNodes() ?: emptyList()
 
         fun clickText(text: String): Boolean? = instance?.clickByText(text)
 

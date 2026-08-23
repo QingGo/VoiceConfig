@@ -1,0 +1,162 @@
+[
+  {
+    "id": "home_menu_tab",
+    "type": "tap",
+    "screenshot": "benchmark_results/2026-08-23_confirm_baseline_1/screenshot_001.png",
+    "target": "菜单",
+    "bounds": [
+      288,
+      2869,
+      576,
+      3035
+    ],
+    "ground_truth": [
+      432,
+      2952
+    ],
+    "description": "首页底部菜单tab"
+  },
+  {
+    "id": "menu_menu_tab",
+    "type": "tap",
+    "screenshot": "benchmark_results/2026-08-23_confirm_consecutive_b1/screenshot_000.png",
+    "target": "菜单",
+    "bounds": [
+      397,
+      2981,
+      467,
+      3028
+    ],
+    "ground_truth": [
+      432,
+      3004
+    ],
+    "description": "菜单页底部菜单tab"
+  },
+  {
+    "id": "search_button",
+    "type": "tap",
+    "screenshot": "benchmark_results/2026-08-23_confirm_nothink_b1/screenshot_000.png",
+    "target": "搜索",
+    "bounds": [
+      1237,
+      137,
+      1440,
+      292
+    ],
+    "ground_truth": [
+      1338,
+      214
+    ],
+    "description": "搜索页右上角搜索按钮"
+  },
+  {
+    "id": "city_relocate",
+    "type": "tap",
+    "screenshot": "benchmark_results/2026-08-23_confirm_nothink_b1/screenshot_002.png",
+    "target": "重新定位",
+    "bounds": [
+      1083,
+      431,
+      1405,
+      557
+    ],
+    "ground_truth": [
+      1244,
+      494
+    ],
+    "description": "城市选择页重新定位"
+  },
+  {
+    "id": "city_list_swipe",
+    "type": "swipe",
+    "screenshot": "benchmark_results/2026-08-23_confirm_nothink_b1/screenshot_002.png",
+    "target": "向下滑动城市列表",
+    "scrollable": [
+      0,
+      571,
+      1440,
+      3035
+    ],
+    "ground_truth": {
+      "start": [
+        720,
+        2400
+      ],
+      "end": [
+        720,
+        800
+      ],
+      "direction": "up"
+    },
+    "description": "城市列表向下滑动"
+  },
+  {
+    "id": "search_standard_history",
+    "type": "tap",
+    "screenshot": "benchmark_results/2026-08-23_confirm_nothink_b1/screenshot_000.png",
+    "target": "标准美式",
+    "bounds": [
+      42,
+      435,
+      294,
+      519
+    ],
+    "ground_truth": [
+      168,
+      477
+    ],
+    "description": "搜索页热门推荐/搜索历史中的标准美式"
+  },
+  {
+    "id": "splash_skip",
+    "type": "skip",
+    "screenshot": "benchmark_results/visual_pages/luckin_splash_skip_popup.png",
+    "target": "跳过",
+    "bounds": [
+      1178,
+      172,
+      1284,
+      243
+    ],
+    "ground_truth": [
+      1231,
+      207
+    ],
+    "description": "开屏广告右上角跳过按钮"
+  },
+  {
+    "id": "popup_close_x",
+    "type": "close",
+    "screenshot": "benchmark_results/visual_pages/luckin_splash_skip_popup.png",
+    "target": "关闭更新弹窗的X",
+    "bounds": [
+      604,
+      2023,
+      835,
+      2254
+    ],
+    "ground_truth": [
+      719,
+      2138
+    ],
+    "description": "更新弹窗底部小X关闭按钮"
+  },
+  {
+    "id": "popup_update_button",
+    "type": "tap",
+    "screenshot": "benchmark_results/visual_pages/luckin_splash_skip_popup.png",
+    "target": "立即更新",
+    "bounds": [
+      384,
+      1785,
+      1056,
+      1906
+    ],
+    "ground_truth": [
+      720,
+      1845
+    ],
+    "description": "更新弹窗内立即更新按钮"
+  }
+]

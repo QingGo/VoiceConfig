@@ -64,6 +64,8 @@ dependencies {
     implementation(project(":core:executor"))
     implementation(project(":data:local"))
 
+    implementation(libs.lib.sherpa.onnx)
+
     implementation(libs.room.runtime)
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
@@ -82,7 +84,6 @@ dependencies {
     implementation(libs.androidx.hilt.navigation.compose)
     implementation(libs.shizuku.api)
     implementation(libs.shizuku.provider)
-    implementation(libs.lib.sherpa.onnx)
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)

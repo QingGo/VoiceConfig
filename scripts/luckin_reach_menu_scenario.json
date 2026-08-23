@@ -1,0 +1,11 @@
+[
+  {
+    "name": "瑞幸进入点单页（冰美式）",
+    "text": "帮我在瑞幸咖啡点一杯冰美式，到店取",
+    "expect": "美式",
+    "timeout": 60,
+    "estimated_seconds": 60,
+    "category": "coffee",
+    "preStop": ["com.lucky.luckyclient"]
+  }
+]

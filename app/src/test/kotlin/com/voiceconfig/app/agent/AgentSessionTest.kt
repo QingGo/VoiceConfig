@@ -33,7 +33,11 @@ class AgentSessionTest {
             systemPrompt: String,
             messages: List<AgentMessage>,
             tools: List<AgentTool>,
-        ): AgentChatResponse? = responses.getOrNull(callCount++)
+        ): AgentChatResponse? {
+            val index = callCount++
+            if (index < responses.size) return responses[index]
+            return responses.lastOrNull { it != null }
+        }
 
         override suspend fun streamWithTools(
             systemPrompt: String,
@@ -61,7 +65,7 @@ class AgentSessionTest {
                 AgentChatResponse(content = "完成", reasoningContent = null, toolCalls = emptyList()),
             ),
         )
-        val session = AgentSession(registry, client, NoOpTrace).apply {
+        val session = AgentSession(registry, client, NoOpTrace, TaskPlanStore(InMemoryTaskPlanPersistence())).apply {
             argumentParser = { mapOf("text" to "hi") }
         }
 
@@ -70,7 +74,8 @@ class AgentSessionTest {
         assertEquals(1, result.toolCalls.size)
         assertTrue(result.message.contains("完成"))
         assertTrue(result.history.any { it.role == "tool" && it.toolName == "echo" })
-        assertEquals(4, result.history.size) // user + assistant + tool + assistant final
+        assertEquals(8, result.history.size) // user + assistant + tool + assistant final + 2 completion checks
+
         assertTrue(result.history.any { it.role == "assistant" && it.reasoningContent == "need echo" })
         val secondRequest = client.requestMessages.getOrNull(1)
         assertTrue(
@@ -94,7 +99,7 @@ class AgentSessionTest {
                 ),
             ),
         )
-        val session = AgentSession(registry, client, NoOpTrace)
+        val session = AgentSession(registry, client, NoOpTrace, TaskPlanStore(InMemoryTaskPlanPersistence()))
         val result = session.send("你好")
         assertTrue(result.ok)
         val assistant = result.history.lastOrNull { it.role == "assistant" }
@@ -110,20 +115,20 @@ class AgentSessionTest {
         val client = FakeToolChatClient(
             listOf(AgentChatResponse(content = "你好", reasoningContent = null, toolCalls = emptyList())),
         )
-        val session = AgentSession(registry, client, NoOpTrace)
+        val session = AgentSession(registry, client, NoOpTrace, TaskPlanStore(InMemoryTaskPlanPersistence()))
 
         val result = session.send("你好")
         assertTrue(result.ok)
         assertTrue(result.toolCalls.isEmpty())
         assertEquals("你好", result.message)
-        assertEquals(2, result.history.size)
+        assertEquals(6, result.history.size) // user + assistant + 2 completion checks
     }
 
     @Test
     fun `session reports chat failure`() = runBlocking {
         val registry = ToolRegistry().register(EchoTool())
         val client = FakeToolChatClient(listOf(null))
-        val session = AgentSession(registry, client, NoOpTrace)
+        val session = AgentSession(registry, client, NoOpTrace, TaskPlanStore(InMemoryTaskPlanPersistence()))
         val result = session.send("hi")
         assertFalse(result.ok)
 
@@ -147,7 +152,7 @@ class AgentSessionTest {
                 AgentChatResponse(content = "完成", reasoningContent = null, toolCalls = emptyList()),
             ),
         )
-        val session = AgentSession(registry, client, NoOpTrace).apply {
+        val session = AgentSession(registry, client, NoOpTrace, TaskPlanStore(InMemoryTaskPlanPersistence())).apply {
             argumentParser = { emptyMap() }
         }
 
@@ -167,7 +172,7 @@ class AgentSessionTest {
     fun `auto verification respects max per run and runId is propagated`() = runBlocking {
         var screenExecutions = 0
         val screenTool = object : AgentTool {
-            override val name: String = "read_screen"
+            override val name: String = "read_ui"
             override val description: String = "screen"
             override suspend fun execute(args: Map<String, Any?>): ToolResult {
                 screenExecutions++
@@ -197,7 +202,7 @@ class AgentSessionTest {
             ),
         )
         var steps = mutableListOf<AgentStepUi>()
-        val session = AgentSession(registry, client, NoOpTrace).apply {
+        val session = AgentSession(registry, client, NoOpTrace, TaskPlanStore(InMemoryTaskPlanPersistence())).apply {
             argumentParser = { emptyMap() }
         }
         val result = session.send(
@@ -242,7 +247,7 @@ class AgentSessionTest {
                 AgentChatResponse(content = "完成", reasoningContent = null, toolCalls = emptyList()),
             ),
         )
-        val session = AgentSession(registry, client, NoOpTrace).apply {
+        val session = AgentSession(registry, client, NoOpTrace, TaskPlanStore(InMemoryTaskPlanPersistence())).apply {
             argumentParser = { emptyMap() }
         }
         val result = session.send(
@@ -269,7 +274,7 @@ class AgentSessionTest {
                 ),
             ),
         )
-        val session = AgentSession(registry, client, NoOpTrace).apply {
+        val session = AgentSession(registry, client, NoOpTrace, TaskPlanStore(InMemoryTaskPlanPersistence())).apply {
             argumentParser = { mapOf("text" to "same") }
         }
         val result = session.send(
@@ -288,7 +293,7 @@ class AgentSessionTest {
             listOf(AgentChatResponse(content = "完成", reasoningContent = null, toolCalls = emptyList())),
         )
         val states = mutableListOf<AgentRunState>()
-        val session = AgentSession(registry, client, NoOpTrace)
+        val session = AgentSession(registry, client, NoOpTrace, TaskPlanStore(InMemoryTaskPlanPersistence()))
         val result = session.send("你好", onStateChange = { states += it })
         assertTrue(result.ok)
         assertTrue(states.contains(AgentRunState.RUNNING))
@@ -315,7 +320,7 @@ class AgentSessionTest {
                 return AgentChatResponse(content = "完成", reasoningContent = null, toolCalls = emptyList())
             }
         }
-        val session = AgentSession(registry, client, NoOpTrace)
+        val session = AgentSession(registry, client, NoOpTrace, TaskPlanStore(InMemoryTaskPlanPersistence()))
         val result = session.send(
             "超时",
             runPolicy = AgentRunPolicy(llmTimeoutMs = 100, llmRetries = 0),
