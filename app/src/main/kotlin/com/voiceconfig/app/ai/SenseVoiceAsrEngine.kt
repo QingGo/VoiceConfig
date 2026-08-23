@@ -27,6 +27,7 @@ class SenseVoiceAsrEngine(
     private val context: Context,
     private val modelDir: String,
     private val numThreads: Int = 2,
+    private val provider: String = "cpu",
 ) : AsrEngine {
 
     private val mainHandler = Handler(Looper.getMainLooper())
@@ -293,7 +294,7 @@ class SenseVoiceAsrEngine(
                 tokens = "$modelDir/tokens.txt"
                 numThreads = numThreads
                 debug = false
-                provider = "cpu"
+                provider = provider
                 modelType = "sensevoice"
                 modelingUnit = "cjkchar"
                 bpeVocab = ""

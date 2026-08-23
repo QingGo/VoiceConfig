@@ -32,6 +32,7 @@ class OfflineLlmAsrEngine(
     private val modelKind: AsrModelKind,
     private val numThreads: Int = 2,
     private val defaultLanguage: String = "",
+    private val provider: String = "cpu",
 ) : AsrEngine {
 
     private val mainHandler = Handler(Looper.getMainLooper())
@@ -347,7 +348,7 @@ class OfflineLlmAsrEngine(
                 }
                 numThreads = numThreads
                 debug = false
-                provider = "cpu"
+                provider = provider
             }
             val config = OfflineRecognizerConfig().apply {
                 featConfig = FeatureConfig(16_000, 128, 0f)

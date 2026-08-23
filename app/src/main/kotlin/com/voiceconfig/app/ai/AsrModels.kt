@@ -40,6 +40,7 @@ data class AsrModel(
     val modelingUnit: String = "cjkchar",
     val modelType: String = "zipformer",
     val language: String = "",
+    val provider: String = "cpu",
 )
 
 @Singleton

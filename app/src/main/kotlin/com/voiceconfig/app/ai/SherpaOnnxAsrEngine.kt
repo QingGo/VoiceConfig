@@ -38,6 +38,7 @@ class SherpaOnnxAsrEngine(
     private val numThreads: Int = 2,
     private val modelingUnit: String = "cjkchar",
     private val modelType: String = "zipformer",
+    private val provider: String = "cpu",
 ) : AsrEngine {
 
     private val mainHandler = Handler(Looper.getMainLooper())
@@ -342,7 +343,7 @@ class SherpaOnnxAsrEngine(
                     tokens = "$modelDir/tokens.txt",
                     numThreads = numThreads,
                     debug = false,
-                    provider = "cpu",
+                    provider = provider,
                     modelType = modelType,
                     modelingUnit = modelingUnit,
                     bpeVocab = if (modelingUnit == "bpe") "$modelDir/bpe.model" else "",
@@ -356,7 +357,7 @@ class SherpaOnnxAsrEngine(
                     tokens = "$modelDir/tokens.txt",
                     numThreads = numThreads,
                     debug = false,
-                    provider = "cpu",
+                    provider = provider,
                     modelType = modelType,
                     modelingUnit = modelingUnit,
                     bpeVocab = if (modelingUnit == "bpe") "$modelDir/bpe.model" else "",
@@ -369,7 +370,7 @@ class SherpaOnnxAsrEngine(
                     tokens = "$modelDir/tokens.txt",
                     numThreads = numThreads,
                     debug = false,
-                    provider = "cpu",
+                    provider = provider,
                     modelType = "paraformer",
                     modelingUnit = "cjkchar",
                 )
@@ -378,7 +379,7 @@ class SherpaOnnxAsrEngine(
                     tokens = "$modelDir/tokens.txt",
                     numThreads = numThreads,
                     debug = false,
-                    provider = "cpu",
+                    provider = provider,
                     modelType = "zipformer2",
                     modelingUnit = "cjkchar",
                 )

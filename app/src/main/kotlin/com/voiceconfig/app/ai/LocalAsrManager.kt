@@ -119,18 +119,24 @@ class LocalAsrManager @Inject constructor(
         threadsOverride: Int? = null,
         useCachedEngine: Boolean = false,
         language: String? = null,
+        provider: String? = null,
     ) {
         val engine = if (useCachedEngine) {
             currentEngine()
         } else {
-            createEngine(model, threadsOverride)
+            createEngine(model, threadsOverride, provider)
         }
         engine.recognizeFile(wavPath, onResult, onError, language)
     }
 
-    private fun createEngine(model: AsrModel, threadsOverride: Int? = null): AsrEngine {
+    private fun createEngine(
+        model: AsrModel,
+        threadsOverride: Int? = null,
+        providerOverride: String? = null,
+    ): AsrEngine {
         val dir = modelManager.modelDir(model)
         val threads = threadsOverride ?: model.threads
+        val provider = providerOverride ?: model.provider
         return when (model.kind) {
             AsrModelKind.SHERPA_STREAMING_TRANSDUCER,
             AsrModelKind.SHERPA_STREAMING_ZIPFORMER2_TRANSDUCER,
@@ -143,9 +149,10 @@ class LocalAsrManager @Inject constructor(
                 threads,
                 model.modelingUnit,
                 model.modelType,
+                provider,
             )
 
-            AsrModelKind.SENSEVOICE_OFFLINE -> SenseVoiceAsrEngine(context, dir, threads)
+            AsrModelKind.SENSEVOICE_OFFLINE -> SenseVoiceAsrEngine(context, dir, threads, provider)
             AsrModelKind.QWEN3_ASR_OFFLINE,
             AsrModelKind.COHERE_TRANSCRIBE_OFFLINE,
             -> OfflineLlmAsrEngine(
@@ -154,6 +161,7 @@ class LocalAsrManager @Inject constructor(
                 model.kind,
                 threads,
                 model.language,
+                provider,
             )
         }
     }
