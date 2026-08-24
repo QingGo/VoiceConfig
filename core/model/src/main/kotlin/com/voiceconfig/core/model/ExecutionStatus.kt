@@ -7,4 +7,5 @@ enum class ExecutionStatus {
     FAILED,
     SKIPPED,
     FALLBACK,
+    WAITING_HUMAN,
 }

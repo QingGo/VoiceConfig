@@ -3,6 +3,7 @@ package com.voiceconfig.app.scheduler
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import com.voiceconfig.app.agent.AgentRunState
 import com.voiceconfig.app.agent.AgentSession
 import com.voiceconfig.app.agent.AgentSkillStore
 import com.voiceconfig.app.agent.AgentVerificationPolicy
@@ -64,6 +65,12 @@ class TaskAlarmReceiver : BroadcastReceiver() {
                         ),
                     )
                 }
+                val requestedMode = when (task.executionMode) {
+                    ExecutionMode.AUTO ->
+                        if (!task.deepLink.isNullOrBlank()) ExecutionMode.DEEP_LINK
+                        else ExecutionMode.SHIZUKU
+                    else -> task.executionMode
+                }
                 executionLogRepository.add(
                     ExecutionLog(
                         taskId = task.id,
@@ -72,6 +79,8 @@ class TaskAlarmReceiver : BroadcastReceiver() {
                         finishedAtEpochMillis = System.currentTimeMillis(),
                         status = result.status,
                         executionMode = result.usedMode,
+                        requestedMode = requestedMode,
+                        verified = result.verified,
                         errorCode = result.errorCode,
                         message = result.message,
                     ),
@@ -128,14 +137,19 @@ class TaskAlarmReceiver : BroadcastReceiver() {
                 apiKeyStore.agentAutoConfirmSensitiveActions
             },
         )
-        return if (result.ok) {
-            ExecutionResult.success(ExecutionMode.AGENT).copy(message = result.message)
-        } else {
-            ExecutionResult.failure(
+        return when {
+            !result.ok -> ExecutionResult.failure(
                 mode = ExecutionMode.AGENT,
                 errorCode = "AGENT_FAILED",
                 message = result.message,
             )
+            result.state == AgentRunState.WAITING_CONFIRM -> ExecutionResult(
+                status = ExecutionStatus.WAITING_HUMAN,
+                usedMode = ExecutionMode.AGENT,
+                message = result.message,
+                errorCode = "WAITING_HUMAN",
+            )
+            else -> ExecutionResult.success(ExecutionMode.AGENT).copy(message = result.message)
         }
     }
 

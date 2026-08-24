@@ -25,6 +25,7 @@ import com.voiceconfig.core.executor.ExecutionResult
 import com.voiceconfig.core.scheduler.TaskScheduler
 import com.voiceconfig.app.agent.AgentMessage
 import com.voiceconfig.app.agent.AgentStreamEvent
+import com.voiceconfig.app.agent.AgentRunState
 import com.voiceconfig.app.agent.AgentSession
 import com.voiceconfig.app.agent.AgentSkill
 import com.voiceconfig.app.agent.AgentSkillStatus
@@ -506,14 +507,19 @@ class MainViewModel @Inject constructor(
                             apiKeyStore.agentAutoConfirmSensitiveActions
                         },
                     )
-                    if (agentResult.ok) {
-                        ExecutionResult.success(ExecutionMode.AGENT).copy(message = agentResult.message)
-                    } else {
-                        ExecutionResult.failure(
+                    when {
+                        !agentResult.ok -> ExecutionResult.failure(
                             mode = ExecutionMode.AGENT,
                             errorCode = "AGENT_FAILED",
                             message = agentResult.message,
                         )
+                        agentResult.state == AgentRunState.WAITING_CONFIRM -> ExecutionResult(
+                            status = ExecutionStatus.WAITING_HUMAN,
+                            usedMode = ExecutionMode.AGENT,
+                            errorCode = "WAITING_HUMAN",
+                            message = agentResult.message,
+                        )
+                        else -> ExecutionResult.success(ExecutionMode.AGENT).copy(message = agentResult.message)
                     }
                 } else {
                     executionEngine.execute(
@@ -538,6 +544,8 @@ class MainViewModel @Inject constructor(
                     finishedAtEpochMillis = System.currentTimeMillis(),
                     status = result.status,
                     executionMode = result.usedMode,
+                    requestedMode = requestedMode,
+                    verified = result.verified,
                     errorCode = result.errorCode,
                     message = result.message,
                     agentSessionId = _selectedAgentSessionId.value,
@@ -772,6 +780,24 @@ class MainViewModel @Inject constructor(
         }
     }
 
+    fun cancelTaskPlan(planId: String) {
+        viewModelScope.launch {
+            withContext(Dispatchers.IO) {
+                taskPlanStore.delete(planId)
+            }
+            _activeTaskPlans.value = _activeTaskPlans.value.filterNot { it.id == planId }
+            _canResumeTask.value = _activeTaskPlans.value.isNotEmpty()
+        }
+    }
+
+    fun resumeTaskPlan(planId: String) {
+        if (_isAgentBusy.value) return
+        viewModelScope.launch {
+            val plan = taskPlanStore.loadActivePlans().firstOrNull { it.id == planId } ?: return@launch
+            sendAgentMessage("继续上次任务", explicitPlan = plan)
+        }
+    }
+
     fun resumeLastTask() {
         if (_isAgentBusy.value) return
         viewModelScope.launch {
@@ -912,7 +938,7 @@ class MainViewModel @Inject constructor(
         }
     }
 
-    fun sendAgentMessage(text: String) {
+    fun sendAgentMessage(text: String, explicitPlan: TaskPlan? = null) {
         if (text.isBlank() || _isAgentBusy.value) return
         viewModelScope.launch {
             _isAgentBusy.value = true
@@ -933,7 +959,7 @@ class MainViewModel @Inject constructor(
                     maxPerRun = apiKeyStore.agentMaxAutoVerifies,
                 )
                 val resumeIntent = text.contains("继续") || text.contains("恢复") || text.contains("接着做")
-                val resumePlan = if (resumeIntent) {
+                val resumePlan = explicitPlan ?: if (resumeIntent) {
                     taskPlanStore.loadActive()
                 } else {
                     null

@@ -83,6 +83,7 @@ class ShizukuExecutionChannel @Inject constructor(
                 val verification = verifyForeground(request.task)
                 ExecutionResult.success(supportedMode).copy(
                     message = verification?.takeIf { it.isNotBlank() },
+                    verified = verification?.startsWith("已验证") == true,
                 )
             } else {
                 val failureMessage = if (launchFailed) errorOutput.trim().ifBlank { "启动目标 App 失败" } else "Shizuku 执行失败，exit=$exitCode"

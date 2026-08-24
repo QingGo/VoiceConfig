@@ -17,4 +17,6 @@ data class ExecutionLogEntity(
     val errorCode: String?,
     val message: String?,
     val agentSessionId: Long? = null,
+    val requestedMode: ExecutionMode? = null,
+    val verified: Boolean? = null,
 )

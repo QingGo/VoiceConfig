@@ -8,6 +8,7 @@ data class ExecutionResult(
     val usedMode: ExecutionMode,
     val errorCode: String? = null,
     val message: String? = null,
+    val verified: Boolean? = null,
 ) {
     companion object {
         fun success(mode: ExecutionMode): ExecutionResult =

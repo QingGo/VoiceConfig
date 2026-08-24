@@ -15,6 +15,8 @@ object ExecutionLogMapper {
         errorCode = log.errorCode,
         message = log.message,
         agentSessionId = log.agentSessionId,
+        requestedMode = log.requestedMode,
+        verified = log.verified,
     )
 
     fun toDomain(entity: ExecutionLogEntity): ExecutionLog = ExecutionLog(
@@ -28,5 +30,7 @@ object ExecutionLogMapper {
         errorCode = entity.errorCode,
         message = entity.message,
         agentSessionId = entity.agentSessionId,
+        requestedMode = entity.requestedMode,
+        verified = entity.verified,
     )
 }

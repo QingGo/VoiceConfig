@@ -56,11 +56,16 @@ data class TaskPlan(
         // data class copy not used; we keep mutable current in memory for now.
         // updatedAtMs is set by TaskPlanStore on mutations.
     }
+
+    fun isExpired(nowMs: Long = System.currentTimeMillis()): Boolean =
+        nowMs - updatedAtMs > ACTIVE_PLAN_TTL_MS
 }
 
 /**
  * TaskPlan 持久化抽象，便于测试和后续替换存储。
  */
+const val ACTIVE_PLAN_TTL_MS: Long = 7 * 24 * 60 * 60 * 1000L
+
 interface TaskPlanPersistence {
     suspend fun save(plan: TaskPlan)
     suspend fun loadActive(): TaskPlan?
@@ -127,9 +132,11 @@ class TaskPlanStore @javax.inject.Inject constructor(
         repository.save(plan)
     }
 
-    suspend fun loadActive(): TaskPlan? = repository.loadActive()
+    suspend fun loadActive(): TaskPlan? =
+        repository.loadActive()?.takeIf { !it.isExpired() }
 
-    suspend fun loadActivePlans(): List<TaskPlan> = repository.loadAllActive()
+    suspend fun loadActivePlans(): List<TaskPlan> =
+        repository.loadAllActive().filter { !it.isExpired() }
 
     suspend fun delete(id: String) {
         if (id.isBlank()) return

@@ -4,6 +4,8 @@ import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withTimeout
 import org.json.JSONObject
 
@@ -23,6 +25,7 @@ class AgentSession @Inject constructor(
 ) {
     private val safety = AgentSafety()
     private val stopVerifier = StopVerifier()
+    private val runMutex = Mutex()
 
     /** 可替换的工具参数解析器，便于测试。 */
     var argumentParser: (String) -> Map<String, Any?> = { JsonToolCallParser.parseArguments(it) }
@@ -59,11 +62,11 @@ class AgentSession @Inject constructor(
         runPolicy: AgentRunPolicy = AgentRunPolicy(),
         plan: TaskPlan? = null,
         onSensitiveAction: suspend (SensitiveActionRequest) -> Boolean = { false },
-    ): AgentTurnResult {
+    ): AgentTurnResult = runMutex.withLock {
         val saved = history.toList()
         history.clear()
-        return try {
-            send(
+        try {
+            sendLocked(
                 userText = userText,
                 maxRounds = maxRounds,
                 skills = skills,
@@ -79,6 +82,34 @@ class AgentSession @Inject constructor(
     }
 
     suspend fun send(
+        userText: String,
+        maxRounds: Int = 60,
+        skills: List<AgentSkill> = emptyList(),
+        verifyPolicy: AgentVerificationPolicy = AgentVerificationPolicy(),
+        runPolicy: AgentRunPolicy = AgentRunPolicy(),
+        plan: TaskPlan? = null,
+        onStateChange: (AgentRunState) -> Unit = {},
+        onStreamEvent: (AgentStreamEvent) -> Unit = {},
+        onMessage: suspend (AgentMessage) -> Unit = {},
+        onSensitiveAction: suspend (SensitiveActionRequest) -> Boolean = { false },
+        onStep: (AgentStepUi) -> Unit = {},
+    ): AgentTurnResult = runMutex.withLock {
+        sendLocked(
+            userText = userText,
+            maxRounds = maxRounds,
+            skills = skills,
+            verifyPolicy = verifyPolicy,
+            runPolicy = runPolicy,
+            plan = plan,
+            onStateChange = onStateChange,
+            onStreamEvent = onStreamEvent,
+            onMessage = onMessage,
+            onSensitiveAction = onSensitiveAction,
+            onStep = onStep,
+        )
+    }
+
+    private suspend fun sendLocked(
         userText: String,
         maxRounds: Int = 60,
         skills: List<AgentSkill> = emptyList(),

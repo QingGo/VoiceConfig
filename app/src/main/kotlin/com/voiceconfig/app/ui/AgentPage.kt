@@ -61,6 +61,7 @@ import com.voiceconfig.data.local.entity.TaskEventEntity
 import com.voiceconfig.app.agent.AgentSkill
 import com.voiceconfig.app.agent.AgentSkillStatus
 import com.voiceconfig.app.agent.AgentStepUi
+import com.voiceconfig.app.PermissionCheckSection
 import com.voiceconfig.app.agent.TaskPlan
 import com.voiceconfig.app.agent.AgentStepStatus
 import java.time.Instant
@@ -96,7 +97,9 @@ fun AgentPage(
     canResumeTask: Boolean = false,
     activeTaskPlans: List<TaskPlan> = emptyList(),
     onResumeTask: () -> Unit = {},
+    onResumeTaskPlan: (String) -> Unit = {},
     onCancelResumeTask: () -> Unit = {},
+    onCancelTaskPlan: (String) -> Unit = {},
     agentThinkingEnabled: Boolean,
     agentReasoningEffort: String,
     onAgentThinkingEnabledChange: (Boolean) -> Unit,
@@ -223,6 +226,12 @@ fun AgentPage(
             }
         }
 
+        PermissionCheckSection(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp),
+        )
+
         if (canResumeTask && activeTaskPlans.isNotEmpty()) {
             Card(
                 modifier = Modifier
@@ -244,17 +253,39 @@ fun AgentPage(
                     )
                     activeTaskPlans.take(3).forEach { plan ->
                         Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                            Text(
-                                text = plan.goal.ifBlank { "未命名任务" },
-                                style = MaterialTheme.typography.bodyMedium,
-                                maxLines = 2,
-                                overflow = TextOverflow.Ellipsis,
-                            )
-                            Text(
-                                text = taskPlanStatusText(plan),
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSecondaryContainer,
-                            )
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.Top,
+                            ) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = plan.goal.ifBlank { "未命名任务" },
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        maxLines = 2,
+                                        overflow = TextOverflow.Ellipsis,
+                                    )
+                                    Text(
+                                        text = taskPlanStatusText(plan),
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onSecondaryContainer,
+                                    )
+                                    if (plan.steps.isNotEmpty()) {
+                                        Text(
+                                            text = "${plan.steps.size} 个步骤：${plan.steps.take(3).joinToString("、") { it.title }}${if (plan.steps.size > 3) "…" else ""}",
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = MaterialTheme.colorScheme.onSecondaryContainer,
+                                            maxLines = 2,
+                                            overflow = TextOverflow.Ellipsis,
+                                        )
+                                    }
+                                }
+                                TextButton(onClick = { onCancelTaskPlan(plan.id) }) {
+                                    Text("放弃")
+                                }
+                            }
+                            TextButton(onClick = { onResumeTaskPlan(plan.id) }) {
+                                Text("继续此任务")
+                            }
                         }
                     }
                     if (activeTaskPlans.size > 3) {
@@ -270,7 +301,7 @@ fun AgentPage(
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Button(onClick = onResumeTask) {
-                            Text("继续")
+                            Text("继续最新")
                         }
                         TextButton(onClick = onCancelResumeTask) {
                             Text("放弃全部")
@@ -1341,6 +1372,7 @@ private fun readableStatus(status: ExecutionStatus): String = when (status) {
     ExecutionStatus.FAILED -> "失败"
     ExecutionStatus.SKIPPED -> "已跳过"
     ExecutionStatus.FALLBACK -> "已降级"
+    ExecutionStatus.WAITING_HUMAN -> "等待用户确认"
 }
 
 private fun readableMode(mode: ExecutionMode?): String = when (mode) {

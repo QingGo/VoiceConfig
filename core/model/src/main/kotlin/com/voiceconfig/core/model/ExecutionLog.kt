@@ -11,4 +11,6 @@ data class ExecutionLog(
     val errorCode: String? = null,
     val message: String? = null,
     val agentSessionId: Long? = null,
+    val requestedMode: ExecutionMode? = null,
+    val verified: Boolean? = null,
 )

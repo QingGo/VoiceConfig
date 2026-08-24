@@ -45,7 +45,7 @@ import com.voiceconfig.data.local.entity.TriggerRuleEntity
         TaskPlanEntity::class,
         TaskPlanStepEntity::class,
     ],
-    version = 14,
+    version = 15,
     exportSchema = false,
 )
 abstract class VoiceConfigDatabase : RoomDatabase() {
@@ -244,6 +244,13 @@ abstract class VoiceConfigDatabase : RoomDatabase() {
         val MIGRATION_12_13 = object : Migration(12, 13) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL("ALTER TABLE `agent_messages` ADD COLUMN `ttftMs` INTEGER NOT NULL DEFAULT 0")
+            }
+        }
+
+        val MIGRATION_14_15 = object : Migration(14, 15) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE `execution_logs` ADD COLUMN `requestedMode` TEXT")
+                db.execSQL("ALTER TABLE `execution_logs` ADD COLUMN `verified` INTEGER")
             }
         }
 

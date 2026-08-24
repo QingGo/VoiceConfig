@@ -97,4 +97,19 @@ class TaskPlanTest {
         assertTrue(store.loadActivePlans().isEmpty())
     }
 
+    @Test
+    fun `task plan store hides expired active plans`() = runBlocking {
+        val store = TaskPlanStore(InMemoryTaskPlanPersistence())
+        val stale = TaskPlan(
+            id = "plan_stale",
+            goal = "旧任务",
+            steps = mutableListOf(),
+            updatedAtMs = System.currentTimeMillis() - ACTIVE_PLAN_TTL_MS - 1_000,
+        )
+        store.set(stale)
+        store.saveCurrent()
+        assertTrue(store.loadActivePlans().isEmpty())
+        assertEquals(null, store.loadActive())
+    }
+
 }
