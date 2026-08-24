@@ -14,7 +14,8 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 private object FastPathNoOpTrace : AgentTrace {
-    override fun startRun(userText: String): String = "test-run"
+    private val counter = java.util.concurrent.atomic.AtomicInteger()
+    override fun startRun(userText: String): String = "test-run-${counter.incrementAndGet()}"
     override fun log(runId: String, type: String, data: Map<String, Any?>) {}
     override fun saveScreenshot(runId: String, base64: String, label: String): String = ""
 }
@@ -299,6 +300,49 @@ class AgentFastPathTest {
         assertTrue(result.message.contains("暂停"))
         assertTrue(store.snapshot()?.waitingForHuman?.contains("暂停") == true)
         assertEquals(TaskPlanStatus.WAITING_CONFIRM, store.snapshot()?.status)
+    }
+
+    @Test
+    fun `run id cancel does not leak into the next run`() = runBlocking {
+        val store = TaskPlanStore(InMemoryTaskPlanPersistence())
+        val tool = SimpleTool("echo")
+        val session = sessionWith(
+            tool,
+            listOf(
+                AgentChatResponse(content = "第一次完成", reasoningContent = null, toolCalls = emptyList()),
+            ),
+            store,
+        )
+        val first = session.send("第一次")
+        assertTrue(first.ok)
+
+        val cancelledRunId = session.currentRunId()
+        session.cancel(cancelledRunId)
+
+        val second = session.send("第二次")
+        assertTrue(second.ok)
+        assertFalse(second.message.contains("已停止"))
+        assertTrue(second.runId != first.runId)
+    }
+
+    @Test
+    fun `run id pause does not leak into the next run`() = runBlocking {
+        val store = TaskPlanStore(InMemoryTaskPlanPersistence())
+        val tool = SimpleTool("echo")
+        val session = sessionWith(
+            tool,
+            listOf(
+                AgentChatResponse(content = "第一次完成", reasoningContent = null, toolCalls = emptyList()),
+            ),
+            store,
+        )
+        val first = session.send("第一次")
+        assertTrue(first.ok)
+
+        session.pause(session.currentRunId())
+        val second = session.send("第二次")
+        assertTrue(second.ok)
+        assertTrue(second.state == AgentRunState.DONE)
     }
 }
 

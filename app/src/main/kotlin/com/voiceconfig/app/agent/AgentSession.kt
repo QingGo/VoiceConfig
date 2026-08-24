@@ -8,6 +8,15 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withTimeout
 import org.json.JSONObject
+import java.util.concurrent.ConcurrentHashMap
+
+/**
+ * 单个 runId 的运行控制状态。
+ */
+class RunControl {
+    @Volatile var cancelled: Boolean = false
+    @Volatile var paused: Boolean = false
+}
 
 /**
  * 多轮 Agent 会话层：原生 function calling 循环。
@@ -30,20 +39,23 @@ class AgentSession @Inject constructor(
     /** 可替换的工具参数解析器，便于测试。 */
     var argumentParser: (String) -> Map<String, Any?> = { JsonToolCallParser.parseArguments(it) }
 
-    @Volatile
-    private var cancelled = false
+    private val runControls = ConcurrentHashMap<String, RunControl>()
 
     @Volatile
-    private var pauseRequested = false
+    private var activeRunId: String? = null
 
     private val history = mutableListOf<AgentMessage>()
 
-    fun cancel() {
-        cancelled = true
+    fun currentRunId(): String? = activeRunId
+
+    fun cancel(runId: String? = activeRunId) {
+        val id = runId ?: return
+        runControls.getOrPut(id) { RunControl() }.cancelled = true
     }
 
-    fun pause() {
-        pauseRequested = true
+    fun pause(runId: String? = activeRunId) {
+        val id = runId ?: return
+        runControls.getOrPut(id) { RunControl() }.paused = true
     }
 
     fun clear() {
@@ -137,9 +149,9 @@ class AgentSession @Inject constructor(
         onStep: (AgentStepUi) -> Unit = {},
     ): AgentTurnResult {
         if (userText.isBlank()) return AgentTurnResult(ok = false, message = "输入为空", toolCalls = emptyList(), history = historySnapshot(), runId = "")
-        cancelled = false
-        pauseRequested = false
         val runId = trace.startRun(userText)
+        val control = runControls.getOrPut(runId) { RunControl() }
+        activeRunId = runId
         history += AgentMessage("user", userText)
         onMessage(history.last())
         trace.log(runId, "user_input", mapOf("text" to userText))
@@ -231,7 +243,7 @@ class AgentSession @Inject constructor(
             latestScreenBase64 = null
             latestScreenWidth = null
             latestScreenHeight = null
-            if (cancelled) {
+            if (control.cancelled) {
                 setState(AgentRunState.CANCELLED)
                 trace.log(runId, "run_cancelled", mapOf("round" to round))
                 history += AgentMessage("assistant", "已停止")
@@ -239,7 +251,7 @@ class AgentSession @Inject constructor(
                 finishRun(false, "已停止")
                 return AgentTurnResult(ok = false, message = "已停止", toolCalls = allToolCalls, history = historySnapshot(), runId = runId)
             }
-            if (pauseRequested) {
+            if (control.paused) {
                 return returnPaused()
             }
             if (System.currentTimeMillis() - startedAtMs > runPolicy.overallTimeoutMs) {
@@ -295,7 +307,7 @@ class AgentSession @Inject constructor(
                 finishRun(false, llmError)
                 return AgentTurnResult(ok = false, message = llmError, toolCalls = allToolCalls, history = historySnapshot(), runId = runId, durationMs = System.currentTimeMillis() - startedAtMs, llmWaitMs = llmWaitMs, toolExecMs = toolExecMs, verifyMs = verifyMs, rounds = rounds)
             }
-            if (pauseRequested) {
+            if (control.paused) {
                 return returnPaused()
             }
 
@@ -333,7 +345,7 @@ class AgentSession @Inject constructor(
                 ),
             )
 
-            if (cancelled) {
+            if (control.cancelled) {
                 setState(AgentRunState.CANCELLED)
                 history += AgentMessage("assistant", "已停止")
                 onMessage(history.last())
@@ -542,7 +554,7 @@ class AgentSession @Inject constructor(
             }
 
             for (toolCall in response.toolCalls) {
-                if (cancelled) {
+                if (control.cancelled) {
                     setState(AgentRunState.CANCELLED)
                     history += AgentMessage("assistant", "已停止")
                     finishRun(false, "已停止")
@@ -731,6 +743,7 @@ class AgentSession @Inject constructor(
                     ),
                 )
                 if (result.ok) consecutiveFailures = 0 else consecutiveFailures++
+                val verificationSpec = AgentVerificationMatrix.specFor(toolCall.name)
                 trace.log(
                 runId,
                     "tool_result",
@@ -744,6 +757,12 @@ class AgentSession @Inject constructor(
                         "duration_ms" to toolDurationMs,
                         "start_elapsed_ms" to toolStartMs - startedAtMs,
                         "end_elapsed_ms" to toolEndMs - startedAtMs,
+                        "verification" to verificationSpec.requirement.name,
+                        "verification_desc" to verificationSpec.description,
+                        "verification_evidence_present" to (
+                            verificationSpec.evidenceField == null ||
+                                result.data.containsKey(verificationSpec.evidenceField)
+                            ),
                     ),
                 )
                 history += AgentMessage(
@@ -841,7 +860,7 @@ class AgentSession @Inject constructor(
                 }
 
                 lastStepEndElapsedMs = System.currentTimeMillis() - startedAtMs
-                if (cancelled) {
+                if (control.cancelled) {
                     setState(AgentRunState.CANCELLED)
                     history += AgentMessage("assistant", "已停止")
                     finishRun(false, "已停止")
