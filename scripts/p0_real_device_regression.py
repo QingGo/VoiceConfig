@@ -8,7 +8,7 @@
 4. 支付确认场景 → 不能执行最终支付/发送/删除工具，必须进入等待用户确认。
 
 用法：
-  python scripts/p0_real_device_regression.py --serial 192.168.31.103:39987
+  python scripts/p0_real_device_regression.py --serial 192.168.31.103:43063
 """
 
 import argparse
