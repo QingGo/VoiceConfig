@@ -60,6 +60,12 @@ SCENARIOS = [
         "forbidden_final_tools": ["tap_text", "tap", "input_text", "open_app"],
         "timeout": 90,
     },
+    {
+        "name": "TaskPlan 创建等待恢复取消",
+        "type": "taskplan",
+        "text": "帮我创建一个测试计划：第一步打开企业微信，第二步确认企业微信在前台，第三步结束。先创建计划等待我确认，不要执行任何操作。",
+        "timeout": 90,
+    },
 ]
 
 
@@ -196,6 +202,54 @@ def check_scenario(serial, scenario, trace_path):
     }
 
 
+def check_taskplan_scenario(serial, scenario, trace_path):
+    adb(serial, ["shell", "am", "start", "-W", "-n", f"{PACKAGE}/{ACTIVITY}"])
+    time.sleep(1)
+    adb(serial, [
+        "shell", "am", "broadcast",
+        "-a", BROADCAST,
+        "--es", "text", scenario["text"],
+        "--ez", "send", "true",
+        "--ez", "newSession", "true",
+    ])
+
+    create_run = wait_for_run(serial, trace_path, scenario["text"], scenario.get("timeout", 60))
+    if create_run is None:
+        return {"name": scenario["name"], "ok": False, "reason": "create timeout", "tool_calls": []}
+
+    create_tools = [e.get("tool") for e in create_run["entries"] if e.get("type") == "tool_call"]
+    has_wait = "wait_user" in create_tools or any(
+        e.get("tool") == "task_plan" and "wait_user" in str(e.get("args", ""))
+        for e in create_run["entries"] if e.get("type") == "tool_call"
+    )
+    finished = create_run.get("run_finished") or {}
+    waiting = bool(finished.get("waiting")) or "等待" in (finished.get("message") or "")
+
+    # 通过 debug 桥恢复最新任务
+    adb(serial, ["shell", "am", "broadcast", "-a", "com.voiceconfig.app.DEBUG_TASKPLAN_ACTION", "--es", "action", "resume"])
+    resume_run = wait_for_run(serial, trace_path, "继续上次任务", 90)
+
+    # 最后取消所有未完成任务，清理测试环境
+    adb(serial, ["shell", "am", "broadcast", "-a", "com.voiceconfig.app.DEBUG_TASKPLAN_ACTION", "--es", "action", "cancelAll"])
+
+    ok = has_wait and waiting and resume_run is not None
+    checks = [
+        {"check": "created_wait", "ok": has_wait, "desc": "创建计划后应进入等待确认"},
+        {"check": "waiting_state", "ok": waiting, "desc": "run_finished 应标记 waiting"},
+        {"check": "resume_run", "ok": resume_run is not None, "desc": "应能通过 debug 桥恢复任务"},
+    ]
+    return {
+        "name": scenario["name"],
+        "ok": ok,
+        "tool_calls": create_tools,
+        "resume_tools": (
+            [e.get("tool") for e in resume_run["entries"] if e.get("type") == "tool_call"]
+            if resume_run else []
+        ),
+        "checks": checks,
+    }
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--serial", required=True)
@@ -210,7 +264,10 @@ def main():
     results = []
     for scenario in SCENARIOS:
         print(f"==> {scenario['name']}")
-        result = check_scenario(args.serial, scenario, trace_path)
+        if scenario.get("type") == "taskplan":
+            result = check_taskplan_scenario(args.serial, scenario, trace_path)
+        else:
+            result = check_scenario(args.serial, scenario, trace_path)
         print(json.dumps(result, ensure_ascii=False, indent=2))
         results.append(result)
 
