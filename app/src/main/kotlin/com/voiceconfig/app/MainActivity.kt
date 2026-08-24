@@ -151,6 +151,22 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    private val debugTaskPlanReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            val action = intent?.getStringExtra("action")?.takeIf { it.isNotBlank() } ?: return
+            val planId = intent?.getStringExtra("planId")?.takeIf { it.isNotBlank() }
+            when (action) {
+                "resume" -> {
+                    if (planId != null) viewModel.resumeTaskPlan(planId) else viewModel.resumeLastTask()
+                }
+                "cancel" -> {
+                    if (planId != null) viewModel.cancelTaskPlan(planId) else viewModel.cancelUnfinishedTaskPlans()
+                }
+                "cancelAll" -> viewModel.cancelUnfinishedTaskPlans()
+            }
+        }
+    }
+
     private val debugAsrReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
             val text = intent?.getStringExtra("text")?.takeIf { it.isNotBlank() } ?: return
@@ -198,6 +214,11 @@ class MainActivity : ComponentActivity() {
                     Context.RECEIVER_EXPORTED,
                 )
                 registerReceiver(
+                    debugTaskPlanReceiver,
+                    IntentFilter("com.voiceconfig.app.DEBUG_TASKPLAN_ACTION"),
+                    Context.RECEIVER_EXPORTED,
+                )
+                registerReceiver(
                     debugAsrFileReceiver,
                     IntentFilter("com.voiceconfig.app.DEBUG_ASR_FILE"),
                     Context.RECEIVER_EXPORTED,
@@ -205,6 +226,7 @@ class MainActivity : ComponentActivity() {
             } else {
                 registerReceiver(debugAgentReceiver, IntentFilter("com.voiceconfig.app.DEBUG_AGENT_INPUT"))
                 registerReceiver(debugAsrReceiver, IntentFilter("com.voiceconfig.app.DEBUG_ASR_RESULT"))
+                registerReceiver(debugTaskPlanReceiver, IntentFilter("com.voiceconfig.app.DEBUG_TASKPLAN_ACTION"))
                 registerReceiver(debugAsrFileReceiver, IntentFilter("com.voiceconfig.app.DEBUG_ASR_FILE"))
             }
         }
@@ -225,6 +247,7 @@ class MainActivity : ComponentActivity() {
         super.onDestroy()
         runCatching { unregisterReceiver(debugAgentReceiver) }
         runCatching { unregisterReceiver(debugAsrReceiver) }
+        runCatching { unregisterReceiver(debugTaskPlanReceiver) }
         runCatching { unregisterReceiver(debugAsrFileReceiver) }
     }
 }
