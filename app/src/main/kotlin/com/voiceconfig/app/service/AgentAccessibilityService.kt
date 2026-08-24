@@ -183,6 +183,8 @@ class AgentAccessibilityService : AccessibilityService() {
 
         fun currentSnapshot(): String? = instance?.snapshotText()
 
+        fun currentPackageName(): String? = instance?.activeRoot?.packageName?.toString()?.ifBlank { null }
+
         fun currentNodes(): List<AccessibilityUiSnapshot> = instance?.snapshotNodes() ?: emptyList()
 
         fun clickText(text: String): Boolean? = instance?.clickByText(text)

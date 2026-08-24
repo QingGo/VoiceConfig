@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import com.voiceconfig.app.executor.ShizukuExecutionChannel
+import com.voiceconfig.app.service.AgentAccessibilityService
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
 import kotlinx.coroutines.delay
@@ -59,6 +60,16 @@ class OpenAppTool @Inject constructor(
             val failure = ShizukuExecutionChannel.isLaunchFailure(result.stderr)
             if (result.ok && !failure) {
                 val verified = verifyForeground(packageName)
+                if (packageName != null && !verified) {
+                    return ToolResult.failure(
+                        "已发出打开命令，但未能验证前台为 $packageName",
+                        mapOf(
+                            "mode" to "shizuku",
+                            "package" to packageName,
+                            "verified" to false,
+                        ),
+                    )
+                }
                 val popup = tryDismissPopupsAfterOpen()
                 return ToolResult.success(
                     if (verified) "已打开并确认 ${packageName ?: deepLink}${popup?.let { "；已自动关闭弹窗" } ?: ""}" else "已打开 ${packageName ?: deepLink}",
@@ -99,10 +110,25 @@ class OpenAppTool @Inject constructor(
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             }
             context.startActivity(intent)
+            val verified = if (packageName != null) {
+                verifyForegroundWithAccessibility(packageName)
+            } else {
+                true
+            }
+            if (packageName != null && !verified) {
+                return ToolResult.failure(
+                    "已通过 Intent 打开，但未能验证前台为 $packageName",
+                    mapOf("mode" to "intent", "package" to packageName, "verified" to false),
+                )
+            }
             val popup = tryDismissPopupsAfterOpen()
             ToolResult.success(
                 "已打开 ${packageName ?: deepLink}${popup?.let { "；已自动关闭弹窗" } ?: ""}",
-                mapOf("mode" to "intent", "autoDismiss" to (popup ?: emptyMap<String, Any?>())),
+                mapOf(
+                    "mode" to "intent",
+                    "verified" to verified,
+                    "autoDismiss" to (popup ?: emptyMap<String, Any?>()),
+                ),
             )
         } catch (e: Exception) {
             ToolResult.failure("打开失败：${e.message}", mapOf("mode" to "intent"))
@@ -132,6 +158,15 @@ class OpenAppTool @Inject constructor(
             delay(500)
             val check = shizuku.execute("dumpsys", "activity", "activities")
             if (check.ok && check.stdout.contains(packageName)) return true
+        }
+        return false
+    }
+
+    private suspend fun verifyForegroundWithAccessibility(packageName: String): Boolean {
+        repeat(3) {
+            delay(500)
+            val current = runCatching { AgentAccessibilityService.currentPackageName() }.getOrNull()
+            if (current == packageName) return true
         }
         return false
     }

@@ -81,10 +81,19 @@ class ShizukuExecutionChannel @Inject constructor(
             val launchFailed = isLaunchFailure(errorOutput)
             if (exitCode == 0 && !launchFailed) {
                 val verification = verifyForeground(request.task)
-                ExecutionResult.success(supportedMode).copy(
-                    message = verification?.takeIf { it.isNotBlank() },
-                    verified = verification?.startsWith("已验证") == true,
-                )
+                val verified = verification?.startsWith("已验证") == true
+                if (request.task.targetPackage != null && !verified) {
+                    ExecutionResult.failure(
+                        mode = supportedMode,
+                        errorCode = "VERIFY_FAILED",
+                        message = verification ?: "已发出启动命令，但未能确认前台 Activity",
+                    )
+                } else {
+                    ExecutionResult.success(supportedMode).copy(
+                        message = verification?.takeIf { it.isNotBlank() },
+                        verified = verified,
+                    )
+                }
             } else {
                 val failureMessage = if (launchFailed) errorOutput.trim().ifBlank { "启动目标 App 失败" } else "Shizuku 执行失败，exit=$exitCode"
                 android.util.Log.e(TAG, "execute failed: exit=$exitCode, error=$errorOutput")
