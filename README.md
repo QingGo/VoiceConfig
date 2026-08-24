@@ -255,12 +255,12 @@ adb install -r app/build/outputs/apk/debug/app-debug.apk
 
 ## 版本与发布
 
-- 当前版本：`0.1.0`
+- 当前版本：`0.1.1`
 - 构建产物：`app/build/outputs/apk/debug/app-debug.apk`
-- 打 Tag 自动发布：在 GitHub 推送 `v0.1.0` 格式的 tag 后，CI 会自动构建并在 GitHub Release 中附上 APK。
+- 打 Tag 自动发布：在 GitHub 推送 `v0.1.1` 格式的 tag 后，CI 会自动构建并在 GitHub Release 中附上 APK。
   ```bash
-  git tag v0.1.0
-  git push origin v0.1.0
+  git tag v0.1.1
+  git push origin v0.1.1
   ```
 
 ## 开发与测试
