@@ -228,9 +228,28 @@ adb install -r app/build/outputs/apk/debug/app-debug.apk
 
 ### 4. 启用 Shizuku 高级模式（可选）
 
-1. 安装 [Shizuku](https://shizuku.rikka.app/) 并通过 ADB 或 root 启动。
-2. 在 Shizuku 中授权“言控”。
-3. 在 App 的“权限体检”中确认 Shizuku 状态为 ✅。
+Shizuku 用于提供 shell 级能力，让“打开 App、读取 UI、输入点击、截图验证”等高级自动化更稳定。
+
+#### 方式 A：无线调试（推荐，无需一直连接电脑）
+
+1. 安装 [Shizuku](https://shizuku.rikka.app/) 并打开一次；
+2. 在手机开启“开发者选项 → 无线调试”；
+3. 在 Shizuku 中选择 Wireless debugging，按提示完成配对；
+4. 启动成功后，回到言控“权限体检”，确认 Shizuku 状态为 ✅。
+
+> 注意：部分手机/ROM 会在一段时间后自动关闭无线调试。  
+> 如果 Shizuku 失效，权限体检会显示未就绪，需要重新启动 Shizuku。
+
+#### 方式 B：电脑 ADB
+
+1. 安装 [Shizuku](https://shizuku.rikka.app/) 并打开一次；
+2. 手机开启 USB 调试，连接电脑；
+3. 电脑执行：
+   ```bash
+   adb shell sh /sdcard/Android/data/moe.shizuku.privileged.api/start.sh
+   ```
+4. 在 Shizuku 中授权“言控”；
+5. 回到言控“权限体检”，确认 Shizuku 状态为 ✅。
 
 之后，“打开 App”类任务会优先通过 Shizuku 自动打开。
 
