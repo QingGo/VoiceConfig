@@ -280,7 +280,7 @@ fun AgentPage(
                                     }
                                 }
                                 TextButton(onClick = { onCancelTaskPlan(plan.id) }) {
-                                    Text("放弃")
+                                    Text("不再提醒")
                                 }
                             }
                             TextButton(onClick = { onResumeTaskPlan(plan.id) }) {
