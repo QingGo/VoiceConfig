@@ -8,6 +8,7 @@ import android.content.Context
 import android.content.Intent
 import android.os.Build
 import com.voiceconfig.app.MainActivity
+import com.voiceconfig.app.service.VoiceConfigService
 import androidx.core.app.NotificationCompat
 import com.voiceconfig.app.agent.AgentRunState
 import com.voiceconfig.app.agent.AgentSession
@@ -64,6 +65,8 @@ class TaskAlarmReceiver : BroadcastReceiver() {
             try {
                 val task = taskRepository.getTask(taskId) ?: return@launch
                 if (task.actionType == ActionType.AGENT) {
+                    // 确保前台保活服务已启动，降低长任务执行中被系统回收的风险。
+                    runCatching { VoiceConfigService.start(context) }
                     notifyAgentStarted(context, task)
                 }
                 val startedAt = System.currentTimeMillis()

@@ -65,7 +65,7 @@ class AgentSessionTest {
                 AgentChatResponse(content = "完成", reasoningContent = null, toolCalls = emptyList()),
             ),
         )
-        val session = AgentSession(registry, client, NoOpTrace, TaskPlanStore(InMemoryTaskPlanPersistence())).apply {
+        val session = AgentSession(registry, client, NoOpTrace, TaskPlanStore(InMemoryTaskPlanPersistence()), InMemoryAgentRunLedger()).apply {
             argumentParser = { mapOf("text" to "hi") }
         }
 
@@ -99,7 +99,7 @@ class AgentSessionTest {
                 ),
             ),
         )
-        val session = AgentSession(registry, client, NoOpTrace, TaskPlanStore(InMemoryTaskPlanPersistence()))
+        val session = AgentSession(registry, client, NoOpTrace, TaskPlanStore(InMemoryTaskPlanPersistence()), InMemoryAgentRunLedger())
         val result = session.send("你好")
         assertTrue(result.ok)
         val assistant = result.history.lastOrNull { it.role == "assistant" }
@@ -115,7 +115,7 @@ class AgentSessionTest {
         val client = FakeToolChatClient(
             listOf(AgentChatResponse(content = "你好", reasoningContent = null, toolCalls = emptyList())),
         )
-        val session = AgentSession(registry, client, NoOpTrace, TaskPlanStore(InMemoryTaskPlanPersistence()))
+        val session = AgentSession(registry, client, NoOpTrace, TaskPlanStore(InMemoryTaskPlanPersistence()), InMemoryAgentRunLedger())
 
         val result = session.send("你好")
         assertTrue(result.ok)
@@ -128,7 +128,7 @@ class AgentSessionTest {
     fun `session reports chat failure`() = runBlocking {
         val registry = ToolRegistry().register(EchoTool())
         val client = FakeToolChatClient(listOf(null))
-        val session = AgentSession(registry, client, NoOpTrace, TaskPlanStore(InMemoryTaskPlanPersistence()))
+        val session = AgentSession(registry, client, NoOpTrace, TaskPlanStore(InMemoryTaskPlanPersistence()), InMemoryAgentRunLedger())
         val result = session.send("hi")
         assertFalse(result.ok)
 
@@ -152,7 +152,7 @@ class AgentSessionTest {
                 AgentChatResponse(content = "完成", reasoningContent = null, toolCalls = emptyList()),
             ),
         )
-        val session = AgentSession(registry, client, NoOpTrace, TaskPlanStore(InMemoryTaskPlanPersistence())).apply {
+        val session = AgentSession(registry, client, NoOpTrace, TaskPlanStore(InMemoryTaskPlanPersistence()), InMemoryAgentRunLedger()).apply {
             argumentParser = { emptyMap() }
         }
 
@@ -202,7 +202,7 @@ class AgentSessionTest {
             ),
         )
         var steps = mutableListOf<AgentStepUi>()
-        val session = AgentSession(registry, client, NoOpTrace, TaskPlanStore(InMemoryTaskPlanPersistence())).apply {
+        val session = AgentSession(registry, client, NoOpTrace, TaskPlanStore(InMemoryTaskPlanPersistence()), InMemoryAgentRunLedger()).apply {
             argumentParser = { emptyMap() }
         }
         val result = session.send(
@@ -247,7 +247,7 @@ class AgentSessionTest {
                 AgentChatResponse(content = "完成", reasoningContent = null, toolCalls = emptyList()),
             ),
         )
-        val session = AgentSession(registry, client, NoOpTrace, TaskPlanStore(InMemoryTaskPlanPersistence())).apply {
+        val session = AgentSession(registry, client, NoOpTrace, TaskPlanStore(InMemoryTaskPlanPersistence()), InMemoryAgentRunLedger()).apply {
             argumentParser = { emptyMap() }
         }
         val result = session.send(
@@ -274,7 +274,7 @@ class AgentSessionTest {
                 ),
             ),
         )
-        val session = AgentSession(registry, client, NoOpTrace, TaskPlanStore(InMemoryTaskPlanPersistence())).apply {
+        val session = AgentSession(registry, client, NoOpTrace, TaskPlanStore(InMemoryTaskPlanPersistence()), InMemoryAgentRunLedger()).apply {
             argumentParser = { mapOf("text" to "same") }
         }
         val result = session.send(
@@ -293,7 +293,7 @@ class AgentSessionTest {
             listOf(AgentChatResponse(content = "完成", reasoningContent = null, toolCalls = emptyList())),
         )
         val states = mutableListOf<AgentRunState>()
-        val session = AgentSession(registry, client, NoOpTrace, TaskPlanStore(InMemoryTaskPlanPersistence()))
+        val session = AgentSession(registry, client, NoOpTrace, TaskPlanStore(InMemoryTaskPlanPersistence()), InMemoryAgentRunLedger())
         val result = session.send("你好", onStateChange = { states += it })
         assertTrue(result.ok)
         assertTrue(states.contains(AgentRunState.RUNNING))
@@ -320,7 +320,7 @@ class AgentSessionTest {
                 return AgentChatResponse(content = "完成", reasoningContent = null, toolCalls = emptyList())
             }
         }
-        val session = AgentSession(registry, client, NoOpTrace, TaskPlanStore(InMemoryTaskPlanPersistence()))
+        val session = AgentSession(registry, client, NoOpTrace, TaskPlanStore(InMemoryTaskPlanPersistence()), InMemoryAgentRunLedger())
         val result = session.send(
             "超时",
             runPolicy = AgentRunPolicy(llmTimeoutMs = 100, llmRetries = 0),

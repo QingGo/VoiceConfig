@@ -250,6 +250,10 @@ class MainViewModel @Inject constructor(
         _uiState.update { it.copy(manualDeepLink = value) }
     }
 
+    /**
+     * 【兼容路径】旧的自然语言解析：仅在未配置云模型时作为模板/历史数据回退。
+     * 不要在此扩展新的意图能力。
+     */
     fun parse() {
         val input = _uiState.value.input
         if (_uiState.value.isParsing) return

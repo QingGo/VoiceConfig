@@ -7,7 +7,9 @@ import com.voiceconfig.app.executor.NotificationExecutionChannel
 import com.voiceconfig.app.agent.AgentChat
 import com.voiceconfig.app.agent.AgentToolChat
 import com.voiceconfig.app.agent.AgentChatClient
+import com.voiceconfig.app.agent.AgentRunLedger
 import com.voiceconfig.app.agent.CoreAgentPlugin
+import com.voiceconfig.app.agent.InMemoryAgentRunLedger
 import com.voiceconfig.app.agent.PluginRegistry
 import com.voiceconfig.app.agent.ToolRegistry
 import com.voiceconfig.app.ai.DeepSeekNlpParser
@@ -203,6 +205,10 @@ object AppModule {
     @Provides
     @Singleton
     fun provideAgentTrace(impl: com.voiceconfig.app.agent.AgentTraceLogger): com.voiceconfig.app.agent.AgentTrace = impl
+
+    @Provides
+    @Singleton
+    fun provideAgentRunLedger(impl: InMemoryAgentRunLedger): AgentRunLedger = impl
 
     @Provides
     @Singleton

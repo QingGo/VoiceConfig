@@ -6,11 +6,14 @@ import com.voiceconfig.core.model.ScheduleSpec
 import com.voiceconfig.core.model.TaskDraft
 
 /**
- * V1 规则版 NLU：
+ * 【已冻结】V1 规则版 NLU，仅保留作为模板/历史数据兼容。
+ *
+ * 不再作为用户意图判断主干；新能力一律走云 LLM + Function Calling。
+ *
+ * 历史说明：
  * 1. 解析时间/重复规则
  * 2. 识别动作
  * 3. 解析目标 App
- * 后续可替换为 ONNX 小模型或云端 LLM，接口不变。
  */
 class RuleBasedNlpParser(
     private val timeParser: TimeExpressionParser = TimeExpressionParser(),

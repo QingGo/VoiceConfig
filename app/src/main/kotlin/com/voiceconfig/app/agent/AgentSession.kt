@@ -31,6 +31,7 @@ class AgentSession @Inject constructor(
     private val chatClient: AgentToolChat,
     private val trace: AgentTrace,
     private val taskPlanStore: TaskPlanStore,
+    private val runLedger: AgentRunLedger,
 ) {
     private val safety = AgentSafety()
     private val stopVerifier = StopVerifier()
@@ -92,7 +93,7 @@ class AgentSession @Inject constructor(
         val saved = history.toList()
         history.clear()
         try {
-            sendLocked(
+            val result = sendLocked(
                 userText = userText,
                 maxRounds = maxRounds,
                 skills = skills,
@@ -101,6 +102,8 @@ class AgentSession @Inject constructor(
                 plan = plan,
                 onSensitiveAction = onSensitiveAction,
             )
+            runLedger.record(result.toRunRecord(userText))
+            result
         } finally {
             history.clear()
             history.addAll(saved)
@@ -120,7 +123,7 @@ class AgentSession @Inject constructor(
         onSensitiveAction: suspend (SensitiveActionRequest) -> Boolean = { false },
         onStep: (AgentStepUi) -> Unit = {},
     ): AgentTurnResult = runMutex.withLock {
-        sendLocked(
+        val result = sendLocked(
             userText = userText,
             maxRounds = maxRounds,
             skills = skills,
@@ -133,6 +136,8 @@ class AgentSession @Inject constructor(
             onSensitiveAction = onSensitiveAction,
             onStep = onStep,
         )
+        runLedger.record(result.toRunRecord(userText))
+        result
     }
 
     private suspend fun sendLocked(

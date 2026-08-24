@@ -85,7 +85,7 @@ class AgentFastPathTest {
         store: TaskPlanStore = TaskPlanStore(InMemoryTaskPlanPersistence()),
     ): AgentSession {
         val registry = ToolRegistry().register(tool)
-        return AgentSession(registry, FakeToolChatClient(responses), FastPathNoOpTrace, store).apply {
+        return AgentSession(registry, FakeToolChatClient(responses), FastPathNoOpTrace, store, InMemoryAgentRunLedger()).apply {
             argumentParser = { JsonToolCallParser.parseArguments(it) }
         }
     }
@@ -292,6 +292,7 @@ class AgentFastPathTest {
             ),
             FastPathNoOpTrace,
             store,
+            InMemoryAgentRunLedger(),
         ).apply { argumentParser = { emptyMap() } }
 
         val result = session.send("打开企业微信")
@@ -344,6 +345,31 @@ class AgentFastPathTest {
         assertTrue(second.ok)
         assertTrue(second.state == AgentRunState.DONE)
     }
+
+
+    @Test
+    fun `run ledger records unified run summary`() = runBlocking {
+        val ledger = InMemoryAgentRunLedger()
+        val tool = SimpleTool("echo")
+        val session = AgentSession(
+            ToolRegistry().register(tool),
+            FakeToolChatClient(
+                listOf(AgentChatResponse(content = "完成", reasoningContent = null, toolCalls = emptyList())),
+            ),
+            FastPathNoOpTrace,
+            TaskPlanStore(InMemoryTaskPlanPersistence()),
+            ledger,
+        )
+        val result = session.send("你好")
+        assertTrue(result.ok)
+        val record = ledger.latest()
+        assertTrue(record != null)
+        assertEquals(result.runId, record?.runId)
+        assertEquals("你好", record?.userText)
+        assertEquals(AgentRunState.DONE, record?.state)
+        assertEquals(result.durationMs, record?.durationMs)
+    }
+
 }
 
 class WaitUserToolTest {
