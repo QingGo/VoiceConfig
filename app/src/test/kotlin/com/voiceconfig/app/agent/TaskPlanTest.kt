@@ -86,4 +86,15 @@ class TaskPlanTest {
         assertEquals(1, loaded?.steps?.size)
     }
 
+    @Test
+    fun `task plan store can delete all active plans`() = runBlocking {
+        val store = TaskPlanStore(InMemoryTaskPlanPersistence())
+        store.set(TaskPlan("plan_1", "买咖啡", mutableListOf(TaskStep("s1", "搜索"))))
+        store.saveCurrent()
+        assertTrue(store.loadActivePlans().isNotEmpty())
+        store.deleteAllActive()
+        assertEquals(null, store.loadActive())
+        assertTrue(store.loadActivePlans().isEmpty())
+    }
+
 }

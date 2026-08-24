@@ -29,6 +29,7 @@ import com.voiceconfig.app.agent.AgentSession
 import com.voiceconfig.app.agent.AgentSkill
 import com.voiceconfig.app.agent.AgentSkillStatus
 import com.voiceconfig.app.agent.AgentSkillStore
+import com.voiceconfig.app.agent.TaskPlan
 import com.voiceconfig.app.agent.TaskPlanStore
 import com.voiceconfig.app.agent.AgentVerificationPolicy
 import com.voiceconfig.app.agent.AgentStepStatus
@@ -220,6 +221,9 @@ class MainViewModel @Inject constructor(
 
     private val _canResumeTask = MutableStateFlow(false)
     val canResumeTask: StateFlow<Boolean> = _canResumeTask.asStateFlow()
+
+    private val _activeTaskPlans = MutableStateFlow<List<TaskPlan>>(emptyList())
+    val activeTaskPlans: StateFlow<List<TaskPlan>> = _activeTaskPlans.asStateFlow()
     private val _lastAgentRunDurationMs = MutableStateFlow<Long?>(null)
     val lastAgentRunDurationMs: StateFlow<Long?> = _lastAgentRunDurationMs.asStateFlow()
 
@@ -751,7 +755,20 @@ class MainViewModel @Inject constructor(
             }
         }
         viewModelScope.launch {
-            _canResumeTask.value = taskPlanStore.loadActive() != null
+            val plans = taskPlanStore.loadActivePlans()
+            _activeTaskPlans.value = plans
+            _canResumeTask.value = plans.isNotEmpty()
+        }
+    }
+
+    fun cancelUnfinishedTaskPlans() {
+        if (_isAgentBusy.value) return
+        viewModelScope.launch {
+            withContext(Dispatchers.IO) {
+                taskPlanStore.deleteAllActive()
+            }
+            _activeTaskPlans.value = emptyList()
+            _canResumeTask.value = false
         }
     }
 

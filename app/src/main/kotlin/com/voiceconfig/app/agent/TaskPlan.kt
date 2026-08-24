@@ -64,7 +64,9 @@ data class TaskPlan(
 interface TaskPlanPersistence {
     suspend fun save(plan: TaskPlan)
     suspend fun loadActive(): TaskPlan?
+    suspend fun loadAllActive(): List<TaskPlan>
     suspend fun delete(id: String)
+    suspend fun deleteAllActive()
 }
 
 /**
@@ -79,8 +81,15 @@ class InMemoryTaskPlanPersistence : TaskPlanPersistence {
 
     override suspend fun loadActive(): TaskPlan? = saved
 
+    override suspend fun loadAllActive(): List<TaskPlan> =
+        listOfNotNull(saved)
+
     override suspend fun delete(id: String) {
         if (saved?.id == id) saved = null
+    }
+
+    override suspend fun deleteAllActive() {
+        saved = null
     }
 }
 
@@ -120,10 +129,21 @@ class TaskPlanStore @javax.inject.Inject constructor(
 
     suspend fun loadActive(): TaskPlan? = repository.loadActive()
 
-    suspend fun deleteCurrent() {
-        val id = current?.id ?: return
+    suspend fun loadActivePlans(): List<TaskPlan> = repository.loadAllActive()
+
+    suspend fun delete(id: String) {
         if (id.isBlank()) return
         repository.delete(id)
+        if (current?.id == id) current = null
+    }
+
+    suspend fun deleteCurrent() {
+        val id = current?.id ?: return
+        delete(id)
+    }
+
+    suspend fun deleteAllActive() {
+        repository.deleteAllActive()
         current = null
     }
 }

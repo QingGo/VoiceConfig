@@ -61,6 +61,7 @@ import com.voiceconfig.data.local.entity.TaskEventEntity
 import com.voiceconfig.app.agent.AgentSkill
 import com.voiceconfig.app.agent.AgentSkillStatus
 import com.voiceconfig.app.agent.AgentStepUi
+import com.voiceconfig.app.agent.TaskPlan
 import com.voiceconfig.app.agent.AgentStepStatus
 import java.time.Instant
 import java.time.LocalDate
@@ -93,7 +94,9 @@ fun AgentPage(
     onAgentVoiceAutoSendChange: (Boolean) -> Unit = {},
     initialLogTaskId: Long? = null,
     canResumeTask: Boolean = false,
+    activeTaskPlans: List<TaskPlan> = emptyList(),
     onResumeTask: () -> Unit = {},
+    onCancelResumeTask: () -> Unit = {},
     agentThinkingEnabled: Boolean,
     agentReasoningEffort: String,
     onAgentThinkingEnabledChange: (Boolean) -> Unit,
@@ -220,7 +223,7 @@ fun AgentPage(
             }
         }
 
-        if (canResumeTask) {
+        if (canResumeTask && activeTaskPlans.isNotEmpty()) {
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -229,25 +232,49 @@ fun AgentPage(
                     containerColor = MaterialTheme.colorScheme.secondaryContainer,
                 ),
             ) {
-                Row(
+                Column(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(12.dp),
-                    verticalAlignment = Alignment.CenterVertically,
+                    verticalArrangement = Arrangement.spacedBy(6.dp),
                 ) {
-                    Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "有未完成的任务（${activeTaskPlans.size}）",
+                        style = MaterialTheme.typography.titleSmall,
+                    )
+                    activeTaskPlans.take(3).forEach { plan ->
+                        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                            Text(
+                                text = plan.goal.ifBlank { "未命名任务" },
+                                style = MaterialTheme.typography.bodyMedium,
+                                maxLines = 2,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                            Text(
+                                text = taskPlanStatusText(plan),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSecondaryContainer,
+                            )
+                        }
+                    }
+                    if (activeTaskPlans.size > 3) {
                         Text(
-                            text = "有未完成的任务",
-                            style = MaterialTheme.typography.titleSmall,
-                        )
-                        Text(
-                            text = "可以继续上次的计划",
-                            style = MaterialTheme.typography.bodySmall,
+                            text = "还有 ${activeTaskPlans.size - 3} 个未完成任务未展示",
+                            style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSecondaryContainer,
                         )
                     }
-                    Button(onClick = onResumeTask) {
-                        Text("继续")
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Button(onClick = onResumeTask) {
+                            Text("继续")
+                        }
+                        TextButton(onClick = onCancelResumeTask) {
+                            Text("放弃全部")
+                        }
                     }
                 }
             }
@@ -1349,3 +1376,14 @@ private fun formatTime(epochMillis: Long): String =
         .toLocalDateTime()
         .toString()
         .substring(0, 16)
+
+
+private fun taskPlanStatusText(plan: TaskPlan): String = when {
+    plan.waitingForHuman != null -> "等待确认：${plan.waitingForHuman}"
+    plan.status.name == "WAITING_CONFIRM" -> "等待确认"
+    plan.status.name == "ACTIVE" -> "进行中"
+    plan.status.name == "COMPLETED" -> "已完成"
+    plan.status.name == "FAILED" -> "失败"
+    plan.status.name == "CANCELLED" -> "已取消"
+    else -> plan.status.name
+}

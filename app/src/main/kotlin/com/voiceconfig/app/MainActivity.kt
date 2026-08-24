@@ -106,6 +106,7 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import com.voiceconfig.app.agent.AgentSession
+import com.voiceconfig.app.agent.TaskPlan
 import com.voiceconfig.app.ai.InstalledAppProvider
 import com.voiceconfig.app.ai.AsrEngineStatus
 import com.voiceconfig.app.ai.LocalAsrManager
@@ -251,6 +252,7 @@ fun MainScreen(viewModel: MainViewModel) {
     val agentMessages by viewModel.agentMessages.collectAsState()
     val agentSteps by viewModel.agentSteps.collectAsState()
     val canResumeTask by viewModel.canResumeTask.collectAsState()
+    val activeTaskPlans by viewModel.activeTaskPlans.collectAsState()
     val lastAgentRunDurationMs by viewModel.lastAgentRunDurationMs.collectAsState()
     val taskEvents by viewModel.taskEvents.collectAsState()
     val selectedAgentSessionId by viewModel.selectedAgentSessionId.collectAsState()
@@ -713,7 +715,9 @@ fun MainScreen(viewModel: MainViewModel) {
                         onAgentVoiceAutoSendChange = viewModel::setAgentVoiceAutoSend,
                         initialLogTaskId = agentLogTaskId,
                         canResumeTask = canResumeTask,
+                        activeTaskPlans = activeTaskPlans,
                         onResumeTask = viewModel::resumeLastTask,
+                        onCancelResumeTask = viewModel::cancelUnfinishedTaskPlans,
                         agentThinkingEnabled = agentDeepSeekThinkingEnabled,
                         agentReasoningEffort = agentDeepSeekReasoningEffort,
                         onAgentThinkingEnabledChange = viewModel::setAgentDeepSeekThinkingEnabled,
@@ -1546,17 +1550,17 @@ fun MainScreenContent(
         }
         if (recentLogs.isNotEmpty()) {
             item {
-                val successCount = recentLogs.count {
-                    it.status == ExecutionStatus.SUCCESS || it.status == ExecutionStatus.FALLBACK
-                }
+                val successCount = recentLogs.count { it.status == ExecutionStatus.SUCCESS }
+                val fallbackCount = recentLogs.count { it.status == ExecutionStatus.FALLBACK }
                 val successRate = successCount * 100 / recentLogs.size
+                val fallbackText = if (fallbackCount > 0) "；降级 $fallbackCount 次" else ""
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
                         text = "执行记录",
                         style = MaterialTheme.typography.titleMedium,
                     )
                     Text(
-                        text = "近20次成功率 $successRate%",
+                        text = "近20次成功率 $successRate%（不含降级$fallbackText）",
                         modifier = Modifier.padding(start = 8.dp),
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -1884,7 +1888,11 @@ private fun formatExecutionSummary(log: ExecutionLog, task: Task?, installedAppL
     }
     return when (log.status) {
         ExecutionStatus.SUCCESS -> "成功$action"
-        ExecutionStatus.FALLBACK -> if (via.isBlank()) "已降级执行$action" else "已通过$via 执行$action"
+        ExecutionStatus.FALLBACK -> when {
+            via == "通知" -> "降级（仅通知提醒，未自动打开）$action"
+            via.isBlank() -> "已降级执行$action"
+            else -> "降级通过$via 执行$action"
+        }
         ExecutionStatus.FAILED -> "失败$action"
         ExecutionStatus.SKIPPED -> "已跳过$action"
         ExecutionStatus.EXECUTING -> "正在执行$action"

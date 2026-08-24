@@ -40,13 +40,34 @@ class ExecutionEngineTest {
         val result = engine.execute(ExecutionRequest(task, ExecutionMode.SHIZUKU))
         assertEquals(ExecutionStatus.FALLBACK, result.status)
         assertEquals(ExecutionMode.NOTIFICATION, result.usedMode)
+        assertEquals("FAILED", result.errorCode)
+    }
+
+    @Test
+    fun `fallback keeps unavailable reason when requested channel cannot execute`() {
+        val shizuku = FakeChannel(
+            ExecutionMode.SHIZUKU,
+            success = true,
+            canExecute = false,
+            unavailableReason = "Shizuku 服务未运行或 Binder 不可用",
+        )
+        val notification = FakeChannel(ExecutionMode.NOTIFICATION, success = true)
+        val engine = ExecutionEngine(listOf(shizuku, notification))
+        val result = engine.execute(ExecutionRequest(task, ExecutionMode.SHIZUKU))
+        assertEquals(ExecutionStatus.FALLBACK, result.status)
+        assertEquals(ExecutionMode.NOTIFICATION, result.usedMode)
+        assertEquals("SHIZUKU_UNAVAILABLE", result.errorCode)
+        assertEquals("已从 SHIZUKU 降级到 NOTIFICATION：Shizuku 服务未运行或 Binder 不可用", result.message)
     }
 
     private class FakeChannel(
         override val supportedMode: ExecutionMode,
         private val success: Boolean,
+        private val canExecute: Boolean = true,
+        private val unavailableReason: String? = null,
     ) : ExecutionChannel {
-        override fun canExecute(request: ExecutionRequest): Boolean = true
+        override fun canExecute(request: ExecutionRequest): Boolean = canExecute
+        override fun unavailableReason(request: ExecutionRequest): String? = unavailableReason
         override fun execute(request: ExecutionRequest): ExecutionResult =
             if (success) ExecutionResult.success(supportedMode)
             else ExecutionResult.failure(supportedMode, "FAILED")

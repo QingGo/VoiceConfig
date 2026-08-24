@@ -57,8 +57,18 @@ class TaskPlanRepository @Inject constructor(
         return entity.toPlan(steps)
     }
 
+    override suspend fun loadAllActive(): List<TaskPlan> =
+        dao.getActivePlans().map { entity ->
+            entity.toPlan(dao.getSteps(entity.id))
+        }
+
     override suspend fun delete(id: String) {
         dao.deletePlan(id)
+    }
+
+    override suspend fun deleteAllActive() {
+        dao.deleteStepsForActivePlans()
+        dao.deleteActivePlans()
     }
 
     private fun TaskPlanEntity.toPlan(steps: List<TaskPlanStepEntity>): TaskPlan = TaskPlan(

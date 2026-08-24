@@ -45,6 +45,16 @@ class ShizukuExecutionChannel @Inject constructor(
         return ok
     }
 
+    override fun unavailableReason(request: ExecutionRequest): String? = runCatching {
+        val clazz = shizukuClass()
+        if (clazz == null) return "Shizuku 未安装"
+        val ping = clazz.getMethod("pingBinder").invoke(null) as? Boolean
+        if (ping != true) return "Shizuku 服务未运行或 Binder 不可用"
+        val permission = clazz.getMethod("checkSelfPermission").invoke(null) as? Int
+        if (permission != PackageManager.PERMISSION_GRANTED) return "Shizuku 未授权言控"
+        null
+    }.getOrElse { "Shizuku 检测异常：${it.message}" }
+
     override fun execute(request: ExecutionRequest): ExecutionResult {
         val cmd = buildCommand(request) ?: return ExecutionResult.failure(
             mode = supportedMode,

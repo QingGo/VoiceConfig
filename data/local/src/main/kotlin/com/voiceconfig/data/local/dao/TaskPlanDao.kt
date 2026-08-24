@@ -25,6 +25,9 @@ interface TaskPlanDao {
     @Query("SELECT * FROM task_plans WHERE status != 'COMPLETED' AND status != 'CANCELLED' ORDER BY updatedAtEpochMillis DESC LIMIT 1")
     suspend fun getActivePlan(): TaskPlanEntity?
 
+    @Query("SELECT * FROM task_plans WHERE status != 'COMPLETED' AND status != 'CANCELLED' ORDER BY updatedAtEpochMillis DESC")
+    suspend fun getActivePlans(): List<TaskPlanEntity>
+
     @Query("SELECT * FROM task_plan_steps WHERE planId = :planId ORDER BY sortOrder ASC, id ASC")
     suspend fun getSteps(planId: String): List<TaskPlanStepEntity>
 
@@ -33,6 +36,12 @@ interface TaskPlanDao {
 
     @Query("DELETE FROM task_plan_steps WHERE planId = :planId")
     suspend fun deleteSteps(planId: String)
+
+    @Query("DELETE FROM task_plan_steps WHERE planId IN (SELECT id FROM task_plans WHERE status != 'COMPLETED' AND status != 'CANCELLED')")
+    suspend fun deleteStepsForActivePlans()
+
+    @Query("DELETE FROM task_plans WHERE status != 'COMPLETED' AND status != 'CANCELLED'")
+    suspend fun deleteActivePlans()
 
     @Query("DELETE FROM task_plans WHERE id = :id")
     suspend fun deletePlan(id: String)
