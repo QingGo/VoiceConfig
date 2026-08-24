@@ -36,4 +36,21 @@ class AgentSafetyTest {
         assertFalse(safety.requiresConfirmation("press_key", mapOf("key" to "enter")))
         assertFalse(safety.requiresConfirmation("press_key", mapOf("key" to "back")))
     }
+
+
+    @Test
+    fun `hard safety gate blocks final pay and delete even with auto confirm`() {
+        assertTrue(safety.isAlwaysBlocked("tap_text", mapOf("text" to "确认支付")))
+        assertTrue(safety.isAlwaysBlocked("tap_text", mapOf("text" to "立即支付")))
+        assertTrue(safety.isAlwaysBlocked("input_text", mapOf("text" to "发送")))
+        assertTrue(safety.isAlwaysBlocked("tap_text", mapOf("text" to "删除")))
+    }
+
+    @Test
+    fun `hard safety gate allows entering order page`() {
+        assertFalse(safety.isAlwaysBlocked("tap_text", mapOf("text" to "立即购买")))
+        assertFalse(safety.isAlwaysBlocked("tap_text", mapOf("text" to "去结算")))
+        assertFalse(safety.isAlwaysBlocked("read_ui", emptyMap()))
+    }
+
 }

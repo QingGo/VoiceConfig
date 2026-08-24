@@ -104,6 +104,41 @@ object AgentToolSchemas {
             "title" to string("通知标题"),
             "content" to string("通知内容"),
         )
+        "create_reminder" -> objectSchema(
+            "content" to string("提醒内容，例如：喝水"),
+            "time" to string("提醒时间 HH:mm，例如 08:00"),
+            "timeText" to string("原始中文时间表达，例如：明早8点"),
+            "date" to string("日期：today/tomorrow/yyyy-MM-dd"),
+            "scheduleType" to string("ONCE/DAILY/WEEKLY/INTERVAL"),
+            "daysOfWeek" to JSONObject().apply {
+                put("type", "array")
+                put("items", JSONObject().apply { put("type", "string") })
+                put("description", "周几，例如 MONDAY")
+            },
+            "intervalMinutes" to integer("间隔分钟数"),
+        )
+        "wait_user" -> objectSchema(
+            "reason" to string("等待用户确认的原因"),
+        )
+        "create_scheduled_task" -> objectSchema(
+            "action" to string("open_app/open_deeplink/open_search/remind"),
+            "package" to string("App 包名"),
+            "deepLink" to string("Deep Link/URL"),
+            "query" to string("搜索关键词"),
+            "content" to string("提醒内容"),
+            "title" to string("任务标题"),
+            "time" to string("时间 HH:mm"),
+            "timeText" to string("中文时间表达，例如：每天8点"),
+            "date" to string("日期：today/tomorrow/yyyy-MM-dd"),
+            "scheduleType" to string("ONCE/DAILY/WEEKLY/INTERVAL"),
+            "daysOfWeek" to JSONObject().apply {
+                put("type", "array")
+                put("items", JSONObject().apply { put("type", "string") })
+                put("description", "周几，例如 MONDAY")
+            },
+            "intervalMinutes" to integer("间隔分钟数"),
+            "engine" to string("搜索引擎：baidu/google/bing，默认 baidu"),
+        )
         "web_search" -> objectSchema(
             "query" to string("搜索关键词"),
             "maxUses" to integer("最大搜索次数"),

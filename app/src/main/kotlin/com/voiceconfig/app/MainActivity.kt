@@ -564,7 +564,9 @@ fun MainScreen(viewModel: MainViewModel) {
             speechRecognizer?.stopListening()
             isListening = false
         }
-        viewModel.parse()
+        // 第一阶段统一管道：文本自然语言也优先走云 LLM + Function Calling。
+        // 只在未配置云模型时回退到本地/兼容解析。
+        viewModel.submitNaturalLanguageInput()
     }
 
     val pagerState = rememberPagerState(initialPage = 1) { 2 }

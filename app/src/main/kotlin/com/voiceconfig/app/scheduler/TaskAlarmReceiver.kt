@@ -1,8 +1,14 @@
 package com.voiceconfig.app.scheduler
 
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.app.PendingIntent
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.os.Build
+import com.voiceconfig.app.MainActivity
+import androidx.core.app.NotificationCompat
 import com.voiceconfig.app.agent.AgentRunState
 import com.voiceconfig.app.agent.AgentSession
 import com.voiceconfig.app.agent.AgentSkillStore
@@ -41,6 +47,14 @@ class TaskAlarmReceiver : BroadcastReceiver() {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     override fun onReceive(context: Context, intent: Intent) {
+        if (intent.action == ACTION_PAUSE_AGENT) {
+            agentSession.pause()
+            return
+        }
+        if (intent.action == ACTION_CANCEL_AGENT) {
+            agentSession.cancel()
+            return
+        }
         if (intent.action != ACTION_EXECUTE_TASK) return
         val taskId = intent.getLongExtra(EXTRA_TASK_ID, -1L)
         if (taskId <= 0L) return
@@ -49,6 +63,9 @@ class TaskAlarmReceiver : BroadcastReceiver() {
         scope.launch {
             try {
                 val task = taskRepository.getTask(taskId) ?: return@launch
+                if (task.actionType == ActionType.AGENT) {
+                    notifyAgentStarted(context, task)
+                }
                 val startedAt = System.currentTimeMillis()
                 val result = if (task.actionType == ActionType.AGENT) {
                     executeAgentTask(task)
@@ -85,6 +102,9 @@ class TaskAlarmReceiver : BroadcastReceiver() {
                         message = result.message,
                     ),
                 )
+                if (task.actionType == ActionType.AGENT) {
+                    notifyAgentFinished(context, task, result)
+                }
                 if (task.schedule.type != com.voiceconfig.core.model.ScheduleSpec.ScheduleType.ONCE) {
                     val nextRun = nextRunCalculator.nextRunAfter(task.schedule)
                     val nextRunAt = nextRun?.atZone(java.time.ZoneId.systemDefault())?.toInstant()?.toEpochMilli()
@@ -153,8 +173,101 @@ class TaskAlarmReceiver : BroadcastReceiver() {
         }
     }
 
+
+    private fun notifyAgentStarted(context: Context, task: com.voiceconfig.core.model.Task) {
+        val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        ensureBackgroundChannel(manager)
+        val notification = NotificationCompat.Builder(context, AGENT_BACKGROUND_CHANNEL)
+            .setSmallIcon(android.R.drawable.ic_popup_reminder)
+            .setContentTitle("言控 Agent 正在执行")
+            .setContentText(task.rawText.take(80))
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setOngoing(true)
+            .setOnlyAlertOnce(true)
+            .setContentIntent(openAppIntent(context))
+            .addAction(0, "暂停", pauseAgentIntent(context))
+            .addAction(0, "取消", cancelAgentIntent(context))
+            .build()
+        manager.notify(notificationId(task.id), notification)
+    }
+
+    private fun notifyAgentFinished(
+        context: Context,
+        task: com.voiceconfig.core.model.Task,
+        result: ExecutionResult,
+    ) {
+        val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        ensureBackgroundChannel(manager)
+        val resultText = when (result.status) {
+            ExecutionStatus.SUCCESS -> "执行成功"
+            ExecutionStatus.FALLBACK -> "已降级完成"
+            ExecutionStatus.FAILED -> "执行失败"
+            ExecutionStatus.WAITING_HUMAN -> "等待用户确认"
+            ExecutionStatus.SCHEDULED, ExecutionStatus.EXECUTING, ExecutionStatus.SKIPPED -> "已更新"
+        }
+        val message = resultText + (result.message?.takeIf { it.isNotBlank() }?.let { "：${it.take(80)}" } ?: "")
+        val notification = NotificationCompat.Builder(context, AGENT_BACKGROUND_CHANNEL)
+            .setSmallIcon(android.R.drawable.ic_popup_reminder)
+            .setContentTitle("言控 Agent ${resultText}")
+            .setContentText(message)
+            .setStyle(NotificationCompat.BigTextStyle().bigText(message))
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setAutoCancel(true)
+            .setContentIntent(openAppIntent(context))
+            .addAction(0, "取消", cancelAgentIntent(context))
+            .build()
+        manager.notify(notificationId(task.id), notification)
+    }
+
+    private fun ensureBackgroundChannel(manager: NotificationManager) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            manager.createNotificationChannel(
+                NotificationChannel(
+                    AGENT_BACKGROUND_CHANNEL,
+                    "后台 Agent 进度",
+                    NotificationManager.IMPORTANCE_HIGH,
+                ).apply {
+                    description = "定时/后台 Agent 任务的开始与结果"
+                },
+            )
+        }
+    }
+
+    private fun openAppIntent(context: Context): PendingIntent =
+        PendingIntent.getActivity(
+            context,
+            System.currentTimeMillis().toInt(),
+            Intent(context, MainActivity::class.java),
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+        )
+
+    private fun pauseAgentIntent(context: Context): PendingIntent =
+        PendingIntent.getBroadcast(
+            context,
+            System.currentTimeMillis().toInt() + 1,
+            Intent(context, TaskAlarmReceiver::class.java).apply {
+                action = ACTION_PAUSE_AGENT
+            },
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+        )
+
+    private fun cancelAgentIntent(context: Context): PendingIntent =
+        PendingIntent.getBroadcast(
+            context,
+            System.currentTimeMillis().toInt(),
+            Intent(context, TaskAlarmReceiver::class.java).apply {
+                action = ACTION_CANCEL_AGENT
+            },
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+        )
+
+    private fun notificationId(taskId: Long): Int = (taskId.toInt() + 3000).coerceAtLeast(0)
+
     companion object {
         const val ACTION_EXECUTE_TASK = "com.voiceconfig.app.action.EXECUTE_TASK"
+        const val ACTION_PAUSE_AGENT = "com.voiceconfig.app.action.PAUSE_AGENT"
+        const val ACTION_CANCEL_AGENT = "com.voiceconfig.app.action.CANCEL_AGENT"
         const val EXTRA_TASK_ID = "extra_task_id"
+        private const val AGENT_BACKGROUND_CHANNEL = "agent_background_progress"
     }
 }

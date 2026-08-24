@@ -29,6 +29,24 @@ class AgentSafety {
         }
     }
 
+    /**
+     * 不可绕过的高危最终动作。
+     *
+     * 这里的闸门独立于用户的“自动确认敏感操作”开关：即使模型想执行，
+     * 或者用户开启了自动确认，系统也不允许直接执行支付/发送/删除等最终动作。
+     * 这保证“到确认页即停”不依赖模型自律。
+     */
+    fun isAlwaysBlocked(toolName: String, args: Map<String, Any?>): Boolean {
+        val mutableTools = setOf("tap", "tap_text", "input_text", "swipe", "open_app", "open_file", "run_shell", "file_write")
+        if (toolName !in mutableTools) return false
+        val text = buildString {
+            args.values.forEach { value ->
+                if (value != null) append(value.toString()).append(' ')
+            }
+        }
+        return HARD_BLOCK_KEYWORDS.any { text.contains(it, ignoreCase = true) }
+    }
+
     fun describe(toolName: String, args: Map<String, Any?>): String {
         val argText = args.entries.joinToString(", ") { (k, v) -> "$k=$v" }
         return "工具 $toolName($argText)"
@@ -41,6 +59,16 @@ class AgentSafety {
             "同意", "授权", "确认订单", "确认下单", "提交", "转账", "汇款",
             "充值", "贷款", "签约", "安装", "卸载", "允许",
             "发送", "立即购买",
+        )
+
+        /**
+         * 最终不可逆/支付提交类关键词。
+         * 刻意不包括“立即购买/去结算/去下单”，因为这些是进入确认页的允许步骤。
+         */
+        val HARD_BLOCK_KEYWORDS = listOf(
+            "提交订单", "确认支付", "立即支付", "确认付款", "免密支付",
+            "确认下单", "付款", "发送", "删除", "清空", "退出登录", "注销",
+            "转账", "汇款", "贷款", "签约", "安装", "卸载",
         )
     }
 }

@@ -891,6 +891,20 @@ class MainViewModel @Inject constructor(
         }
     }
 
+    /**
+     * 统一自然语言入口：配置云模型时直接进入 Agent 单管道；
+     * 未配置时回退到本地/兼容解析，仅用于模板和历史数据兼容。
+     */
+    fun submitNaturalLanguageInput() {
+        val text = _uiState.value.input.trim()
+        if (text.isBlank()) return
+        if (apiKeyStore.deepSeekApiKey.isNotBlank()) {
+            sendAgentMessage(text)
+        } else {
+            parse()
+        }
+    }
+
     /** 统一语音入口：所有 ASR 结果都应通过这里进入 Home/Agent 管道。 */
     fun submitVoiceResult(
         text: String,
@@ -924,6 +938,17 @@ class MainViewModel @Inject constructor(
         val resolved = intent.copy(
             intentType = if (toAgent) VoiceIntentType.AGENT else VoiceIntentType.SIMPLE_TASK,
         )
+
+        // 第一阶段统一管道：只要配置了云模型，自然语言一律走
+        // 云 LLM + Function Calling，不再由本地解析器判断简单/复杂。
+        // 本地解析器仅作为未配置云模型时的兼容/模板回退。
+        if (!toAgent && apiKeyStore.deepSeekApiKey.isNotBlank()) {
+            _agentDraft.value = resolved.normalized
+            sendAgentMessage(resolved.normalized)
+            _agentDraft.value = ""
+            return
+        }
+
         if (toAgent) {
             _agentDraft.value = resolved.normalized
             if (_agentVoiceAutoSend.value && apiKeyStore.deepSeekApiKey.isNotBlank()) {

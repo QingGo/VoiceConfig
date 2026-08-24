@@ -77,7 +77,7 @@ object AgentToolMetadataRegistry {
         ),
         "read_ui" to AgentToolMetadata(
             category = "感知",
-            group = ToolGroup.ADVANCED,
+            group = ToolGroup.CORE,
             risk = ToolRisk.READ_ONLY,
             needsShizuku = true,
         ),
@@ -161,6 +161,22 @@ object AgentToolMetadataRegistry {
             category = "通知",
             group = ToolGroup.CORE,
             risk = ToolRisk.LOW,
+        ),
+        "create_reminder" to AgentToolMetadata(
+            category = "提醒",
+            group = ToolGroup.CORE,
+            risk = ToolRisk.LOW,
+        ),
+        "create_scheduled_task" to AgentToolMetadata(
+            category = "定时任务",
+            group = ToolGroup.CORE,
+            risk = ToolRisk.LOW,
+            mutatesUi = false,
+        ),
+        "wait_user" to AgentToolMetadata(
+            category = "确认",
+            group = ToolGroup.CORE,
+            risk = ToolRisk.READ_ONLY,
         ),
         "web_search" to AgentToolMetadata(
             category = "信息",

@@ -33,10 +33,17 @@ class AgentSession @Inject constructor(
     @Volatile
     private var cancelled = false
 
+    @Volatile
+    private var pauseRequested = false
+
     private val history = mutableListOf<AgentMessage>()
 
     fun cancel() {
         cancelled = true
+    }
+
+    fun pause() {
+        pauseRequested = true
     }
 
     fun clear() {
@@ -131,6 +138,7 @@ class AgentSession @Inject constructor(
     ): AgentTurnResult {
         if (userText.isBlank()) return AgentTurnResult(ok = false, message = "输入为空", toolCalls = emptyList(), history = historySnapshot(), runId = "")
         cancelled = false
+        pauseRequested = false
         val runId = trace.startRun(userText)
         history += AgentMessage("user", userText)
         onMessage(history.last())
@@ -175,6 +183,45 @@ class AgentSession @Inject constructor(
         fun finishRun(ok: Boolean, message: String) {
             trace.log(runId, "run_finished", mapOf("ok" to ok, "message" to message, "tool_call_count" to allToolCalls.size, "duration_ms" to (System.currentTimeMillis() - startedAtMs)))
         }
+        suspend fun returnPaused(): AgentTurnResult {
+            val reason = "用户已暂停（可从“未完成任务”中继续）"
+            if (taskPlanStore.snapshot() == null) {
+                taskPlanStore.set(
+                    TaskPlan(
+                        goal = userText,
+                        waitingForHuman = reason,
+                        status = TaskPlanStatus.WAITING_CONFIRM,
+                    ),
+                )
+            } else {
+                taskPlanStore.update {
+                    it.copy(
+                        waitingForHuman = reason,
+                        status = TaskPlanStatus.WAITING_CONFIRM,
+                    )
+                }
+            }
+            taskPlanStore.saveCurrent()
+            setState(AgentRunState.WAITING_CONFIRM)
+            trace.log(runId, "run_paused", mapOf("round" to rounds, "reason" to reason))
+            history += AgentMessage("assistant", "已暂停：$reason")
+            onMessage(history.last())
+            finishRun(true, "已暂停：$reason")
+            return AgentTurnResult(
+                ok = true,
+                message = "已暂停：$reason",
+                toolCalls = allToolCalls,
+                history = historySnapshot(),
+                runId = runId,
+                durationMs = System.currentTimeMillis() - startedAtMs,
+                llmWaitMs = llmWaitMs,
+                toolExecMs = toolExecMs,
+                verifyMs = verifyMs,
+                rounds = rounds,
+                state = AgentRunState.WAITING_CONFIRM,
+                plan = taskPlanStore.snapshot(),
+            )
+        }
 
         for (round in 0 until maxRounds) {
             rounds++
@@ -191,6 +238,9 @@ class AgentSession @Inject constructor(
                 onMessage(history.last())
                 finishRun(false, "已停止")
                 return AgentTurnResult(ok = false, message = "已停止", toolCalls = allToolCalls, history = historySnapshot(), runId = runId)
+            }
+            if (pauseRequested) {
+                return returnPaused()
             }
             if (System.currentTimeMillis() - startedAtMs > runPolicy.overallTimeoutMs) {
                 val error = "整体执行超时（${runPolicy.overallTimeoutMs / 1000}s）"
@@ -244,6 +294,9 @@ class AgentSession @Inject constructor(
                 onMessage(history.last())
                 finishRun(false, llmError)
                 return AgentTurnResult(ok = false, message = llmError, toolCalls = allToolCalls, history = historySnapshot(), runId = runId, durationMs = System.currentTimeMillis() - startedAtMs, llmWaitMs = llmWaitMs, toolExecMs = toolExecMs, verifyMs = verifyMs, rounds = rounds)
+            }
+            if (pauseRequested) {
+                return returnPaused()
             }
 
             // 把 assistant 消息（含 reasoning/tool_calls）追加到历史
@@ -599,6 +652,53 @@ class AgentSession @Inject constructor(
                     }
                 }
 
+                if (safety.isAlwaysBlocked(tool.name, args)) {
+                    val blocked = "系统安全拦截：不允许直接执行最终操作（${safety.describe(tool.name, args)}）。请停在确认页等待用户。"
+                    onStep(
+                        AgentStepUi(
+                            index = stepIndex,
+                            runId = runId,
+                            toolName = toolCall.name,
+                            argsText = args.toString(),
+                            status = AgentStepStatus.FAILED,
+                            message = blocked,
+                        ),
+                    )
+                    trace.log(runId, "tool_blocked", mapOf("tool" to toolCall.name, "args" to args, "reason" to "hard_safety_gate"))
+                    history += AgentMessage(
+                        role = "tool",
+                        content = blocked,
+                        toolCallId = toolCall.id,
+                        toolName = toolCall.name,
+                        toolArgs = toolCall.arguments,
+                        toolResultOk = false,
+                    )
+                    onMessage(history.last())
+                    allToolCalls += ToolCall(toolCall.name, args)
+                    allSteps += StepExecution(
+                        index = allSteps.size,
+                        call = ToolCall(toolCall.name, args),
+                        result = ToolResult.failure(blocked),
+                    )
+                    setState(AgentRunState.FAILED)
+                    history += AgentMessage("assistant", "执行失败：$blocked")
+                    onMessage(history.last())
+                    finishRun(false, blocked)
+                    return AgentTurnResult(
+                        ok = false,
+                        message = blocked,
+                        toolCalls = allToolCalls,
+                        history = historySnapshot(),
+                        runId = runId,
+                        durationMs = System.currentTimeMillis() - startedAtMs,
+                        llmWaitMs = llmWaitMs,
+                        toolExecMs = toolExecMs,
+                        verifyMs = verifyMs,
+                        rounds = rounds,
+                        state = AgentRunState.FAILED,
+                    )
+                }
+
                 val toolStartMs = System.currentTimeMillis()
                 trace.log(runId, "tool_call", mapOf(
                     "round" to round,
@@ -870,7 +970,15 @@ class AgentSession @Inject constructor(
             规则：
             - 如果需要调用工具，使用 function calling 返回 tool_calls；一轮可以返回多个工具调用。
             - 执行完工具后，根据工具结果继续判断是否需要更多工具，直到目标完成。
-            - 复杂/多步任务先用 task_plan 创建步骤计划；每完成一步用 task_plan 标记；需要用户确认时先用 task_plan wait_user 暂停，再停止等待。
+            
+            【单步快路径】
+            - 单步、明确、可直接执行的指令（打开某个 App、打开搜索、创建提醒、打开链接）必须只调用一个对应的工具就结束，不要创建 task_plan，不要写计划步骤。
+            - 示例：“打开企业微信” → 只调 open_app{"package":"com.tencent.wework"}；“提醒我8点喝水” → 只调 create_reminder；“搜索 Android 15” → 只调 open_search。
+            - 不要为简单任务创建 task_plan；task_plan 只用于真正多步、模糊、跨 App 或需要持续跟踪步骤的复杂任务。
+            - 需要用户确认或决策时调用 wait_user（或 task_plan wait_user）暂停，然后停止等待；不要假装完成。
+            
+            【复杂任务】
+            - 只有多步/模糊/跨 App 任务才先用 task_plan 创建步骤计划；每完成一步用 task_plan 标记；需要用户确认时用 wait_user 暂停，再停止等待。
             - 查找应用时优先使用 find_app，不要用 run_shell 列举全部包名。
             - 为节省时间，默认使用 read_ui 获取文字和坐标（它也返回弹窗提示），不要每步都调用 get_screen_state / read_screen。
             - get_screen_state 默认不包含截图，只返回 UI 树/坐标/弹窗提示，速度更快；只有需要看图片、图标位置、视觉布局时才传 includeImage:true 或使用 read_screen。每个页面最多只做 1 次视觉看图，不要连续多次 includeImage:true。
