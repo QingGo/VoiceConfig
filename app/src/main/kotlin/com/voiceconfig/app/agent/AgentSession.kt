@@ -50,6 +50,13 @@ class AgentSession @Inject constructor(
 
     fun historySnapshot(): List<AgentMessage> = history.toList()
 
+    private suspend fun completeTaskPlan() {
+        val plan = taskPlanStore.snapshot() ?: return
+        val completed = plan.copy(status = TaskPlanStatus.COMPLETED, waitingForHuman = null)
+        taskPlanStore.set(completed)
+        taskPlanStore.saveCurrent()
+    }
+
     /**
      * 后台/自动化执行入口：临时使用独立 history，执行结束后恢复手动会话上下文。
      * 适用于定时 Agent 任务、立即执行等不希望污染用户当前会话的场景。
@@ -129,7 +136,7 @@ class AgentSession @Inject constructor(
         onMessage(history.last())
         trace.log(runId, "user_input", mapOf("text" to userText))
 
-        taskPlanStore.set(plan ?: TaskPlan(goal = userText))
+        taskPlanStore.set(plan)
         trace.log(runId, "task_plan", mapOf(
             "goal" to userText,
             "steps" to (taskPlanStore.snapshot()?.steps?.size ?: 0),
@@ -367,7 +374,8 @@ class AgentSession @Inject constructor(
                         }
                         val finalText = assistantContent.ifBlank { "（无文本回复）" } + cleanupNote
                         setState(AgentRunState.DONE)
-                        taskPlanStore.saveCurrent()
+                        completeTaskPlan()
+                        val donePlan = taskPlanStore.snapshot()
                         trace.log(runId, "run_finished", mapOf("ok" to true, "message" to finalText, "tool_call_count" to allToolCalls.size, "duration_ms" to (System.currentTimeMillis() - startedAtMs)))
                         return AgentTurnResult(
                             ok = true,
@@ -381,7 +389,7 @@ class AgentSession @Inject constructor(
                             verifyMs = verifyMs,
                             rounds = rounds,
                             state = AgentRunState.DONE,
-                            plan = currentPlan,
+                            plan = donePlan,
                         )
                     }
                     StopDecision.CONTINUE -> {
@@ -462,7 +470,8 @@ class AgentSession @Inject constructor(
                 }
                 val finalText = assistantContent.ifBlank { "（无文本回复）" } + cleanupNote
                 setState(AgentRunState.DONE)
-                taskPlanStore.saveCurrent()
+                completeTaskPlan()
+                val donePlan = taskPlanStore.snapshot()
                 trace.log(runId, "run_finished", mapOf("ok" to true, "message" to finalText, "tool_call_count" to allToolCalls.size, "duration_ms" to (System.currentTimeMillis() - startedAtMs)))
                 return AgentTurnResult(
                     ok = true,
@@ -475,6 +484,7 @@ class AgentSession @Inject constructor(
                     toolExecMs = toolExecMs,
                     verifyMs = verifyMs,
                     rounds = rounds,
+                    plan = donePlan,
                 )
             }
 
