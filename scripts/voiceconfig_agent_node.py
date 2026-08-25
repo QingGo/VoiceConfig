@@ -28,7 +28,7 @@ import uuid
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-NODE_VERSION = "0.3.0"
+NODE_VERSION = "0.4.0"
 
 # Built-in command set. The node never executes user-supplied argv; it maps a
 # whitelisted command name to a fixed argv list.
@@ -254,6 +254,23 @@ def save_tasks(path: Path, tasks: dict) -> None:
     atomic_write_json(path, tasks)
 
 
+def recover_interrupted_tasks(tasks: dict) -> int:
+    """Mark running tasks as interrupted after a restart.
+
+    Pending/acknowledged tasks are preserved so clients can re-ACK/resume.
+    """
+    recovered = 0
+    for task in tasks.values():
+        if task.get("status") == "running":
+            task["status"] = "interrupted"
+            task["recovered_at"] = now_ms()
+            task["updated_at"] = now_ms()
+            recovered += 1
+    if recovered:
+        return recovered
+    return 0
+
+
 # ---------------------------------------------------------------------------
 # Tailscale IP discovery
 # ---------------------------------------------------------------------------
@@ -358,6 +375,13 @@ class Handler(BaseHTTPRequestHandler):
             return {"__error__": str(e)}
 
     def _execute_task(self, task_id: str, command: str) -> None:
+        with self.server.tasks_lock:
+            task = self.server.tasks.get(task_id)
+            if task is not None:
+                task["status"] = "running"
+                task["started_at"] = now_ms()
+                task["attempts"] = int(task.get("attempts", 0)) + 1
+                save_tasks(self.server.tasks_path, self.server.tasks)
         result = run_allowed(command, self.server.allowed_commands)
         with self.server.tasks_lock:
             task = self.server.tasks.get(task_id)
@@ -370,6 +394,34 @@ class Handler(BaseHTTPRequestHandler):
             "task_id": task_id,
             "command": command,
         })
+
+    def _start_task(self, task_id: str) -> bool:
+        """Start a task exactly once under the task lock."""
+        with self.server.tasks_lock:
+            task = self.server.tasks.get(task_id)
+            if task is None:
+                return False
+            if task.get("status") in ("pending", "acknowledged", "interrupted"):
+                # Mark as acknowledged so repeated start calls are no-ops.
+                if task.get("status") == "pending":
+                    task["acked_at"] = task.get("acked_at") or now_ms()
+                task["status"] = "queued"
+                save_tasks(self.server.tasks_path, self.server.tasks)
+                thread = threading.Thread(
+                    target=self._execute_task,
+                    args=(task_id, task.get("command", "")),
+                    daemon=True,
+                )
+                thread.start()
+                return True
+        return False
+
+    def _find_task_by_idempotency_key(self, key: str):
+        with self.server.tasks_lock:
+            for task in self.server.tasks.values():
+                if task.get("idempotency_key") == key and not key in (None, ""):
+                    return task
+        return None
 
     def do_GET(self):
         if not self._check_auth():
@@ -450,25 +502,69 @@ class Handler(BaseHTTPRequestHandler):
                     "allowed": sorted(self.server.allowed_commands),
                 })
                 return
+            idempotency_key = str(body.get("idempotency_key", "") or "").strip()
+            auto_start = bool(body.get("auto_start", True))
+            if idempotency_key:
+                existing = self._find_task_by_idempotency_key(idempotency_key)
+                if existing is not None:
+                    if existing.get("command") != command:
+                        self._send_json(409, {
+                            "ok": False,
+                            "error": "idempotency_key_conflict",
+                            "message": "same key with different command",
+                            "task_id": existing.get("id"),
+                        })
+                        return
+                    if auto_start:
+                        self._start_task(existing.get("id"))
+                    self._audit("task_idempotent_replay", True, {
+                        "task_id": existing.get("id"),
+                        "command": command,
+                        "idempotency_key": idempotency_key,
+                    })
+                    self._send_json(200, {
+                        "ok": True,
+                        "duplicate": True,
+                        "task": existing,
+                    })
+                    return
             task_id = "task_" + uuid.uuid4().hex[:12]
+            now = now_ms()
             with self.server.tasks_lock:
                 self.server.tasks[task_id] = {
                     "id": task_id,
                     "command": command,
                     "status": "pending",
-                    "created_at": now_ms(),
+                    "created_at": now,
+                    "updated_at": now,
                     "started_at": None,
                     "finished_at": None,
+                    "acked_at": None,
+                    "idempotency_key": idempotency_key or None,
+                    "progress": 0,
+                    "checkpoint": None,
+                    "attempts": 0,
                     "result": None,
+                    "auto_start": auto_start,
                 }
                 save_tasks(self.server.tasks_path, self.server.tasks)
-            threading.Thread(
-                target=self._execute_task,
-                args=(task_id, command),
-                daemon=True,
-            ).start()
-            self._audit("task_created", True, {"task_id": task_id, "command": command})
-            self._send_json(202, {"ok": True, "task_id": task_id, "status": "pending"})
+            if auto_start:
+                self._start_task(task_id)
+            self._audit("task_created", True, {
+                "task_id": task_id,
+                "command": command,
+                "idempotency_key": idempotency_key or None,
+                "auto_start": auto_start,
+            })
+            task = self.server.tasks.get(task_id)
+            self._send_json(202, {
+                "ok": True,
+                "task_id": task_id,
+                "status": task.get("status", "pending"),
+                "task": task,
+            })
+        elif self.path.startswith("/api/tasks/"):
+            self._handle_task_post(self.path, body)
         elif self.path == "/api/admin/rotate-token":
             current = self._extract_token()
             with self.server.tokens_lock:
@@ -493,6 +589,90 @@ class Handler(BaseHTTPRequestHandler):
             self._send_json(200, {"ok": revoked, "revoked": revoked})
         else:
             self._send_json(404, {"ok": False, "error": "not_found"})
+
+    def _handle_task_post(self, path: str, body: dict) -> None:
+        parts = [part for part in path.strip("/").split("/") if part]
+        # Expected: api/tasks/<task_id>/<action>
+        if len(parts) < 4:
+            self._send_json(404, {"ok": False, "error": "not_found"})
+            return
+        task_id = parts[2]
+        action = parts[3]
+        with self.server.tasks_lock:
+            task = self.server.tasks.get(task_id)
+        if task is None:
+            self._send_json(404, {"ok": False, "error": "task_not_found", "task_id": task_id})
+            return
+
+        if action == "ack":
+            with self.server.tasks_lock:
+                task = self.server.tasks.get(task_id)
+                if task is not None and task.get("status") == "pending":
+                    task["status"] = "acknowledged"
+                    task["acked_at"] = now_ms()
+                    task["updated_at"] = now_ms()
+                    save_tasks(self.server.tasks_path, self.server.tasks)
+                    should_start = True
+                else:
+                    should_start = False
+            self._audit("task_ack", True, {"task_id": task_id})
+            if should_start:
+                self._start_task(task_id)
+            with self.server.tasks_lock:
+                task = self.server.tasks.get(task_id)
+            self._send_json(200, {"ok": True, "task": task})
+            return
+
+        if action == "checkpoint":
+            progress = int(body.get("progress", task.get("progress", 0) or 0))
+            checkpoint = body.get("checkpoint")
+            with self.server.tasks_lock:
+                task = self.server.tasks.get(task_id)
+                if task is not None:
+                    task["progress"] = max(0, min(100, progress))
+                    task["checkpoint"] = checkpoint
+                    task["updated_at"] = now_ms()
+                    save_tasks(self.server.tasks_path, self.server.tasks)
+            self._audit("task_checkpoint", True, {
+                "task_id": task_id,
+                "progress": progress,
+            })
+            self._send_json(200, {"ok": True, "task": task})
+            return
+
+        if action == "resume":
+            retry_failed = bool(body.get("retry", False))
+            with self.server.tasks_lock:
+                task = self.server.tasks.get(task_id)
+                if task is not None:
+                    status = task.get("status")
+                    can_resume = status in ("interrupted", "pending", "acknowledged") or (
+                        retry_failed and status == "failed"
+                    )
+                    if can_resume:
+                        task["status"] = "pending"
+                        task["updated_at"] = now_ms()
+                        if status == "failed":
+                            task["result"] = None
+                            task["finished_at"] = None
+                        save_tasks(self.server.tasks_path, self.server.tasks)
+                        # An explicit resume is an explicit start request.
+                        should_start = True
+                    else:
+                        should_start = False
+            self._audit("task_resume", should_start, {"task_id": task_id, "retry_failed": retry_failed})
+            if should_start:
+                self._start_task(task_id)
+            with self.server.tasks_lock:
+                task = self.server.tasks.get(task_id)
+            self._send_json(200 if should_start else 409, {
+                "ok": should_start,
+                "task": task,
+                "error": None if should_start else "task_not_resumable",
+            })
+            return
+
+        self._send_json(404, {"ok": False, "error": "unknown_task_action", "action": action})
 
     def do_OPTIONS(self):
         self.send_response(204)
@@ -568,6 +748,9 @@ def main():
     server.tasks_path = tasks_path
     server.tasks_lock = threading.Lock()
     server.tasks = load_tasks(tasks_path)
+    recovered = recover_interrupted_tasks(server.tasks)
+    if recovered:
+        save_tasks(tasks_path, server.tasks)
     server.bind_host = bind_host
     server.tls_enabled = bool((config.get("tls") or {}).get("enabled"))
 
@@ -583,6 +766,7 @@ def main():
     print(f"Tailscale-only: {bind_tailscale}")
     print(f"TLS: {'enabled' if ssl_context is not None else 'disabled'}")
     print(f"Allowed commands: {', '.join(sorted(allowed_commands))}")
+    print(f"Recovered interrupted tasks: {recovered}")
     active = active_tokens(token_store)
     print(f"Active tokens: {len(active)} (do NOT print token contents in logs)")
     try:

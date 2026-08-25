@@ -380,15 +380,23 @@ curl -H "Authorization: Bearer $TOKEN" http://100.91.244.17:8787/health
 curl -H "Authorization: Bearer $TOKEN"   -H 'Content-Type: application/json'   -d '{"command":"uptime"}'   http://100.91.244.17:8787/api/exec
 ```
 
-异步任务队列接口：
+异步任务队列接口（R3 任务协议）：
 
 ```bash
-# 创建任务
-curl -H "Authorization: Bearer $TOKEN"   -H 'Content-Type: application/json'   -d '{"command":"uname"}'   http://100.91.244.17:8787/api/tasks
+# 创建任务（支持幂等键；auto_start=false 时等 ACK 后再执行）
+curl -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json'   -d '{"command":"uname","idempotency_key":"job-001","auto_start":false}'   http://100.91.244.17:8787/api/tasks
 
-# 查询任务
-curl -H "Authorization: Bearer $TOKEN"   http://100.91.244.17:8787/api/tasks/<task_id>
+# ACK / 查询 / checkpoint / resume
+curl -X POST -H "Authorization: Bearer $TOKEN" http://100.91.244.17:8787/api/tasks/<task_id>/ack
+curl -H "Authorization: Bearer $TOKEN" http://100.91.244.17:8787/api/tasks/<task_id>
+curl -X POST -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json'   -d '{"progress":50,"checkpoint":{"step":"half"}}'   http://100.91.244.17:8787/api/tasks/<task_id>/checkpoint
+curl -X POST -H "Authorization: Bearer $TOKEN" http://100.91.244.17:8787/api/tasks/<task_id>/resume
+
+# 服务重启后，running 任务会标记为 interrupted，可通过 resume 继续
 ```
+
+Android 侧已提供 `RemoteTaskClient`，支持 submit/ack/checkpoint/get/resume/list。
+另外节点每次请求都会写审计。
 
 Token 管理接口：
 
@@ -402,11 +410,12 @@ curl -X POST -H "Authorization: Bearer $TOKEN"   -H 'Content-Type: application/j
 
 > 当前仍是实验性只读节点。TLS/mTLS 需要自行提供证书；未配置 TLS 时只应通过 Tailscale 等私有网络访问。
 
-#### Android 控制面（R2 进度）
+#### Android 控制面（R2/R3 进度）
 
 - 新增 `RemoteNodeRepository`：节点注册、列表、启停、暂停、删除、状态/错误记录。
 - 节点 Token 使用 Android Keystore + AES/GCM 加密后存入 Room，不落明文。
 - 新增受控 `remote_node` 工具：只允许对已启用/未暂停节点执行其 allowlist 中的只读命令，且不把 Token 返回模型。
+- 新增 `RemoteTaskClient`：任务提交 / ACK / checkpoint / 查询 / resume / list。
 - 当前 `remote_node` 标记为 ADVANCED，不进入核心工具列表；UI 节点管理页尚未接上。
 
 模拟器本地 ASR 闭环（调试桥，仅 debug 包可用）：

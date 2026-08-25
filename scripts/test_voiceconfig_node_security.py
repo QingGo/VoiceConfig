@@ -78,7 +78,7 @@ class HttpSecurityTest(unittest.TestCase):
         cls.store = node.load_or_create_token_store(cls.data_dir)
         cls.token = cls.data_dir.joinpath("node.token").read_text().strip()
         (cls.data_dir / "node.json").write_text(json.dumps({
-            "allowed_commands": ["hostname"],
+            "allowed_commands": ["hostname", "uptime"],
             "bind_host": "127.0.0.1",
         }), encoding="utf-8")
         cls.server = node.ThreadingHTTPServer(("127.0.0.1", 0), node.Handler)
@@ -171,6 +171,126 @@ class HttpSecurityTest(unittest.TestCase):
         self.assertIn("auth_denied", types)
         self.assertIn("rotate_token", types)
         self.assertIn("revoke_token", types)
+
+
+class TaskProtocolTest(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.tmp = tempfile.TemporaryDirectory()
+        cls.data_dir = Path(cls.tmp.name)
+        cls.store = node.load_or_create_token_store(cls.data_dir)
+        cls.token = cls.data_dir.joinpath("node.token").read_text().strip()
+        (cls.data_dir / "node.json").write_text(json.dumps({
+            "allowed_commands": ["hostname", "uptime"],
+            "bind_host": "127.0.0.1",
+        }), encoding="utf-8")
+        cls.server = node.ThreadingHTTPServer(("127.0.0.1", 0), node.Handler)
+        cls.server.data_dir = cls.data_dir
+        cls.server.identity = node.load_or_create_identity(cls.data_dir)
+        cls.server.allowed_commands = ["hostname", "uptime"]
+        cls.server.token_store = node.load_or_create_token_store(cls.data_dir)
+        cls.server.tokens_lock = threading.Lock()
+        cls.server.audit_path = cls.data_dir / "audit.jsonl"
+        cls.server.tasks_path = cls.data_dir / "tasks.json"
+        cls.server.tasks_lock = threading.Lock()
+        cls.server.tasks = {}
+        cls.server.bind_host = "127.0.0.1"
+        cls.server.tls_enabled = False
+        cls.port = cls.server.server_address[1]
+        cls.thread = threading.Thread(target=cls.server.serve_forever, daemon=True)
+        cls.thread.start()
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.server.shutdown()
+        cls.server.server_close()
+        cls.tmp.cleanup()
+
+    def _request(self, method, path, body=None, token=None):
+        data = json.dumps(body).encode() if body is not None else None
+        req = urllib.request.Request(
+            "http://127.0.0.1:%d%s" % (self.port, path),
+            data=data,
+            method=method,
+        )
+        if token:
+            req.add_header("Authorization", "Bearer " + token)
+        try:
+            with urllib.request.urlopen(req, timeout=3) as resp:
+                return resp.status, json.loads(resp.read().decode("utf-8"))
+        except urllib.error.HTTPError as e:
+            return e.code, json.loads(e.read().decode("utf-8") or "{}")
+
+    def test_submit_ack_checkpoint_query(self):
+        status, body = self._request(
+            "POST", "/api/tasks",
+            {"command": "hostname", "auto_start": False, "idempotency_key": "proto-1"},
+            token=self.token,
+        )
+        self.assertEqual(status, 202, body)
+        task_id = body["task"]["id"]
+        self.assertEqual(body["task"]["status"], "pending")
+        self.assertEqual(body["task"]["idempotency_key"], "proto-1")
+
+        # Idempotent replay returns the same task.
+        status, replay = self._request(
+            "POST", "/api/tasks",
+            {"command": "hostname", "auto_start": False, "idempotency_key": "proto-1"},
+            token=self.token,
+        )
+        self.assertEqual(status, 200, replay)
+        self.assertTrue(replay.get("duplicate"))
+        self.assertEqual(replay["task"]["id"], task_id)
+
+        # Same key with a different command must be rejected.
+        status, conflict = self._request(
+            "POST", "/api/tasks",
+            {"command": "uptime", "auto_start": False, "idempotency_key": "proto-1"},
+            token=self.token,
+        )
+        self.assertEqual(status, 409, conflict)
+
+        # Checkpoint before ACK is allowed and persists.
+        status, ck = self._request(
+            "POST", "/api/tasks/%s/checkpoint" % task_id,
+            {"progress": 42, "checkpoint": {"step": "prepared"}},
+            token=self.token,
+        )
+        self.assertEqual(status, 200, ck)
+        self.assertEqual(ck["task"]["progress"], 42)
+        self.assertEqual(ck["task"]["checkpoint"]["step"], "prepared")
+
+        # ACK starts the task; final GET must show the stored checkpoint/progress.
+        status, ack = self._request("POST", "/api/tasks/%s/ack" % task_id, {}, token=self.token)
+        self.assertEqual(status, 200, ack)
+        status, query = self._request("GET", "/api/tasks/%s" % task_id, token=self.token)
+        self.assertEqual(status, 200, query)
+        self.assertEqual(query["task"]["id"], task_id)
+        self.assertIn(query["task"]["status"], ("acknowledged", "queued", "running", "done", "failed"))
+        self.assertEqual(query["task"]["progress"], 42)
+
+    def test_resume_interrupted_task(self):
+        status, body = self._request(
+            "POST", "/api/tasks",
+            {"command": "hostname", "auto_start": False, "idempotency_key": "proto-resume"},
+            token=self.token,
+        )
+        task_id = body["task"]["id"]
+        self.assertEqual(status, 202)
+
+        # Simulate server restart recovery.
+        with self.server.tasks_lock:
+            self.server.tasks[task_id]["status"] = "running"
+        recovered = node.recover_interrupted_tasks(self.server.tasks)
+        self.assertEqual(recovered, 1)
+        self.assertEqual(self.server.tasks[task_id]["status"], "interrupted")
+
+        # Resume makes it pending and starts the worker.
+        status, res = self._request("POST", "/api/tasks/%s/resume" % task_id, {}, token=self.token)
+        self.assertEqual(status, 200, res)
+        status, query = self._request("GET", "/api/tasks/%s" % task_id, token=self.token)
+        self.assertEqual(status, 200, query)
+        self.assertIn(query["task"]["status"], ("queued", "running", "done", "failed", "acknowledged", "pending"))
 
 
 if __name__ == "__main__":
