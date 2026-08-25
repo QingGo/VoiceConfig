@@ -51,11 +51,13 @@ class TaskAlarmReceiver : BroadcastReceiver() {
 
     override fun onReceive(context: Context, intent: Intent) {
         if (intent.action == ACTION_PAUSE_AGENT) {
-            agentSession.pause()
+            val runId = intent.getStringExtra(EXTRA_RUN_ID)
+            if (!runId.isNullOrBlank()) agentSession.pause(runId) else agentSession.pause()
             return
         }
         if (intent.action == ACTION_CANCEL_AGENT) {
-            agentSession.cancel()
+            val runId = intent.getStringExtra(EXTRA_RUN_ID)
+            if (!runId.isNullOrBlank()) agentSession.cancel(runId) else agentSession.cancel()
             return
         }
         if (intent.action != ACTION_EXECUTE_TASK) return
@@ -254,6 +256,7 @@ class TaskAlarmReceiver : BroadcastReceiver() {
             System.currentTimeMillis().toInt() + 1,
             Intent(context, TaskAlarmReceiver::class.java).apply {
                 action = ACTION_PAUSE_AGENT
+                agentSession.currentRunId()?.let { putExtra(EXTRA_RUN_ID, it) }
             },
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )
@@ -264,6 +267,7 @@ class TaskAlarmReceiver : BroadcastReceiver() {
             System.currentTimeMillis().toInt(),
             Intent(context, TaskAlarmReceiver::class.java).apply {
                 action = ACTION_CANCEL_AGENT
+                agentSession.currentRunId()?.let { putExtra(EXTRA_RUN_ID, it) }
             },
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )
@@ -275,6 +279,7 @@ class TaskAlarmReceiver : BroadcastReceiver() {
         const val ACTION_PAUSE_AGENT = "com.voiceconfig.app.action.PAUSE_AGENT"
         const val ACTION_CANCEL_AGENT = "com.voiceconfig.app.action.CANCEL_AGENT"
         const val EXTRA_TASK_ID = "extra_task_id"
+        const val EXTRA_RUN_ID = "extra_run_id"
         private const val AGENT_BACKGROUND_CHANNEL = "agent_background_progress"
     }
 }
