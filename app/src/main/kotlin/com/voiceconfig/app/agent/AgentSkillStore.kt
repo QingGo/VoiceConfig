@@ -18,12 +18,12 @@ enum class AgentSkillStatus {
 }
 
 /**
- * 技能/经验库：把用户确认过的成功 Agent 路径沉淀为可复用参考。
+ * 技能/经验库（P2 结构化版）。
  *
- * Phase 1.5 增强：
- * - 每条技能带 runId / 来源会话 / 使用次数 / 审核状态。
- * - 新技能默认进入 PENDING，只有 APPROVED 的技能会注入 Agent prompt。
- * - 用户可以在 Agent 页“技能库”中审核/拒绝/删除。
+ * - 从成功且验证未失败的 run 自动生成 PENDING Skill；
+ * - 每条 Skill 记录目标、步骤、每步目的/预期/UI 证据/验证/兜底、来源 run、能力要求、版本；
+ * - 只有 APPROVED 且 enabled 的 Skill 才会注入 Agent prompt；
+ * - 支持禁用、删除、脱敏、审计。
  */
 @Singleton
 class AgentSkillStore @Inject constructor(
@@ -35,14 +35,24 @@ class AgentSkillStore @Inject constructor(
     private val _skills = MutableStateFlow<List<AgentSkill>>(emptyList())
     val skills: StateFlow<List<AgentSkill>> = _skills.asStateFlow()
 
+    private val _auditLogs = MutableStateFlow<List<AgentSkillAudit>>(emptyList())
+    val auditLogs: StateFlow<List<AgentSkillAudit>> = _auditLogs.asStateFlow()
+
     init {
         _skills.value = load()
+        _auditLogs.value = loadAudit()
     }
 
     fun observeSkills(): StateFlow<List<AgentSkill>> = _skills
 
-    fun all(): List<AgentSkill> = load()
+    fun all(): List<AgentSkill> = _skills.value
 
+    fun observeAuditLogs(): StateFlow<List<AgentSkillAudit>> = _auditLogs
+
+    /**
+     * 兼容旧接口：只保存工具名和参数，不校验验证证据。
+     * 新代码请优先使用 [recordFromTurn]。
+     */
     fun record(
         text: String,
         toolCalls: List<ToolCall>,
@@ -51,57 +61,69 @@ class AgentSkillStore @Inject constructor(
         sourceSessionId: Long? = null,
     ) {
         if (!ok || toolCalls.isEmpty()) return
-        val normalized = text.trim()
-        if (normalized.isBlank()) return
-        val now = System.currentTimeMillis()
-        val newSteps = toolCalls.map { AgentSkillStep(it.tool, it.args.toString()) }
-        val skills = load()
-        val existing = skills.firstOrNull { similarity(it.text, normalized) >= 0.5 }
-        val updatedList = if (existing != null) {
-            skills.map { skill ->
-                if (skill.id == existing.id) {
-                    skill.copy(
-                        text = normalized,
-                        steps = newSteps,
-                        successCount = skill.successCount + 1,
-                        useCount = skill.useCount + 1,
-                        updatedAt = now,
-                        lastResult = "success",
-                        lastRunId = runId,
-                        lastSessionId = sourceSessionId,
-                    )
-                } else {
-                    skill
-                }
-            }
-        } else {
-            val skill = AgentSkill(
-                id = "skill_${now}",
-                name = buildSkillName(normalized),
-                description = "用户意图：$normalized",
-                text = normalized,
-                tags = guessTags(normalized),
-                whenToUse = normalized,
-                steps = newSteps,
-                createdAt = now,
-                updatedAt = now,
-                successCount = 1,
-                useCount = 1,
-                status = AgentSkillStatus.PENDING,
-                lastRunId = runId,
-                lastSessionId = sourceSessionId,
-                lastResult = "success",
-                version = 1,
-            )
-            skills + skill
-        }
-        save(updatedList)
+        val skill = AgentSkillBuilder.build(
+            goal = text,
+            toolCalls = toolCalls,
+            toolResults = emptyList(),
+            runId = runId,
+            sourceSessionId = sourceSessionId,
+        ) ?: return
+        upsert(skill)
+    }
+
+    /**
+     * 从一次实时 Agent turn 生成 PENDING Skill 候选。
+     * 只有 ok 且验证没有明确失败时才会沉淀。
+     */
+    fun recordFromTurn(
+        text: String,
+        result: AgentTurnResult,
+        sourceSessionId: Long? = null,
+        capabilitySummary: String? = null,
+    ) {
+        if (!result.ok || result.toolCalls.isEmpty()) return
+        val verified = computeVerified(result.toolCalls, result.toolResults)
+        if (verified == false) return
+        val skill = AgentSkillBuilder.build(
+            goal = text,
+            toolCalls = result.toolCalls,
+            toolResults = result.toolResults,
+            runId = result.runId,
+            verified = verified,
+            capabilitySummary = capabilitySummary,
+            sourceSessionId = sourceSessionId,
+        ) ?: return
+        upsert(skill)
+    }
+
+    /**
+     * 从 RunRecord + trace 事件重建 PENDING Skill，方便历史成功 run 补沉淀。
+     * traceEvents 可为 AgentTrace.readRun(runId) 的原始事件列表。
+     */
+    fun ingestFromTrace(
+        runId: String,
+        userText: String,
+        traceEvents: List<Map<String, Any?>>,
+        verified: Boolean? = null,
+        capabilitySummary: String? = null,
+        sourceSessionId: Long? = null,
+    ): AgentSkill? {
+        val normalized = traceEvents.map { normalizeMap(it) as? Map<String, Any?> ?: emptyMap() }
+        val skill = AgentSkillBuilder.buildFromTrace(
+            goal = userText,
+            runId = runId,
+            traceEvents = normalized,
+            verified = verified,
+            capabilitySummary = capabilitySummary,
+            sourceSessionId = sourceSessionId,
+        ) ?: return null
+        upsert(skill)
+        return skill
     }
 
     fun relevant(text: String, limit: Int = 3): List<AgentSkill> {
-        val skills = load()
-        return skills
-            .filter { it.status == AgentSkillStatus.APPROVED }
+        return load()
+            .filter { it.status == AgentSkillStatus.APPROVED && it.enabled }
             .map { it to similarity(it.text, text) }
             .filter { it.second > 0.15 }
             .sortedByDescending { it.second }
@@ -109,14 +131,157 @@ class AgentSkillStore @Inject constructor(
             .map { it.first }
     }
 
-    fun approve(id: String) = setStatus(id, AgentSkillStatus.APPROVED)
-    fun reject(id: String) = setStatus(id, AgentSkillStatus.REJECTED)
+    fun approve(id: String) = setStatus(id, AgentSkillStatus.APPROVED, "approve")
+    fun reject(id: String) = setStatus(id, AgentSkillStatus.REJECTED, "reject")
+
     fun delete(id: String) {
+        val skill = load().firstOrNull { it.id == id }
+        if (skill != null) {
+            appendAudit(id, "delete", "删除技能：${skill.name}")
+        }
         save(load().filterNot { it.id == id })
     }
 
-    private fun setStatus(id: String, status: AgentSkillStatus) {
-        save(load().map { if (it.id == id) it.copy(status = status, updatedAt = System.currentTimeMillis()) else it })
+    fun setEnabled(id: String, enabled: Boolean) {
+        val now = System.currentTimeMillis()
+        val action = if (enabled) "enable" else "disable"
+        val updated = load().map { skill ->
+            if (skill.id == id) {
+                skill.copy(
+                    enabled = enabled,
+                    updatedAt = now,
+                    auditLog = skill.auditLog + AgentSkillAudit(
+                        skillId = id,
+                        at = now,
+                        action = action,
+                        detail = if (enabled) "启用技能" else "停用技能",
+                    ),
+                )
+            } else {
+                skill
+            }
+        }
+        if (updated.any { it.id == id }) {
+            appendAudit(id, action, if (enabled) "启用技能" else "停用技能")
+            save(updated)
+        }
+    }
+
+    fun redact(id: String) {
+        val now = System.currentTimeMillis()
+        val updated = load().map { skill ->
+            if (skill.id == id) {
+                skill.copy(
+                    steps = skill.steps.map { step ->
+                        step.copy(args = redactArgs(step.args))
+                    },
+                    redacted = true,
+                    updatedAt = now,
+                    auditLog = skill.auditLog + AgentSkillAudit(
+                        skillId = id,
+                        at = now,
+                        action = "redact",
+                        detail = "已脱敏参数中的敏感字段",
+                    ),
+                )
+            } else {
+                skill
+            }
+        }
+        if (updated.any { it.id == id }) {
+            appendAudit(id, "redact", "已脱敏参数中的敏感字段")
+            save(updated)
+        }
+    }
+
+    private fun setStatus(id: String, status: AgentSkillStatus, action: String) {
+        val now = System.currentTimeMillis()
+        val updated = load().map { skill ->
+            if (skill.id == id) {
+                skill.copy(
+                    status = status,
+                    updatedAt = now,
+                    auditLog = skill.auditLog + AgentSkillAudit(
+                        skillId = id,
+                        at = now,
+                        action = action,
+                        detail = when (status) {
+                            AgentSkillStatus.APPROVED -> "用户通过技能"
+                            AgentSkillStatus.REJECTED -> "用户拒绝技能"
+                            else -> "状态变更"
+                        },
+                    ),
+                )
+            } else {
+                skill
+            }
+        }
+        if (updated.any { it.id == id }) {
+            appendAudit(id, action, when (status) {
+                AgentSkillStatus.APPROVED -> "用户通过技能"
+                AgentSkillStatus.REJECTED -> "用户拒绝技能"
+                else -> "状态变更"
+            })
+            save(updated)
+        }
+    }
+
+    private fun upsert(candidate: AgentSkill) {
+        val now = System.currentTimeMillis()
+        val skills = load()
+        // 防止同一 run 被重复沉淀。
+        if (candidate.sourceRunId.isNotBlank() && skills.any { it.sourceRunId == candidate.sourceRunId }) {
+            return
+        }
+        val existing = skills.firstOrNull { similarity(it.text, candidate.text) >= 0.5 }
+        val updated = if (existing != null) {
+            val stepsChanged = existing.steps != candidate.steps
+            val version = if (stepsChanged) existing.version + 1 else existing.version
+            skills.map { skill ->
+                if (skill.id == existing.id) {
+                    skill.copy(
+                        text = candidate.text,
+                        name = skill.name.ifBlank { candidate.name },
+                        description = candidate.description,
+                        whenToUse = candidate.whenToUse,
+                        tags = (skill.tags + candidate.tags).distinct().take(8),
+                        steps = candidate.steps,
+                        successCount = skill.successCount + 1,
+                        useCount = skill.useCount + 1,
+                        updatedAt = now,
+                        lastResult = "success",
+                        lastRunId = candidate.lastRunId,
+                        lastSessionId = candidate.lastSessionId,
+                        sourceRunId = candidate.sourceRunId,
+                        sourceVerified = candidate.sourceVerified,
+                        requiredCapabilities = (skill.requiredCapabilities + candidate.requiredCapabilities).distinct().take(5),
+                        version = version,
+                        enabled = skill.enabled,
+                        redacted = skill.redacted,
+                        auditLog = skill.auditLog + AgentSkillAudit(
+                            skillId = skill.id,
+                            at = now,
+                            action = "updated",
+                            detail = "从 run ${candidate.sourceRunId} 刷新成功路径",
+                        ),
+                    )
+                } else {
+                    skill
+                }
+            }
+        } else {
+            skills + candidate.copy(
+                auditLog = listOf(
+                    AgentSkillAudit(
+                        skillId = candidate.id,
+                        at = now,
+                        action = "created",
+                        detail = "从 run ${candidate.sourceRunId} 自动生成",
+                    ),
+                ),
+            )
+        }
+        save(updated)
     }
 
     private fun load(): List<AgentSkill> {
@@ -136,10 +301,30 @@ class AgentSkillStore @Inject constructor(
                                     args = step.optString("args"),
                                     purpose = step.optString("purpose"),
                                     expected = step.optString("expected"),
+                                    uiEvidence = step.optString("uiEvidence"),
+                                    verification = step.optString("verification"),
+                                    fallback = step.optString("fallback"),
+                                    ok = step.optBoolean("ok", true),
                                 ),
                             )
                         }
                     }
+                    val required = runCatching {
+                        val arr = obj.optJSONArray("requiredCapabilities")
+                        if (arr == null) emptyList() else (0 until arr.length()).map { arr.optString(it) }
+                    }.getOrDefault(emptyList())
+                    val auditArr = obj.optJSONArray("auditLog")
+                    val audit = runCatching {
+                        if (auditArr == null) emptyList() else (0 until auditArr.length()).map { k ->
+                            val a = auditArr.getJSONObject(k)
+                            AgentSkillAudit(
+                                skillId = a.optString("skillId"),
+                                at = a.optLong("at"),
+                                action = a.optString("action"),
+                                detail = a.optString("detail"),
+                            )
+                        }
+                    }.getOrDefault(emptyList())
                     add(
                         AgentSkill(
                             id = obj.optString("id"),
@@ -164,6 +349,17 @@ class AgentSkillStore @Inject constructor(
                             lastSessionId = obj.optLong("lastSessionId").takeIf { it != 0L },
                             lastResult = obj.optString("lastResult"),
                             version = obj.optInt("version", 1),
+                            enabled = obj.optBoolean("enabled", true),
+                            redacted = obj.optBoolean("redacted", false),
+                            sourceRunId = obj.optString("sourceRunId"),
+                            sourceVerified = if (obj.has("sourceVerified") && !obj.isNull("sourceVerified")) {
+                                obj.optBoolean("sourceVerified")
+                            } else {
+                                null
+                            },
+                            requiredCapabilities = required,
+                            lastUsedAt = obj.optLong("lastUsedAt").takeIf { it != 0L },
+                            auditLog = audit,
                         ),
                     )
                 }
@@ -183,11 +379,28 @@ class AgentSkillStore @Inject constructor(
                         .put("toolName", step.toolName)
                         .put("args", step.args)
                         .put("purpose", step.purpose)
-                        .put("expected", step.expected),
+                        .put("expected", step.expected)
+                        .put("uiEvidence", step.uiEvidence)
+                        .put("verification", step.verification)
+                        .put("fallback", step.fallback)
+                        .put("ok", step.ok),
                 )
             }
+
             val tagsArr = JSONArray()
             skill.tags.forEach { tagsArr.put(it) }
+            val requiredArr = JSONArray()
+            skill.requiredCapabilities.forEach { requiredArr.put(it) }
+            val auditArr = JSONArray()
+            skill.auditLog.forEach { a ->
+                auditArr.put(
+                    JSONObject()
+                        .put("skillId", a.skillId)
+                        .put("at", a.at)
+                        .put("action", a.action)
+                        .put("detail", a.detail),
+                )
+            }
             arr.put(
                 JSONObject()
                     .put("id", skill.id)
@@ -206,27 +419,90 @@ class AgentSkillStore @Inject constructor(
                     .put("lastRunId", skill.lastRunId)
                     .put("lastSessionId", skill.lastSessionId ?: 0L)
                     .put("lastResult", skill.lastResult)
-                    .put("version", skill.version),
+                    .put("version", skill.version)
+                    .put("enabled", skill.enabled)
+                    .put("redacted", skill.redacted)
+                    .put("sourceRunId", skill.sourceRunId)
+                    .put("sourceVerified", skill.sourceVerified ?: JSONObject.NULL)
+                    .put("requiredCapabilities", requiredArr)
+                    .put("lastUsedAt", skill.lastUsedAt ?: 0L)
+                    .put("auditLog", auditArr),
             )
         }
         prefs.edit().putString(KEY_SKILLS, arr.toString()).apply()
         _skills.value = skills
     }
 
-    private fun buildSkillName(text: String): String {
-        val trimmed = text.trim().take(24)
-        return trimmed.ifBlank { "未命名技能" }
+    private fun loadAudit(): List<AgentSkillAudit> {
+        val raw = prefs.getString(KEY_AUDIT, null) ?: return emptyList()
+        val result = runCatching {
+            val arr = JSONArray(raw)
+            buildList {
+                for (i in 0 until arr.length()) {
+                    val obj = arr.getJSONObject(i)
+                    add(
+                        AgentSkillAudit(
+                            skillId = obj.optString("skillId"),
+                            at = obj.optLong("at"),
+                            action = obj.optString("action"),
+                            detail = obj.optString("detail"),
+                        ),
+                    )
+                }
+            }
+        }.getOrDefault(emptyList())
+        _auditLogs.value = result
+        return result
     }
 
-    private fun guessTags(text: String): List<String> {
-        val tags = mutableListOf<String>()
-        if (text.contains("闹钟") || text.contains("提醒") || text.contains("定时")) tags += "定时"
-        if (text.contains("联系人") || text.contains("电话")) tags += "联系人"
-        if (text.contains("日历") || text.contains("会议") || text.contains("事件")) tags += "日历"
-        if (text.contains("设置") || text.contains("开关")) tags += "设置"
-        if (text.contains("搜索") || text.contains("查找")) tags += "搜索"
-        if (text.contains("咖啡") || text.contains("点") || text.contains("下单")) tags += "生活"
-        return tags.distinct().take(5)
+    private fun saveAudit(logs: List<AgentSkillAudit>) {
+        val arr = JSONArray()
+        logs.forEach { a ->
+            arr.put(
+                JSONObject()
+                    .put("skillId", a.skillId)
+                    .put("at", a.at)
+                    .put("action", a.action)
+                    .put("detail", a.detail),
+            )
+        }
+        prefs.edit().putString(KEY_AUDIT, arr.toString()).apply()
+        _auditLogs.value = logs
+    }
+
+    private fun appendAudit(skillId: String, action: String, detail: String) {
+        val list = (loadAudit() + AgentSkillAudit(skillId, System.currentTimeMillis(), action, detail)).takeLast(500)
+        saveAudit(list)
+    }
+
+    private fun redactArgs(args: String): String {
+        val sensitive = Regex("(?i)^(password|token|secret|card|phone|mobile|address|idCard|apiKey|auth|pin)$")
+        return args.split(", ").joinToString(", ") { part ->
+            val eq = part.indexOf('=')
+            if (eq > 0) {
+                val key = part.substring(0, eq).trim()
+                if (sensitive.matches(key)) {
+                    part.substring(0, eq + 1) + "***"
+                } else {
+                    part
+                }
+            } else {
+                part
+            }
+        }
+    }
+
+    @Suppress("UNCHECKED_CAST")
+    private fun normalizeMap(value: Any?): Any? = when (value) {
+        is JSONObject -> {
+            val map = LinkedHashMap<String, Any?>()
+            value.keys().forEach { key -> map[key] = normalizeMap(value.opt(key)) }
+            map
+        }
+        is JSONArray -> (0 until value.length()).map { normalizeMap(value.opt(it)) }
+        is Map<*, *> -> value.entries.associate { it.key.toString() to normalizeMap(it.value) }
+        is List<*> -> value.map { normalizeMap(it) }
+        else -> value
     }
 
     private fun similarity(a: String, b: String): Double {
@@ -239,6 +515,7 @@ class AgentSkillStore @Inject constructor(
 
     private companion object {
         const val KEY_SKILLS = "skills"
+        const val KEY_AUDIT = "skill_audit"
     }
 }
 
@@ -260,6 +537,13 @@ data class AgentSkill(
     val lastSessionId: Long? = null,
     val lastResult: String = "",
     val version: Int = 1,
+    val enabled: Boolean = true,
+    val redacted: Boolean = false,
+    val sourceRunId: String = "",
+    val sourceVerified: Boolean? = null,
+    val requiredCapabilities: List<String> = emptyList(),
+    val lastUsedAt: Long? = null,
+    val auditLog: List<AgentSkillAudit> = emptyList(),
 )
 
 data class AgentSkillStep(
@@ -267,4 +551,15 @@ data class AgentSkillStep(
     val args: String,
     val purpose: String = "",
     val expected: String = "",
+    val uiEvidence: String = "",
+    val verification: String = "",
+    val fallback: String = "",
+    val ok: Boolean = true,
+)
+
+data class AgentSkillAudit(
+    val skillId: String,
+    val at: Long,
+    val action: String,
+    val detail: String = "",
 )

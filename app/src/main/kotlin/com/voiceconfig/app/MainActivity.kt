@@ -809,6 +809,8 @@ fun MainScreen(viewModel: MainViewModel) {
                         onApproveSkill = viewModel::approveAgentSkill,
                         onRejectSkill = viewModel::rejectAgentSkill,
                         onDeleteSkill = viewModel::deleteAgentSkill,
+                        onToggleSkillEnabled = viewModel::setAgentSkillEnabled,
+                        onRedactSkill = viewModel::redactAgentSkill,
                         onOpenTask = { taskId ->
                             scope.launch { pagerState.animateScrollToPage(0) }
                         },

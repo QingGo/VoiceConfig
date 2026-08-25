@@ -123,6 +123,8 @@ fun AgentPage(
     onApproveSkill: (String) -> Unit = {},
     onRejectSkill: (String) -> Unit = {},
     onDeleteSkill: (String) -> Unit = {},
+    onToggleSkillEnabled: (String, Boolean) -> Unit = { _, _ -> },
+    onRedactSkill: (String) -> Unit = {},
     onOpenTask: (Long) -> Unit = {},
     onOpenAutomation: () -> Unit = {},
     onOpenSettings: () -> Unit = {},
@@ -417,6 +419,8 @@ fun AgentPage(
             onApprove = onApproveSkill,
             onReject = onRejectSkill,
             onDelete = onDeleteSkill,
+            onToggleEnabled = onToggleSkillEnabled,
+            onRedact = onRedactSkill,
         )
     }
 
@@ -496,7 +500,10 @@ private fun SkillLibraryDialog(
     onApprove: (String) -> Unit,
     onReject: (String) -> Unit,
     onDelete: (String) -> Unit,
+    onToggleEnabled: (String, Boolean) -> Unit,
+    onRedact: (String) -> Unit,
 ) {
+    var expandedAuditId by remember { mutableStateOf<String?>(null) }
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("经验库") },
@@ -522,12 +529,16 @@ private fun SkillLibraryDialog(
                                             AgentSkillStatus.APPROVED -> "已通过"
                                             AgentSkillStatus.PENDING -> "待审核"
                                             AgentSkillStatus.REJECTED -> "已拒绝"
-                                        },
+                                        } + if (!skill.enabled) " · 已停用" else "",
                                         style = MaterialTheme.typography.labelSmall,
-                                        color = when (skill.status) {
-                                            AgentSkillStatus.APPROVED -> MaterialTheme.colorScheme.primary
-                                            AgentSkillStatus.PENDING -> MaterialTheme.colorScheme.tertiary
-                                            AgentSkillStatus.REJECTED -> MaterialTheme.colorScheme.error
+                                        color = if (!skill.enabled) {
+                                            MaterialTheme.colorScheme.outline
+                                        } else {
+                                            when (skill.status) {
+                                                AgentSkillStatus.APPROVED -> MaterialTheme.colorScheme.primary
+                                                AgentSkillStatus.PENDING -> MaterialTheme.colorScheme.tertiary
+                                                AgentSkillStatus.REJECTED -> MaterialTheme.colorScheme.error
+                                            }
                                         },
                                     )
                                 }
@@ -544,6 +555,19 @@ private fun SkillLibraryDialog(
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
+                                val meta = buildString {
+                                    if (skill.sourceVerified != null) append("验证=${if (skill.sourceVerified == true) "通过" else "未通过"} · ")
+                                    if (skill.requiredCapabilities.isNotEmpty()) append("能力=${skill.requiredCapabilities.joinToString("/")} · ")
+                                    if (skill.redacted) append("已脱敏 · ")
+                                    if (skill.auditLog.isNotEmpty()) append("审计=${skill.auditLog.size} 条")
+                                }.trimEnd(' ', '·')
+                                if (meta.isNotBlank()) {
+                                    Text(
+                                        text = meta,
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.outline,
+                                    )
+                                }
                                 Text(
                                     text = skill.steps.joinToString(" → ") {
                                         val purpose = if (it.purpose.isNotBlank()) " [${it.purpose}]" else ""
@@ -564,8 +588,39 @@ private fun SkillLibraryDialog(
                                             Text("拒绝")
                                         }
                                     }
+                                    if (skill.enabled) {
+                                        TextButton(onClick = { onToggleEnabled(skill.id, false) }) {
+                                            Text("停用")
+                                        }
+                                    } else {
+                                        TextButton(onClick = { onToggleEnabled(skill.id, true) }) {
+                                            Text("启用")
+                                        }
+                                    }
+                                    TextButton(onClick = { onRedact(skill.id) }) {
+                                        Text("脱敏")
+                                    }
+                                    if (skill.auditLog.isNotEmpty()) {
+                                        TextButton(onClick = {
+                                            expandedAuditId = if (expandedAuditId == skill.id) null else skill.id
+                                        }) {
+                                            Text("审计")
+                                        }
+                                    }
                                     TextButton(onClick = { onDelete(skill.id) }) {
                                         Text("删除", color = MaterialTheme.colorScheme.error)
+                                    }
+                                }
+                                if (expandedAuditId == skill.id && skill.auditLog.isNotEmpty()) {
+                                    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                                        skill.auditLog.takeLast(10).forEach { a ->
+                                            val time = Instant.ofEpochMilli(a.at).atZone(ZoneId.systemDefault()).toLocalDateTime()
+                                            Text(
+                                                text = "${time} · ${a.action} · ${a.detail}",
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            )
+                                        }
                                     }
                                 }
                             }

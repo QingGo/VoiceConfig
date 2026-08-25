@@ -1045,10 +1045,22 @@ class AgentSession @Inject constructor(
                     appendLine("${index + 1}. 技能：${skill.name}")
                     if (skill.description.isNotBlank()) appendLine("   说明：${skill.description}")
                     if (skill.whenToUse.isNotBlank()) appendLine("   适用：${skill.whenToUse}")
-                    appendLine("   成功步骤：${skill.steps.joinToString(" -> ") { step ->
-                        val purpose = if (step.purpose.isNotBlank()) " // ${step.purpose}" else ""
-                        step.toolName + "(" + step.args.take(120) + ")" + purpose
-                    }}")
+                    if (skill.requiredCapabilities.isNotEmpty()) {
+                        appendLine("   所需能力：${skill.requiredCapabilities.joinToString("、")}")
+                    }
+                    appendLine("   历史成功步骤（每一步都可能因当前版本/页面变化而失效，必须重新验证，禁止直接照抄坐标/文案）：")
+                    skill.steps.forEach { step ->
+                        val line = buildString {
+                            append("     - ")
+                            append(step.toolName)
+                            if (step.args.isNotBlank()) append(" ").append(step.args.take(100))
+                            if (step.purpose.isNotBlank()) append("  // ").append(step.purpose)
+                        }
+                        appendLine(line)
+                        if (step.expected.isNotBlank()) appendLine("       预期：${step.expected}")
+                        if (step.verification.isNotBlank()) appendLine("       验证：${step.verification}")
+                        if (step.fallback.isNotBlank()) appendLine("       兜底：${step.fallback}")
+                    }
                 }
             }
         }

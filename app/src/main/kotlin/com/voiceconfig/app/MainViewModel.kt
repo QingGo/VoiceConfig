@@ -103,11 +103,14 @@ class MainViewModel @Inject constructor(
     private val taskPlanStore: TaskPlanStore,
 ) : ViewModel() {
 
+    private var skillBackfillStarted = false
+
     init {
         viewModelScope.launch {
             seedTemplatesIfEmpty()
             migrateLegacyTasks()
             restoreSchedules()
+            backfillSkillsFromHistory()
         }
     }
 
@@ -198,6 +201,29 @@ class MainViewModel @Inject constructor(
 
     fun clearAgentRunDetail() {
         _agentRunDetail.value = emptyList()
+    }
+
+    private suspend fun backfillSkillsFromHistory() {
+        if (skillBackfillStarted) return
+        skillBackfillStarted = true
+        val records = agentRunLedger.observeRecords(200)
+            .first { it.isNotEmpty() }
+            .filter { it.ok && it.verified != false && it.toolCalls.isNotEmpty() }
+            .takeLast(30)
+        for (record in records) {
+            val events = withContext(Dispatchers.IO) {
+                agentTrace.readRun(record.runId)
+            }
+            if (events.isNotEmpty()) {
+                agentSkillStore.ingestFromTrace(
+                    runId = record.runId,
+                    userText = record.userText,
+                    traceEvents = events,
+                    verified = record.verified,
+                    capabilitySummary = record.capabilitySummary,
+                )
+            }
+        }
     }
 
     val agentMessages: StateFlow<List<AgentMessageEntity>> = _selectedAgentSessionId
@@ -530,6 +556,7 @@ class MainViewModel @Inject constructor(
             val result = runCatching {
                 if (task.actionType == ActionType.AGENT) {
                     val prompt = task.agentPrompt ?: task.rawText
+                    val capabilitySummary = agentCapabilityInspector.snapshot().summary()
                     val agentResult = agentSession.sendIsolated(
                         userText = prompt,
                         skills = agentSkillStore.relevant(prompt),
@@ -537,10 +564,18 @@ class MainViewModel @Inject constructor(
                             enabled = apiKeyStore.agentAutoVerifyEnabled,
                             maxPerRun = apiKeyStore.agentMaxAutoVerifies,
                         ),
+                        capabilitySummary = capabilitySummary,
                         onSensitiveAction = {
                             apiKeyStore.agentAutoConfirmSensitiveActions
                         },
                     )
+                    if (agentResult.ok) {
+                        agentSkillStore.recordFromTurn(
+                            text = prompt,
+                            result = agentResult,
+                            capabilitySummary = capabilitySummary,
+                        )
+                    }
                     when {
                         !agentResult.ok -> ExecutionResult.failure(
                             mode = ExecutionMode.AGENT,
@@ -1117,12 +1152,11 @@ class MainViewModel @Inject constructor(
                     messageCount = result.history.count { it.imageBase64 == null },
                 )
                 if (result.ok) {
-                    agentSkillStore.record(
+                    agentSkillStore.recordFromTurn(
                         text = text,
-                        toolCalls = result.toolCalls,
-                        ok = result.ok,
-                        runId = result.runId,
+                        result = result,
                         sourceSessionId = sessionId,
+                        capabilitySummary = capabilitySummary,
                     )
                 }
             } finally {
@@ -1289,6 +1323,14 @@ class MainViewModel @Inject constructor(
 
     fun deleteAgentSkill(id: String) {
         agentSkillStore.delete(id)
+    }
+
+    fun setAgentSkillEnabled(id: String, enabled: Boolean) {
+        agentSkillStore.setEnabled(id, enabled)
+    }
+
+    fun redactAgentSkill(id: String) {
+        agentSkillStore.redact(id)
     }
 
     suspend fun confirmSensitiveAction(request: SensitiveActionRequest): Boolean {

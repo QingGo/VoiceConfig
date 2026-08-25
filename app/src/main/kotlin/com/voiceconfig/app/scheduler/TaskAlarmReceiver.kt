@@ -176,6 +176,13 @@ class TaskAlarmReceiver : BroadcastReceiver() {
                 apiKeyStore.agentAutoConfirmSensitiveActions
             },
         )
+        if (result.ok) {
+            agentSkillStore.recordFromTurn(
+                text = prompt,
+                result = result,
+                capabilitySummary = capabilitySummary,
+            )
+        }
         return when {
             !result.ok -> ExecutionResult.failure(
                 mode = ExecutionMode.AGENT,
