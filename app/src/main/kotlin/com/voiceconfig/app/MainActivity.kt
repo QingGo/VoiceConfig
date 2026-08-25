@@ -273,6 +273,7 @@ fun MainScreen(viewModel: MainViewModel) {
     val triggerRules by viewModel.triggerRules.collectAsState()
     val agentSessions by viewModel.agentSessions.collectAsState()
     val agentRunRecords by viewModel.agentRunRecords.collectAsState()
+    val agentRunDetail by viewModel.agentRunDetail.collectAsState()
     val agentMessages by viewModel.agentMessages.collectAsState()
     val agentSteps by viewModel.agentSteps.collectAsState()
     val canResumeTask by viewModel.canResumeTask.collectAsState()
@@ -728,6 +729,8 @@ fun MainScreen(viewModel: MainViewModel) {
                         lastRunDurationMs = lastAgentRunDurationMs,
                         agentSkills = agentSkills,
                         agentRunRecords = agentRunRecords,
+                        agentRunDetail = agentRunDetail,
+                        onSelectRun = viewModel::loadAgentRunDetail,
                         taskEvents = taskEvents,
                         recentLogs = recentLogs,
                         tasks = tasks,

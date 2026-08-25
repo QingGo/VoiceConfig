@@ -38,6 +38,7 @@ import com.voiceconfig.app.agent.TaskPlanStore
 import com.voiceconfig.app.agent.AgentVerificationPolicy
 import com.voiceconfig.app.agent.AgentStepStatus
 import com.voiceconfig.app.agent.AgentStepUi
+import com.voiceconfig.app.agent.AgentTrace
 import com.voiceconfig.app.agent.SensitiveActionRequest
 import com.voiceconfig.app.ai.ApiKeyStore
 import com.voiceconfig.app.ai.DeepSeekNlpParser
@@ -98,6 +99,7 @@ class MainViewModel @Inject constructor(
     private val agentSkillStore: AgentSkillStore,
     private val agentRunLedger: AgentRunLedger,
     private val agentCapabilityInspector: AgentCapabilityInspector,
+    private val agentTrace: AgentTrace,
     private val taskPlanStore: TaskPlanStore,
 ) : ViewModel() {
 
@@ -181,6 +183,22 @@ class MainViewModel @Inject constructor(
             started = SharingStarted.WhileSubscribed(5_000),
             initialValue = emptyList(),
         )
+
+    private val _agentRunDetail = MutableStateFlow<List<Map<String, Any?>>>(emptyList())
+    val agentRunDetail: StateFlow<List<Map<String, Any?>>> = _agentRunDetail.asStateFlow()
+
+    fun loadAgentRunDetail(runId: String) {
+        _agentRunDetail.value = emptyList()
+        viewModelScope.launch {
+            _agentRunDetail.value = withContext(Dispatchers.IO) {
+                agentTrace.readRun(runId)
+            }
+        }
+    }
+
+    fun clearAgentRunDetail() {
+        _agentRunDetail.value = emptyList()
+    }
 
     val agentMessages: StateFlow<List<AgentMessageEntity>> = _selectedAgentSessionId
         .flatMapLatest { id ->

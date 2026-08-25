@@ -19,6 +19,7 @@ interface AgentTrace {
     fun log(type: String, data: Map<String, Any?> = emptyMap()) = log("local", type, data)
     fun saveScreenshot(runId: String, base64: String, label: String): String
     fun saveScreenshot(base64: String, label: String): String = saveScreenshot("local", base64, label)
+    fun readRun(runId: String): List<Map<String, Any?>> = emptyList()
 }
 
 /**
@@ -94,6 +95,28 @@ class AgentTraceLogger @Inject constructor(
 
     private fun String.sanitize(): String =
         replace(Regex("[^a-zA-Z0-9_-]"), "_").take(60)
+
+    override fun readRun(runId: String): List<Map<String, Any?>> = synchronized(lock) {
+        if (!logFile.exists()) return emptyList()
+        val result = mutableListOf<Map<String, Any?>>()
+        runCatching {
+            logFile.forEachLine { line ->
+                val trimmed = line.trim()
+                if (trimmed.isBlank()) return@forEachLine
+                val obj = runCatching { JSONObject(trimmed) }.getOrNull() ?: return@forEachLine
+                if (obj.optString("runId") == runId) {
+                    result += obj.toMap()
+                }
+            }
+        }
+        result
+    }
+
+    private fun JSONObject.toMap(): Map<String, Any?> = buildMap {
+        keys().forEach { key ->
+            put(key, opt(key))
+        }
+    }
 
     companion object {
         private const val TAG = "AgentTrace"

@@ -84,6 +84,8 @@ fun AgentPage(
     lastRunDurationMs: Long? = null,
     agentSkills: List<AgentSkill> = emptyList(),
     agentRunRecords: List<AgentRunRecord> = emptyList(),
+    agentRunDetail: List<Map<String, Any?>> = emptyList(),
+    onSelectRun: (String) -> Unit = {},
     taskEvents: List<TaskEventEntity>,
     recentLogs: List<ExecutionLog>,
     tasks: List<Task>,
@@ -126,6 +128,7 @@ fun AgentPage(
     var showAgentThinking by remember { mutableStateOf(false) }
     var showSkills by remember { mutableStateOf(false) }
     var showRuns by remember { mutableStateOf(false) }
+    var selectedRunId by remember { mutableStateOf<String?>(null) }
     var moreMenuExpanded by remember { mutableStateOf(false) }
 
     BackHandler {
@@ -410,6 +413,21 @@ fun AgentPage(
                 showRuns = false
                 onSelectSession(sessionId)
             },
+            onSelectRun = { record ->
+                showRuns = false
+                selectedRunId = record.runId
+                onSelectRun(record.runId)
+            },
+        )
+    }
+
+    if (selectedRunId != null) {
+        AgentRunDetailDialog(
+            runId = selectedRunId ?: "",
+            events = agentRunDetail,
+            onDismiss = {
+                selectedRunId = null
+            },
         )
     }
 
@@ -513,6 +531,7 @@ private fun AgentRunsDialog(
     records: List<AgentRunRecord>,
     onDismiss: () -> Unit,
     onSelectSession: (Long) -> Unit = {},
+    onSelectRun: (AgentRunRecord) -> Unit = {},
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -526,7 +545,10 @@ private fun AgentRunsDialog(
                     verticalArrangement = Arrangement.spacedBy(4.dp),
                 ) {
                     items(records, key = { it.runId }) { record ->
-                        Card(modifier = Modifier.fillMaxWidth()) {
+                        Card(
+                            onClick = { onSelectRun(record) },
+                            modifier = Modifier.fillMaxWidth(),
+                        ) {
                             Column(Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
@@ -595,6 +617,69 @@ private fun AgentRunsDialog(
             }
         },
     )
+}
+
+@Composable
+private fun AgentRunDetailDialog(
+    runId: String,
+    events: List<Map<String, Any?>>,
+    onDismiss: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("运行详情") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(
+                    text = runId,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                if (events.isEmpty()) {
+                    Text("正在读取运行轨迹…")
+                } else {
+                    LazyColumn(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalArrangement = Arrangement.spacedBy(4.dp),
+                    ) {
+                        items(events) { event ->
+                            Card(modifier = Modifier.fillMaxWidth()) {
+                                Column(Modifier.padding(8.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                                    Text(
+                                        text = event["type"]?.toString() ?: "",
+                                        style = MaterialTheme.typography.labelLarge,
+                                    )
+                                    Text(
+                                        text = summarizeTraceEvent(event),
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        maxLines = 4,
+                                        overflow = TextOverflow.Ellipsis,
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text("关闭")
+            }
+        },
+    )
+}
+
+private fun summarizeTraceEvent(event: Map<String, Any?>): String {
+    val keys = listOf("tool", "round", "ok", "message", "state", "error", "waiting", "content")
+    val parts = keys.mapNotNull { key ->
+        event[key]?.toString()?.takeIf { it.isNotBlank() && it != "null" }?.let { "$key=$it" }
+    }
+    val text = parts.joinToString(" · ")
+    return if (text.length > 240) text.take(240) + "…" else text
 }
 
 @Composable
