@@ -212,6 +212,7 @@ def check_scenario(serial, scenario, trace_path):
         "verified": verified_ok,
         "tool_calls": [tc.get("tool") for tc in tool_calls],
         "tool_count": len(tool_calls),
+        "rounds": max((e.get("round") or 0) for e in run["entries"] if isinstance(e.get("round"), int)) + 1,
         "duration_ms": finished.get("duration_ms"),
         "tool_results": [
             {"tool": tr.get("tool"), "ok": tr.get("ok"), "message": tr.get("message", "")[:120]}
@@ -266,6 +267,7 @@ def check_taskplan_scenario(serial, scenario, trace_path):
         "name": scenario["name"],
         "ok": ok,
         "tool_calls": create_tools,
+        "create_rounds": max((e.get("round") or 0) for e in create_run["entries"] if isinstance(e.get("round"), int)) + 1,
         "resume_tools": (
             [e.get("tool") for e in resume_run["entries"] if e.get("type") == "tool_call"]
             if resume_run else []
@@ -306,17 +308,22 @@ def main():
     taskplan_misuse = sum(1 for r in simple if "task_plan" in r.get("tool_calls", []))
     wait_user_count = sum(1 for r in results if "wait_user" in r.get("tool_calls", []))
     verified_count = sum(1 for r in results if r.get("verified") is True)
+    verified_required = sum(1 for r in results if r.get("verified") is not None)
+    verification_rate = round(verified_count / verified_required, 3) if verified_required else 0
     durations = [r.get("duration_ms") for r in results if isinstance(r.get("duration_ms"), (int, float))]
     metric_tool_counts = [r.get("tool_count", 0) for r in results]
+    metric_rounds = [r.get("rounds", r.get("create_rounds", 0)) for r in results]
     metrics = {
         "total": len(results),
         "passed": passed,
         "success_rate": round(passed / len(results), 3) if results else 0,
         "verified_count": verified_count,
+        "verification_rate": verification_rate,
         "taskplan_misuse": taskplan_misuse,
         "wait_user_count": wait_user_count,
         "total_tool_calls": len(all_tool_calls),
         "avg_tool_calls_per_scenario": round(sum(metric_tool_counts) / len(metric_tool_counts), 2) if metric_tool_counts else 0,
+        "avg_rounds": round(sum(metric_rounds) / len(metric_rounds), 2) if metric_rounds else 0,
         "avg_duration_ms": round(sum(durations) / len(durations), 1) if durations else None,
     }
     if args.force_no_shizuku:
