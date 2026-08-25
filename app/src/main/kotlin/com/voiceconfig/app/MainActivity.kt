@@ -9,6 +9,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.os.Build
+import android.provider.Settings
 import android.os.Bundle
 import android.speech.RecognitionListener
 import android.speech.RecognizerIntent
@@ -385,6 +386,7 @@ fun MainScreen(viewModel: MainViewModel) {
     val localAsrManager = (context as? MainActivity)?.localAsrManager
     val installedAppProvider = (context as? MainActivity)?.installedAppProvider
     val agentSession = (context as? MainActivity)?.agentSession
+    val accessibilityKeepAlive = (context as? MainActivity)?.accessibilityKeepAlive
     var installedAppLabels by remember { mutableStateOf<Map<String, String>>(emptyMap()) }
     LaunchedEffect(installedAppProvider) {
         installedAppLabels = withContext(Dispatchers.Default) {
@@ -747,6 +749,23 @@ fun MainScreen(viewModel: MainViewModel) {
                         agentRunRecords = agentRunRecords,
                         agentRunDetail = agentRunDetail,
                         onSelectRun = viewModel::loadAgentRunDetail,
+                        onEnableAccessibility = {
+                            scope.launch {
+                                val ok = withContext(Dispatchers.IO) {
+                                    runCatching {
+                                        accessibilityKeepAlive?.ensureEnabled() == true
+                                    }.getOrDefault(false)
+                                }
+                                if (ok) {
+                                    snackbarHostState.showSnackbar("已通过 Shizuku 写入无障碍开关，请稍候连接")
+                                } else {
+                                    context.startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
+                                }
+                            }
+                        },
+                        onOpenAccessibilitySettings = {
+                            context.startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
+                        },
                         taskEvents = taskEvents,
                         recentLogs = recentLogs,
                         tasks = tasks,

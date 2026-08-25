@@ -86,6 +86,8 @@ fun AgentPage(
     agentRunRecords: List<AgentRunRecord> = emptyList(),
     agentRunDetail: List<Map<String, Any?>> = emptyList(),
     onSelectRun: (String) -> Unit = {},
+    onEnableAccessibility: () -> Unit = {},
+    onOpenAccessibilitySettings: () -> Unit = {},
     taskEvents: List<TaskEventEntity>,
     recentLogs: List<ExecutionLog>,
     tasks: List<Task>,
@@ -237,6 +239,19 @@ fun AgentPage(
                 .fillMaxWidth()
                 .padding(horizontal = 12.dp),
         )
+
+        val latestRun = agentRunRecords.firstOrNull()
+        val needsAccessibilityHelp = latestRun != null && (
+            latestRun.verified == false ||
+            latestRun.message.contains("无障碍") ||
+            (latestRun.capabilitySummary?.contains("Accessibility=N") == true)
+        )
+        if (needsAccessibilityHelp) {
+            AccessibilityHelpCard(
+                onEnableViaShizuku = onEnableAccessibility,
+                onOpenSettings = onOpenAccessibilitySettings,
+            )
+        }
 
         if (canResumeTask && activeTaskPlans.isNotEmpty()) {
             Card(
@@ -431,6 +446,47 @@ fun AgentPage(
         )
     }
 
+}
+
+@Composable
+private fun AccessibilityHelpCard(
+    onEnableViaShizuku: () -> Unit,
+    onOpenSettings: () -> Unit,
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 12.dp, vertical = 4.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.errorContainer,
+        ),
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(12.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            Text(
+                text = "无法验证当前屏幕，可能未开启无障碍服务",
+                style = MaterialTheme.typography.titleSmall,
+                color = MaterialTheme.colorScheme.onErrorContainer,
+            )
+            Text(
+                text = "开启后，即使没有 Shizuku，也能读屏、点击并验证前台结果。",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onErrorContainer,
+            )
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Button(onClick = onEnableViaShizuku) {
+                    Text("Shizuku 一键开启")
+                }
+                TextButton(onClick = onOpenSettings) {
+                    Text("去系统设置")
+                }
+            }
+        }
+    }
 }
 
 @Composable
