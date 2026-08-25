@@ -1,13 +1,16 @@
 [Unit]
-Description=VoiceConfig Agent Node
-After=network-online.target
+Description=VoiceConfig Agent Node (Tailscale-only)
+After=network-online.target tailscaled.service
 Wants=network-online.target
 
 [Service]
-ExecStart=/usr/bin/python3 %h/voiceconfig-node/voiceconfig_agent_node.py --host 0.0.0.0 --port 8787 --data-dir %h/.voiceconfig-node
+ExecStart=/usr/bin/python3 %h/voiceconfig-node/voiceconfig_agent_node.py --bind-tailscale --port 8787 --data-dir %h/.voiceconfig-node
 Restart=always
 RestartSec=3
 Environment=PYTHONUNBUFFERED=1
+# Security hardening: no shell, no extra privileges, private temp.
+NoNewPrivileges=true
+PrivateTmp=true
 
 [Install]
 WantedBy=default.target

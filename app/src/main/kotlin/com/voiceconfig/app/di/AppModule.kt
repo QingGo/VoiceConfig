@@ -32,6 +32,7 @@ import com.voiceconfig.data.local.dao.AgentSessionDao
 import com.voiceconfig.data.local.dao.AiDebugLogDao
 import com.voiceconfig.data.local.dao.AppAliasDao
 import com.voiceconfig.data.local.dao.ExecutionLogDao
+import com.voiceconfig.data.local.dao.RemoteNodeDao
 import com.voiceconfig.data.local.dao.TaskDao
 import com.voiceconfig.data.local.dao.TaskPlanDao
 import com.voiceconfig.data.local.dao.TemplateDao
@@ -45,11 +46,15 @@ import com.voiceconfig.data.local.repository.ExecutionLogRepository
 import com.voiceconfig.data.local.repository.OfflineAgentHistoryRepository
 import com.voiceconfig.data.local.repository.OfflineAiDebugLogRepository
 import com.voiceconfig.data.local.repository.OfflineExecutionLogRepository
+import com.voiceconfig.data.local.repository.OfflineRemoteNodeRepository
 import com.voiceconfig.data.local.repository.OfflineTaskRepository
 import com.voiceconfig.data.local.repository.OfflineTemplateRepository
+import com.voiceconfig.data.local.repository.RemoteNodeRepository
 import com.voiceconfig.data.local.repository.TaskRepository
 import com.voiceconfig.data.local.repository.TemplateRepository
 import com.voiceconfig.data.local.repository.TriggerRuleRepository
+import com.voiceconfig.data.local.security.KeystoreRemoteNodeTokenCipher
+import com.voiceconfig.data.local.security.RemoteNodeTokenCipher
 import com.voiceconfig.data.local.repository.OfflineTriggerRuleRepository
 import dagger.Module
 import dagger.Provides
@@ -70,7 +75,7 @@ object AppModule {
             VoiceConfigDatabase::class.java,
             "voice_config.db",
         )
-            .addMigrations(VoiceConfigDatabase.MIGRATION_1_2, VoiceConfigDatabase.MIGRATION_2_3, VoiceConfigDatabase.MIGRATION_3_4, VoiceConfigDatabase.MIGRATION_4_5, VoiceConfigDatabase.MIGRATION_5_6, VoiceConfigDatabase.MIGRATION_6_7, VoiceConfigDatabase.MIGRATION_7_8, VoiceConfigDatabase.MIGRATION_8_9, VoiceConfigDatabase.MIGRATION_9_10, VoiceConfigDatabase.MIGRATION_10_11, VoiceConfigDatabase.MIGRATION_11_12, VoiceConfigDatabase.MIGRATION_12_13, VoiceConfigDatabase.MIGRATION_13_14, VoiceConfigDatabase.MIGRATION_14_15, VoiceConfigDatabase.MIGRATION_15_16, VoiceConfigDatabase.MIGRATION_16_17)
+            .addMigrations(VoiceConfigDatabase.MIGRATION_1_2, VoiceConfigDatabase.MIGRATION_2_3, VoiceConfigDatabase.MIGRATION_3_4, VoiceConfigDatabase.MIGRATION_4_5, VoiceConfigDatabase.MIGRATION_5_6, VoiceConfigDatabase.MIGRATION_6_7, VoiceConfigDatabase.MIGRATION_7_8, VoiceConfigDatabase.MIGRATION_8_9, VoiceConfigDatabase.MIGRATION_9_10, VoiceConfigDatabase.MIGRATION_10_11, VoiceConfigDatabase.MIGRATION_11_12, VoiceConfigDatabase.MIGRATION_12_13, VoiceConfigDatabase.MIGRATION_13_14, VoiceConfigDatabase.MIGRATION_14_15, VoiceConfigDatabase.MIGRATION_15_16, VoiceConfigDatabase.MIGRATION_16_17, VoiceConfigDatabase.MIGRATION_17_18)
             .build()
 
     @Provides
@@ -107,6 +112,9 @@ object AppModule {
     fun provideTaskPlanDao(database: VoiceConfigDatabase): TaskPlanDao = database.taskPlanDao()
 
     @Provides
+    fun provideRemoteNodeDao(database: VoiceConfigDatabase): RemoteNodeDao = database.remoteNodeDao()
+
+    @Provides
     @Singleton
     fun provideTaskPlanPersistence(
         repository: com.voiceconfig.app.agent.TaskPlanRepository,
@@ -114,6 +122,17 @@ object AppModule {
 
     @Provides
     fun provideTriggerRuleDao(database: VoiceConfigDatabase): TriggerRuleDao = database.triggerRuleDao()
+
+    @Provides
+    @Singleton
+    fun provideRemoteNodeTokenCipher(): RemoteNodeTokenCipher = KeystoreRemoteNodeTokenCipher()
+
+    @Provides
+    @Singleton
+    fun provideRemoteNodeRepository(
+        remoteNodeDao: RemoteNodeDao,
+        remoteNodeTokenCipher: RemoteNodeTokenCipher,
+    ): RemoteNodeRepository = OfflineRemoteNodeRepository(remoteNodeDao, remoteNodeTokenCipher)
 
     @Provides
     @Singleton
@@ -259,6 +278,7 @@ object AppModule {
         clipboardReadTool: com.voiceconfig.app.agent.ClipboardReadTool,
         logcatReadTool: com.voiceconfig.app.agent.LogcatReadTool,
         openFileTool: com.voiceconfig.app.agent.OpenFileTool,
+        remoteNodeTool: com.voiceconfig.app.agent.RemoteNodeTool,
     ): CoreAgentPlugin = CoreAgentPlugin(
         openAppTool = openAppTool,
         findAppTool = findAppTool,
@@ -287,6 +307,7 @@ object AppModule {
         clipboardReadTool = clipboardReadTool,
         logcatReadTool = logcatReadTool,
         openFileTool = openFileTool,
+        remoteNodeTool = remoteNodeTool,
     )
 
     @Provides

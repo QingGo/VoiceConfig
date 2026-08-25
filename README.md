@@ -333,19 +333,46 @@ scripts/adb_connect.sh 192.168.1.100 42889
 可通过 SSH 把轻量只读 Agent 节点安装到 Linux 服务器 / 树莓派：
 
 ```bash
-# 上传脚本并注册为 systemd user service（自动重启）
+# 推荐：注册为 systemd user service，自动重启，并默认只绑定 Tailscale
 ./scripts/install_voiceconfig_node_service.sh 100.91.244.17 zeng
 ```
 
-节点默认只允许只读命令：`hostname / uname / uptime / free / df / ps / os_release / network / tailscale`。
+#### 安全模型（R1）
+
+- **不执行任意 shell 命令**：节点只把白名单命令名映射到固定 argv。
+- **默认只绑定 Tailscale 网卡**：`--bind-tailscale`，不暴露公网端口。
+- **Bearer Token 鉴权**，支持多 Token、轮换、吊销。
+- **稳定节点身份**：`~/.voiceconfig-node/identity.json` 保存 `node_id`。
+- **按节点配置允许命令**：`~/.voiceconfig-node/node.json` 的 `allowed_commands`。
+- **强制审计**：每次请求（含未授权、拒绝、任务完成）追加到 `audit.jsonl`。
+- **可选 TLS / mTLS**：在 `node.json` 配置 `tls.enabled / cert / key / client_ca`。
+
+`node.json` 示例：
+
+```json
+{
+  "bind_tailscale": true,
+  "port": 8787,
+  "allowed_commands": ["hostname", "uname", "uptime", "free", "df", "ps", "os_release", "network", "tailscale"],
+  "tls": {
+    "enabled": false,
+    "cert": "/home/user/.voiceconfig-node/server.crt",
+    "key": "/home/user/.voiceconfig-node/server.key",
+    "client_ca": "/home/user/.voiceconfig-node/client-ca.crt"
+  }
+}
+```
 
 节点 Token 保存在远端：
 
 ```text
-~/.voiceconfig-node/node.token
+~/.voiceconfig-node/node.token       # 当前主 Token（兼容读取）
+~/.voiceconfig-node/tokens.json      # 完整 Token 库（支持轮换/吊销）
+~/.voiceconfig-node/identity.json    # 节点身份
+~/.voiceconfig-node/audit.jsonl      # 强制审计日志
 ```
 
-本地调用示例：
+本地调用示例（无 TLS 时）：
 
 ```bash
 TOKEN=$(ssh zeng@100.91.244.17 'cat ~/.voiceconfig-node/node.token')
@@ -363,7 +390,24 @@ curl -H "Authorization: Bearer $TOKEN"   -H 'Content-Type: application/json'   -
 curl -H "Authorization: Bearer $TOKEN"   http://100.91.244.17:8787/api/tasks/<task_id>
 ```
 
-> 当前是实验性只读节点，不代表最终远程 Agent 安全模型。
+Token 管理接口：
+
+```bash
+# 轮换当前 Token（旧 Token 立即吊销，返回新 Token）
+curl -X POST -H "Authorization: Bearer $TOKEN" http://100.91.244.17:8787/api/admin/rotate-token
+
+# 吊销指定 Token（用当前有效 Token 调用）
+curl -X POST -H "Authorization: Bearer $TOKEN"   -H 'Content-Type: application/json'   -d '{"token":"要吊销的Token"}'   http://100.91.244.17:8787/api/admin/revoke-token
+```
+
+> 当前仍是实验性只读节点。TLS/mTLS 需要自行提供证书；未配置 TLS 时只应通过 Tailscale 等私有网络访问。
+
+#### Android 控制面（R2 进度）
+
+- 新增 `RemoteNodeRepository`：节点注册、列表、启停、暂停、删除、状态/错误记录。
+- 节点 Token 使用 Android Keystore + AES/GCM 加密后存入 Room，不落明文。
+- 新增受控 `remote_node` 工具：只允许对已启用/未暂停节点执行其 allowlist 中的只读命令，且不把 Token 返回模型。
+- 当前 `remote_node` 标记为 ADVANCED，不进入核心工具列表；UI 节点管理页尚未接上。
 
 模拟器本地 ASR 闭环（调试桥，仅 debug 包可用）：
 

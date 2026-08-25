@@ -16,6 +16,7 @@ import com.voiceconfig.data.local.dao.ExecutionLogDao
 import com.voiceconfig.data.local.dao.TaskDao
 import com.voiceconfig.data.local.dao.TriggerRuleDao
 import com.voiceconfig.data.local.dao.TemplateDao
+import com.voiceconfig.data.local.dao.RemoteNodeDao
 import com.voiceconfig.data.local.dao.TaskEventDao
 import com.voiceconfig.data.local.entity.AgentMessageEntity
 import com.voiceconfig.data.local.entity.AgentRunRecordEntity
@@ -28,6 +29,7 @@ import com.voiceconfig.data.local.entity.AppAliasEntity
 import com.voiceconfig.data.local.entity.ExecutionLogEntity
 import com.voiceconfig.data.local.entity.TaskEntity
 import com.voiceconfig.data.local.entity.TemplateEntity
+import com.voiceconfig.data.local.entity.RemoteNodeEntity
 import com.voiceconfig.data.local.entity.TaskEventEntity
 import com.voiceconfig.data.local.entity.TriggerRuleEntity
 
@@ -47,8 +49,9 @@ import com.voiceconfig.data.local.entity.TriggerRuleEntity
         TaskEventEntity::class,
         TaskPlanEntity::class,
         TaskPlanStepEntity::class,
+        RemoteNodeEntity::class,
     ],
-    version = 17,
+    version = 18,
     exportSchema = false,
 )
 abstract class VoiceConfigDatabase : RoomDatabase() {
@@ -64,6 +67,7 @@ abstract class VoiceConfigDatabase : RoomDatabase() {
     abstract fun agentStepDao(): AgentStepDao
     abstract fun taskEventDao(): TaskEventDao
     abstract fun taskPlanDao(): TaskPlanDao
+    abstract fun remoteNodeDao(): RemoteNodeDao
 
     companion object {
         val MIGRATION_1_2 = object : Migration(1, 2) {
@@ -319,6 +323,34 @@ abstract class VoiceConfigDatabase : RoomDatabase() {
         val MIGRATION_16_17 = object : Migration(16, 17) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL("ALTER TABLE `agent_run_records` ADD COLUMN `capabilitySummary` TEXT")
+            }
+        }
+
+        val MIGRATION_17_18 = object : Migration(17, 18) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS `remote_nodes` (
+                        `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        `nodeId` TEXT NOT NULL,
+                        `name` TEXT NOT NULL,
+                        `host` TEXT NOT NULL,
+                        `port` INTEGER NOT NULL,
+                        `scheme` TEXT NOT NULL,
+                        `tokenCiphertext` TEXT,
+                        `tokenIv` TEXT,
+                        `allowedCommandsJson` TEXT NOT NULL,
+                        `enabled` INTEGER NOT NULL,
+                        `paused` INTEGER NOT NULL,
+                        `createdAtEpochMillis` INTEGER NOT NULL,
+                        `updatedAtEpochMillis` INTEGER NOT NULL,
+                        `lastSeenAtEpochMillis` INTEGER,
+                        `lastStatus` TEXT,
+                        `lastError` TEXT
+                    )
+                    """.trimIndent(),
+                )
+                db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_remote_nodes_nodeId` ON `remote_nodes` (`nodeId`)")
             }
         }
 

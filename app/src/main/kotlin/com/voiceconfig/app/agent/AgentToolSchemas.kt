@@ -175,6 +175,11 @@ object AgentToolSchemas {
             "filename" to string("文件名"),
             "path" to string("绝对路径"),
         )
+        "remote_node" -> objectSchema(
+            "action" to string("list/health/exec"),
+            "node" to string("节点名称或 nodeId；留空表示第一个可用节点"),
+            "command" to string("要执行的只读命令名，例如 uptime/hostname"),
+        )
         else -> JSONObject().apply {
             put("type", "object")
             put("properties", JSONObject())

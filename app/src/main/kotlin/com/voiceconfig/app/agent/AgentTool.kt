@@ -75,6 +75,12 @@ object AgentToolMetadataRegistry {
             needsShizuku = true,
             sensitive = true,
         ),
+        "remote_node" to AgentToolMetadata(
+            category = "远程",
+            group = ToolGroup.ADVANCED,
+            risk = ToolRisk.SENSITIVE,
+            sensitive = true,
+        ),
         "read_ui" to AgentToolMetadata(
             category = "感知",
             group = ToolGroup.CORE,

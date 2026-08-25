@@ -39,6 +39,7 @@ class CoreAgentPlugin @Inject constructor(
     private val clipboardReadTool: ClipboardReadTool,
     private val logcatReadTool: LogcatReadTool,
     private val openFileTool: OpenFileTool,
+    private val remoteNodeTool: RemoteNodeTool,
 ) : AgentPlugin {
 
     override val id: String = "core-tools"
@@ -73,5 +74,6 @@ class CoreAgentPlugin @Inject constructor(
         clipboardReadTool,
         logcatReadTool,
         openFileTool,
+        remoteNodeTool,
     )
 }

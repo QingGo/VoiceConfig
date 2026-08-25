@@ -20,10 +20,15 @@ fi
 SSH=(ssh -o BatchMode=yes -o IdentitiesOnly=yes -o ConnectTimeout=8)
 SCP=(scp -o BatchMode=yes -o IdentitiesOnly=yes -o ConnectTimeout=8)
 
+NODE_CONFIG_JSON='{"bind_tailscale":true,"port":8787,"allowed_commands":["hostname","uname","uptime","free","df","ps","os_release","network","tailscale"]}'
+
 echo "==> Copy node script"
 "${SSH[@]}" "${USER}@${HOST}" "mkdir -p ~/${REMOTE_DIR} ${DATA_DIR} ~/.config/systemd/user"
 "${SCP[@]}" "$(cd "$(dirname "$0")" && pwd)/voiceconfig_agent_node.py" "${USER}@${HOST}:~/${REMOTE_DIR}/voiceconfig_agent_node.py"
 "${SCP[@]}" "$LOCAL_SERVICE" "${USER}@${HOST}:~/.config/systemd/user/${SERVICE_NAME}"
+
+echo "==> Writing per-node config if absent"
+"${SSH[@]}" "${USER}@${HOST}" "if [ ! -f ${DATA_DIR}/node.json ]; then printf '%s\n' '${NODE_CONFIG_JSON}' > ${DATA_DIR}/node.json && chmod 600 ${DATA_DIR}/node.json; fi"
 
 echo "==> Stopping nohup instance (if any)"
 "${SSH[@]}" "${USER}@${HOST}" "pkill -f '^python3 .*voiceconfig_agent_node.py' 2>/dev/null || true"

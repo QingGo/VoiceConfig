@@ -79,6 +79,26 @@ class VoiceConfigMigrationTest {
         }
     }
 
+    @Test
+    fun `migration 17 to 18 creates remote nodes table`() {
+        val conn = DriverManager.getConnection("jdbc:sqlite::memory:")
+        try {
+            val db = supportDatabase(conn)
+            VoiceConfigDatabase.MIGRATION_17_18.migrate(db)
+            assertTrue(columns(conn, "remote_nodes").containsAll(
+                setOf(
+                    "id", "nodeId", "name", "host", "port", "scheme",
+                    "tokenCiphertext", "tokenIv", "allowedCommandsJson",
+                    "enabled", "paused", "createdAtEpochMillis",
+                    "updatedAtEpochMillis", "lastSeenAtEpochMillis",
+                    "lastStatus", "lastError",
+                ),
+            ))
+        } finally {
+            conn.close()
+        }
+    }
+
     private fun createV1Schema(conn: Connection) {
         conn.createStatement().use { stmt ->
             stmt.execute(
