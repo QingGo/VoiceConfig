@@ -504,6 +504,7 @@ private fun SkillLibraryDialog(
     onRedact: (String) -> Unit,
 ) {
     var expandedAuditId by remember { mutableStateOf<String?>(null) }
+    var expandedSkillId by remember { mutableStateOf<String?>(null) }
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("经验库") },
@@ -600,6 +601,11 @@ private fun SkillLibraryDialog(
                                     TextButton(onClick = { onRedact(skill.id) }) {
                                         Text("脱敏")
                                     }
+                                    TextButton(onClick = {
+                                        expandedSkillId = if (expandedSkillId == skill.id) null else skill.id
+                                    }) {
+                                        Text("详情")
+                                    }
                                     if (skill.auditLog.isNotEmpty()) {
                                         TextButton(onClick = {
                                             expandedAuditId = if (expandedAuditId == skill.id) null else skill.id
@@ -609,6 +615,24 @@ private fun SkillLibraryDialog(
                                     }
                                     TextButton(onClick = { onDelete(skill.id) }) {
                                         Text("删除", color = MaterialTheme.colorScheme.error)
+                                    }
+                                }
+                                if (expandedSkillId == skill.id) {
+                                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                        skill.steps.forEachIndexed { idx, step ->
+                                            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                                                Text(
+                                                    text = "${idx + 1}. ${step.toolName} ${step.args.take(80)}",
+                                                    style = MaterialTheme.typography.bodySmall,
+                                                    color = MaterialTheme.colorScheme.onSurface,
+                                                )
+                                                if (step.purpose.isNotBlank()) Text("目的：${step.purpose}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 2)
+                                                if (step.expected.isNotBlank()) Text("预期：${step.expected}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 2)
+                                                if (step.verification.isNotBlank()) Text("验证：${step.verification}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 2)
+                                                if (step.fallback.isNotBlank()) Text("兜底：${step.fallback}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 2)
+                                                if (step.uiEvidence.isNotBlank()) Text("证据：${step.uiEvidence}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 2)
+                                            }
+                                        }
                                     }
                                 }
                                 if (expandedAuditId == skill.id && skill.auditLog.isNotEmpty()) {
