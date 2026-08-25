@@ -15,6 +15,7 @@ import android.os.IBinder
 import androidx.core.app.NotificationCompat
 import com.voiceconfig.app.MainActivity
 import com.voiceconfig.app.R
+import com.voiceconfig.app.agent.TaskPlanStore
 import com.voiceconfig.app.scheduler.ConditionTriggerHandler
 import com.voiceconfig.app.scheduler.TriggerRuleScheduler
 import kotlinx.coroutines.delay
@@ -43,6 +44,7 @@ class VoiceConfigService : Service() {
     @Inject lateinit var triggerRuleRepository: TriggerRuleRepository
     @Inject lateinit var triggerRuleScheduler: TriggerRuleScheduler
     @Inject lateinit var accessibilityKeepAlive: AccessibilityKeepAlive
+    @Inject lateinit var taskPlanStore: TaskPlanStore
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val receiver = object : BroadcastReceiver() {
@@ -69,6 +71,7 @@ class VoiceConfigService : Service() {
         }
         restoreSchedules()
         startAccessibilityKeepAliveLoop()
+        notifyUnfinishedAgentPlans()
         return START_STICKY
     }
 
@@ -88,6 +91,31 @@ class VoiceConfigService : Service() {
             while (true) {
                 delay(30_000)
                 accessibilityKeepAlive.ensureEnabled()
+            }
+        }
+    }
+
+    private fun notifyUnfinishedAgentPlans() {
+        scope.launch {
+            runCatching {
+                val plans = taskPlanStore.loadActivePlans()
+                if (plans.isEmpty()) return@launch
+                val manager = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
+                val contentIntent = PendingIntent.getActivity(
+                    this@VoiceConfigService,
+                    1002,
+                    Intent(this@VoiceConfigService, MainActivity::class.java),
+                    PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+                )
+                val notification = NotificationCompat.Builder(this@VoiceConfigService, CHANNEL_ID)
+                    .setSmallIcon(R.drawable.ic_launcher)
+                    .setContentTitle("有 ${plans.size} 个未完成 Agent 任务")
+                    .setContentText("打开言控可继续执行或放弃这些任务")
+                    .setContentIntent(contentIntent)
+                    .setAutoCancel(true)
+                    .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+                    .build()
+                manager.notify(1003, notification)
             }
         }
     }
