@@ -328,6 +328,43 @@ python scripts/agent_scenario_eval.py --serial emulator-5554 pull --analyze
 scripts/adb_connect.sh 192.168.1.100 42889
 ```
 
+### 远程 Agent 节点（实验性）
+
+可通过 SSH 把轻量只读 Agent 节点安装到 Linux 服务器 / 树莓派：
+
+```bash
+# 上传脚本并注册为 systemd user service（自动重启）
+./scripts/install_voiceconfig_node_service.sh 100.91.244.17 zeng
+```
+
+节点默认只允许只读命令：`hostname / uname / uptime / free / df / ps / os_release / network / tailscale`。
+
+节点 Token 保存在远端：
+
+```text
+~/.voiceconfig-node/node.token
+```
+
+本地调用示例：
+
+```bash
+TOKEN=$(ssh zeng@100.91.244.17 'cat ~/.voiceconfig-node/node.token')
+curl -H "Authorization: Bearer $TOKEN" http://100.91.244.17:8787/health
+curl -H "Authorization: Bearer $TOKEN"   -H 'Content-Type: application/json'   -d '{"command":"uptime"}'   http://100.91.244.17:8787/api/exec
+```
+
+异步任务队列接口：
+
+```bash
+# 创建任务
+curl -H "Authorization: Bearer $TOKEN"   -H 'Content-Type: application/json'   -d '{"command":"uname"}'   http://100.91.244.17:8787/api/tasks
+
+# 查询任务
+curl -H "Authorization: Bearer $TOKEN"   http://100.91.244.17:8787/api/tasks/<task_id>
+```
+
+> 当前是实验性只读节点，不代表最终远程 Agent 安全模型。
+
 模拟器本地 ASR 闭环（调试桥，仅 debug 包可用）：
 
 ```bash
