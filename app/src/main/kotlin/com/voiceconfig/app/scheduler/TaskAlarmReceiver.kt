@@ -204,8 +204,8 @@ class TaskAlarmReceiver : BroadcastReceiver() {
             .setOngoing(true)
             .setOnlyAlertOnce(true)
             .setContentIntent(openAppIntent(context))
-            .addAction(0, "暂停", pauseAgentIntent(context))
-            .addAction(0, "取消", cancelAgentIntent(context))
+            .addAction(0, "暂停", pauseAgentIntent(context, task.id))
+            .addAction(0, "取消", cancelAgentIntent(context, task.id))
             .build()
         manager.notify(notificationId(task.id), notification)
     }
@@ -231,8 +231,8 @@ class TaskAlarmReceiver : BroadcastReceiver() {
             .setOnlyAlertOnce(true)
             .setOngoing(true)
             .setContentIntent(openAppIntent(context))
-            .addAction(0, "暂停", pauseAgentIntent(context))
-            .addAction(0, "取消", cancelAgentIntent(context))
+            .addAction(0, "暂停", pauseAgentIntent(context, task.id))
+            .addAction(0, "取消", cancelAgentIntent(context, task.id))
             .build()
         manager.notify(notificationId(task.id), notification)
     }
@@ -260,7 +260,7 @@ class TaskAlarmReceiver : BroadcastReceiver() {
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setAutoCancel(true)
             .setContentIntent(openAppIntent(context))
-            .addAction(0, "取消", cancelAgentIntent(context))
+            .addAction(0, "取消", cancelAgentIntent(context, task.id))
             .build()
         manager.notify(notificationId(task.id), notification)
     }
@@ -287,23 +287,25 @@ class TaskAlarmReceiver : BroadcastReceiver() {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )
 
-    private fun pauseAgentIntent(context: Context): PendingIntent =
+    private fun pauseAgentIntent(context: Context, taskId: Long): PendingIntent =
         PendingIntent.getBroadcast(
             context,
             System.currentTimeMillis().toInt() + 1,
             Intent(context, TaskAlarmReceiver::class.java).apply {
                 action = ACTION_PAUSE_AGENT
+                putExtra(EXTRA_TASK_ID, taskId)
                 agentSession.currentRunId()?.let { putExtra(EXTRA_RUN_ID, it) }
             },
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )
 
-    private fun cancelAgentIntent(context: Context): PendingIntent =
+    private fun cancelAgentIntent(context: Context, taskId: Long): PendingIntent =
         PendingIntent.getBroadcast(
             context,
             System.currentTimeMillis().toInt(),
             Intent(context, TaskAlarmReceiver::class.java).apply {
                 action = ACTION_CANCEL_AGENT
+                putExtra(EXTRA_TASK_ID, taskId)
                 agentSession.currentRunId()?.let { putExtra(EXTRA_RUN_ID, it) }
             },
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
