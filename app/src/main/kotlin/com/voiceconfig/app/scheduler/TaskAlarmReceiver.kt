@@ -12,6 +12,8 @@ import com.voiceconfig.app.service.VoiceConfigService
 import androidx.core.app.NotificationCompat
 import com.voiceconfig.app.agent.AgentCapabilityInspector
 import com.voiceconfig.app.agent.AgentRunState
+import com.voiceconfig.app.agent.AgentStepStatus
+import com.voiceconfig.app.agent.AgentStepUi
 import com.voiceconfig.app.agent.AgentSession
 import com.voiceconfig.app.agent.AgentSkillStore
 import com.voiceconfig.app.agent.AgentVerificationPolicy
@@ -75,7 +77,7 @@ class TaskAlarmReceiver : BroadcastReceiver() {
                 }
                 val startedAt = System.currentTimeMillis()
                 val result = if (task.actionType == ActionType.AGENT) {
-                    executeAgentTask(task)
+                    executeAgentTask(context, task)
                 } else {
                     executionEngine.execute(
                         ExecutionRequest(
@@ -143,7 +145,10 @@ class TaskAlarmReceiver : BroadcastReceiver() {
         }
     }
 
-    private suspend fun executeAgentTask(task: com.voiceconfig.core.model.Task): ExecutionResult {
+    private suspend fun executeAgentTask(
+        context: Context,
+        task: com.voiceconfig.core.model.Task,
+    ): ExecutionResult {
         if (apiKeyStore.deepSeekApiKey.isBlank()) {
             return ExecutionResult.failure(
                 mode = ExecutionMode.AGENT,
@@ -162,6 +167,11 @@ class TaskAlarmReceiver : BroadcastReceiver() {
                 maxPerRun = apiKeyStore.agentMaxAutoVerifies,
             ),
             capabilitySummary = capabilitySummary,
+            onStep = { step ->
+                if (step.status != AgentStepStatus.RUNNING) {
+                    notifyAgentProgress(context, task, step)
+                }
+            },
             onSensitiveAction = {
                 apiKeyStore.agentAutoConfirmSensitiveActions
             },
@@ -193,6 +203,33 @@ class TaskAlarmReceiver : BroadcastReceiver() {
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setOngoing(true)
             .setOnlyAlertOnce(true)
+            .setContentIntent(openAppIntent(context))
+            .addAction(0, "暂停", pauseAgentIntent(context))
+            .addAction(0, "取消", cancelAgentIntent(context))
+            .build()
+        manager.notify(notificationId(task.id), notification)
+    }
+
+    private fun notifyAgentProgress(
+        context: Context,
+        task: com.voiceconfig.core.model.Task,
+        step: AgentStepUi,
+    ) {
+        val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        ensureBackgroundChannel(manager)
+        val stepStatus = when (step.status) {
+            AgentStepStatus.SUCCESS -> "成功"
+            AgentStepStatus.FAILED -> "失败"
+            AgentStepStatus.DECLINED -> "已拒绝"
+            AgentStepStatus.RUNNING -> "执行中"
+        }
+        val notification = NotificationCompat.Builder(context, AGENT_BACKGROUND_CHANNEL)
+            .setSmallIcon(android.R.drawable.ic_popup_reminder)
+            .setContentTitle("言控 Agent 执行中")
+            .setContentText("${step.toolName} $stepStatus：${step.message.take(60)}")
+            .setPriority(NotificationCompat.PRIORITY_LOW)
+            .setOnlyAlertOnce(true)
+            .setOngoing(true)
             .setContentIntent(openAppIntent(context))
             .addAction(0, "暂停", pauseAgentIntent(context))
             .addAction(0, "取消", cancelAgentIntent(context))
