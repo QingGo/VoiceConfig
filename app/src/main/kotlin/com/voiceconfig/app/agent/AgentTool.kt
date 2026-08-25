@@ -193,7 +193,7 @@ object AgentToolMetadataRegistry {
         ),
         "create_calendar_event" to AgentToolMetadata(
             category = "日历",
-            group = ToolGroup.CORE,
+            group = ToolGroup.ADVANCED,
             risk = ToolRisk.MEDIUM,
             mutatesUi = true,
             requiresAutoVerify = true,
