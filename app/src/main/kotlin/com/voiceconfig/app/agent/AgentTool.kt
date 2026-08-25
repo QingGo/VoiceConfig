@@ -63,7 +63,7 @@ object AgentToolMetadataRegistry {
         ),
         "find_app" to AgentToolMetadata(
             category = "应用",
-            group = ToolGroup.CORE,
+            group = ToolGroup.ADVANCED,
             risk = ToolRisk.READ_ONLY,
         ),
         "run_shell" to AgentToolMetadata(
@@ -159,7 +159,7 @@ object AgentToolMetadataRegistry {
         ),
         "notify" to AgentToolMetadata(
             category = "通知",
-            group = ToolGroup.CORE,
+            group = ToolGroup.ADVANCED,
             risk = ToolRisk.LOW,
         ),
         "create_reminder" to AgentToolMetadata(
@@ -180,7 +180,7 @@ object AgentToolMetadataRegistry {
         ),
         "web_search" to AgentToolMetadata(
             category = "信息",
-            group = ToolGroup.CORE,
+            group = ToolGroup.ADVANCED,
             risk = ToolRisk.READ_ONLY,
         ),
         "open_search" to AgentToolMetadata(
