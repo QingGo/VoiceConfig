@@ -29,7 +29,7 @@ echo "==> Stopping nohup instance (if any)"
 "${SSH[@]}" "${USER}@${HOST}" "pkill -f '^python3 .*voiceconfig_agent_node.py' 2>/dev/null || true"
 
 echo "==> Enabling/starting user service"
-"${SSH[@]}" "${USER}@${HOST}" "systemctl --user daemon-reload && systemctl --user enable --now ${SERVICE_NAME} && loginctl enable-linger ${USER} || true"
+"${SSH[@]}" "${USER}@${HOST}" "systemctl --user daemon-reload && systemctl --user enable ${SERVICE_NAME} && systemctl --user restart ${SERVICE_NAME} && loginctl enable-linger ${USER} || true"
 
 sleep 1
 

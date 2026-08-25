@@ -16,13 +16,14 @@ import json
 import os
 import socket
 import subprocess
+import threading
 import sys
 import time
 import uuid
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-NODE_VERSION = "0.1.0"
+NODE_VERSION = "0.2.0"
 
 ALLOWED_COMMANDS = {
     "hostname": ["hostname"],
@@ -96,6 +97,22 @@ def run_allowed(command: str) -> dict:
         return {"ok": False, "error": str(e), "command": command}
 
 
+def load_tasks(path: Path) -> dict:
+    if not path.exists():
+        return {}
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except Exception:
+        return {}
+
+
+def save_tasks(path: Path, tasks: dict) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = path.with_suffix(".tmp")
+    tmp.write_text(json.dumps(tasks, ensure_ascii=False, indent=2), encoding="utf-8")
+    tmp.replace(path)
+
+
 class Handler(BaseHTTPRequestHandler):
     server_version = "VoiceConfigNode/" + NODE_VERSION
 
@@ -115,6 +132,31 @@ class Handler(BaseHTTPRequestHandler):
         auth = self.headers.get("Authorization", "")
         token = self.server.token
         return auth == "Bearer " + token or self.headers.get("X-VoiceConfig-Token") == token
+
+    def _read_json(self) -> dict:
+        try:
+            length = int(self.headers.get("Content-Length", "0"))
+            raw = self.rfile.read(length) if length else b"{}"
+            return json.loads(raw.decode("utf-8") or "{}")
+        except Exception as e:
+            return {"__error__": str(e)}
+
+    def _execute_task(self, task_id: str, command: str) -> None:
+        result = run_allowed(command)
+        with self.server.tasks_lock:
+            task = self.server.tasks.get(task_id)
+            if task is not None:
+                task["status"] = "done" if result.get("ok") else "failed"
+                task["finished_at"] = now_ms()
+                task["result"] = result
+                save_tasks(self.server.tasks_path, self.server.tasks)
+        audit_log(self.server.audit_path, {
+            "at": now_ms(),
+            "type": "task_finished",
+            "task_id": task_id,
+            "command": command,
+            "ok": result.get("ok", False),
+        })
 
     def do_GET(self):
         if not self._check_auth():
@@ -142,6 +184,22 @@ class Handler(BaseHTTPRequestHandler):
                 "memory": subprocess.run(["free", "-h"], capture_output=True, text=True, timeout=5).stdout.strip(),
                 "disk": subprocess.run(["df", "-h", "/"], capture_output=True, text=True, timeout=5).stdout.strip(),
             })
+        elif self.path == "/api/tasks":
+            with self.server.tasks_lock:
+                tasks = sorted(
+                    self.server.tasks.values(),
+                    key=lambda t: t.get("created_at", 0),
+                    reverse=True,
+                )
+            self._send_json(200, {"ok": True, "tasks": tasks})
+        elif self.path.startswith("/api/tasks/"):
+            task_id = self.path[len("/api/tasks/"):]
+            with self.server.tasks_lock:
+                task = self.server.tasks.get(task_id)
+            if task is None:
+                self._send_json(404, {"ok": False, "error": "task_not_found"})
+            else:
+                self._send_json(200, {"ok": True, "task": task})
         else:
             self._send_json(404, {"ok": False, "error": "not_found"})
 
@@ -149,27 +207,57 @@ class Handler(BaseHTTPRequestHandler):
         if not self._check_auth():
             self._send_json(401, {"ok": False, "error": "unauthorized"})
             return
-        if self.path != "/api/exec":
+        body = self._read_json()
+        if "__error__" in body:
+            self._send_json(400, {"ok": False, "error": "bad_json", "detail": body["__error__"]})
+            return
+        if self.path == "/api/exec":
+            command = str(body.get("command", ""))
+            result = run_allowed(command)
+            result["at"] = now_ms()
+            result["node"] = node_id()
+            audit_log(self.server.audit_path, {
+                "at": now_ms(),
+                "type": "exec",
+                "command": command,
+                "ok": result.get("ok", False),
+            })
+            self._send_json(200 if result.get("ok") else 403, result)
+        elif self.path == "/api/tasks":
+            command = str(body.get("command", ""))
+            if command not in ALLOWED_COMMANDS:
+                self._send_json(403, {
+                    "ok": False,
+                    "error": "command_not_allowed",
+                    "allowed": sorted(ALLOWED_COMMANDS.keys()),
+                })
+                return
+            task_id = "task_" + uuid.uuid4().hex[:12]
+            with self.server.tasks_lock:
+                self.server.tasks[task_id] = {
+                    "id": task_id,
+                    "command": command,
+                    "status": "pending",
+                    "created_at": now_ms(),
+                    "started_at": None,
+                    "finished_at": None,
+                    "result": None,
+                }
+                save_tasks(self.server.tasks_path, self.server.tasks)
+            threading.Thread(
+                target=self._execute_task,
+                args=(task_id, command),
+                daemon=True,
+            ).start()
+            audit_log(self.server.audit_path, {
+                "at": now_ms(),
+                "type": "task_created",
+                "task_id": task_id,
+                "command": command,
+            })
+            self._send_json(202, {"ok": True, "task_id": task_id, "status": "pending"})
+        else:
             self._send_json(404, {"ok": False, "error": "not_found"})
-            return
-        try:
-            length = int(self.headers.get("Content-Length", "0"))
-            raw = self.rfile.read(length) if length else b"{}"
-            body = json.loads(raw.decode("utf-8") or "{}")
-        except Exception as e:
-            self._send_json(400, {"ok": False, "error": "bad_json", "detail": str(e)})
-            return
-        command = str(body.get("command", ""))
-        result = run_allowed(command)
-        result["at"] = now_ms()
-        result["node"] = node_id()
-        audit_log(self.server.audit_path, {
-            "at": now_ms(),
-            "type": "exec",
-            "command": command,
-            "ok": result.get("ok", False),
-        })
-        self._send_json(200 if result.get("ok") else 403, result)
 
     def do_OPTIONS(self):
         self.send_response(204)
@@ -187,11 +275,15 @@ def main():
     data_dir = Path(args.data_dir)
     token_path = data_dir / "node.token"
     audit_path = data_dir / "audit.jsonl"
+    tasks_path = data_dir / "tasks.json"
     token = os.environ.get("VOICECONFIG_NODE_TOKEN") or load_or_create_token(token_path)
 
     server = ThreadingHTTPServer((args.host, args.port), Handler)
     server.token = token
     server.audit_path = audit_path
+    server.tasks_path = tasks_path
+    server.tasks_lock = threading.Lock()
+    server.tasks = load_tasks(tasks_path)
 
     print(f"VoiceConfig Agent Node v{NODE_VERSION}")
     print(f"Listening on {args.host}:{args.port}")
