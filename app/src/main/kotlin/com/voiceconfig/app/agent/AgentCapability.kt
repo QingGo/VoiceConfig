@@ -2,6 +2,8 @@ package com.voiceconfig.app.agent
 
 import android.app.AlarmManager
 import android.content.Context
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
 import android.os.Build
 import com.voiceconfig.app.ai.ApiKeyStore
 import com.voiceconfig.app.service.AgentAccessibilityService
@@ -21,6 +23,7 @@ data class AgentCapabilitySnapshot(
     val cloudLlmAvailable: Boolean,
     val exactAlarmAvailable: Boolean,
     val batteryOptimizationIgnored: Boolean,
+    val networkAvailable: Boolean,
     val mediaProjectionAvailable: Boolean = false,
 ) {
     val canOpenAppReliably: Boolean
@@ -37,6 +40,7 @@ data class AgentCapabilitySnapshot(
         append(", Accessibility=").append(if (accessibilityEnabled) "Y" else "N")
         append(", CloudLLM=").append(if (cloudLlmAvailable) "Y" else "N")
         append(", ExactAlarm=").append(if (exactAlarmAvailable) "Y" else "N")
+        append(", Network=").append(if (networkAvailable) "Y" else "N")
         append(", MediaProjection=").append(if (mediaProjectionAvailable) "Y" else "N")
     }
 }
@@ -55,12 +59,19 @@ class AgentCapabilityInspector @Inject constructor(
             val power = context.getSystemService(Context.POWER_SERVICE) as? android.os.PowerManager
             power?.isIgnoringBatteryOptimizations(context.packageName) == true
         }.getOrDefault(false)
+        val networkAvailable = runCatching {
+            val cm = context.getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager
+            val network = cm?.activeNetwork ?: return@runCatching false
+            val caps = cm.getNetworkCapabilities(network) ?: return@runCatching false
+            caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+        }.getOrDefault(false)
         return AgentCapabilitySnapshot(
             shizukuAvailable = shizuku.isAvailable(),
             accessibilityEnabled = AgentAccessibilityService.instance != null,
             cloudLlmAvailable = apiKeyStore.deepSeekApiKey.isNotBlank(),
             exactAlarmAvailable = exactAlarm,
             batteryOptimizationIgnored = battery,
+            networkAvailable = networkAvailable,
             mediaProjectionAvailable = false,
         )
     }
