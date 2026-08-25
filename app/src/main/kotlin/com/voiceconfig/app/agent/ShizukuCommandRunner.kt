@@ -14,13 +14,22 @@ import javax.inject.Singleton
 @Singleton
 class ShizukuCommandRunner @Inject constructor() {
 
-    fun isAvailable(): Boolean = runCatching {
-        val clazz = shizukuClass() ?: return false
-        val ping = clazz.getMethod("pingBinder").invoke(null) as? Boolean ?: return false
-        if (!ping) return false
-        val permission = clazz.getMethod("checkSelfPermission").invoke(null) as? Int
-        permission == PackageManager.PERMISSION_GRANTED
-    }.getOrDefault(false)
+    /**
+     * 仅用于真机回归/调试：强制模拟 Shizuku 不可用，验证无 Shizuku 降级路径。
+     */
+    @Volatile
+    var debugForceUnavailable: Boolean = false
+
+    fun isAvailable(): Boolean {
+        if (debugForceUnavailable) return false
+        return runCatching {
+            val clazz = shizukuClass() ?: return false
+            val ping = clazz.getMethod("pingBinder").invoke(null) as? Boolean ?: return false
+            if (!ping) return false
+            val permission = clazz.getMethod("checkSelfPermission").invoke(null) as? Int
+            permission == PackageManager.PERMISSION_GRANTED
+        }.getOrDefault(false)
+    }
 
     /**
      * 执行命令，等待结束并返回 stdout/stderr。

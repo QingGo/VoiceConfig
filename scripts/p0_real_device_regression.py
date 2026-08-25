@@ -87,6 +87,14 @@ def clear_trace(serial):
     adb(serial, ["shell", "run-as", PACKAGE, "rm", "-f", REMOTE_TRACE])
 
 
+def set_no_shizuku(serial, enabled):
+    adb(serial, [
+        "shell", "am", "broadcast",
+        "-a", "com.voiceconfig.app.DEBUG_FORCE_NO_SHIZUKU",
+        "--ez", "enabled", "true" if enabled else "false",
+    ])
+
+
 def parse_trace(text):
     entries = []
     for line in text.splitlines():
@@ -269,6 +277,7 @@ def check_taskplan_scenario(serial, scenario, trace_path):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--serial", required=True)
+    parser.add_argument("--force-no-shizuku", action="store_true", help="强制模拟 Shizuku 不可用，验证无障碍/Intent 降级")
     args = parser.parse_args()
 
     trace_path = os.path.join(tempfile.gettempdir(), "voiceconfig_p0_regression_trace.log")
@@ -276,6 +285,10 @@ def main():
         pull_trace(args.serial, trace_path)
     except RuntimeError:
         Path(trace_path).write_text("", encoding="utf-8")
+
+    if args.force_no_shizuku:
+        set_no_shizuku(args.serial, True)
+        print("==> 已开启无 Shizuku 降级模式")
 
     results = []
     for scenario in SCENARIOS:
@@ -306,6 +319,10 @@ def main():
         "avg_tool_calls_per_scenario": round(sum(metric_tool_counts) / len(metric_tool_counts), 2) if metric_tool_counts else 0,
         "avg_duration_ms": round(sum(durations) / len(durations), 1) if durations else None,
     }
+    if args.force_no_shizuku:
+        set_no_shizuku(args.serial, False)
+        print("==> 已恢复 Shizuku 状态")
+
     print("\n=== P0 真机回归汇总 ===")
     print(json.dumps(metrics, ensure_ascii=False, indent=2))
     return 0 if passed == len(results) else 1

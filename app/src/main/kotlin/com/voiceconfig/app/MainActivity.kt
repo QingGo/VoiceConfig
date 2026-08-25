@@ -106,6 +106,7 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import com.voiceconfig.app.agent.AgentSession
+import com.voiceconfig.app.agent.ShizukuCommandRunner
 import com.voiceconfig.app.agent.TaskPlan
 import com.voiceconfig.app.ai.InstalledAppProvider
 import com.voiceconfig.app.ai.AsrEngineStatus
@@ -138,6 +139,7 @@ class MainActivity : ComponentActivity() {
     @Inject lateinit var localAsrManager: LocalAsrManager
     @Inject lateinit var installedAppProvider: InstalledAppProvider
     @Inject lateinit var agentSession: AgentSession
+    @Inject lateinit var shizukuCommandRunner: ShizukuCommandRunner
     @Inject lateinit var accessibilityKeepAlive: AccessibilityKeepAlive
 
     private val viewModel: MainViewModel by viewModels()
@@ -148,6 +150,13 @@ class MainActivity : ComponentActivity() {
             val send = intent.getBooleanExtra("send", false)
             val newSession = intent.getBooleanExtra("newSession", false)
             AgentTestBridge.submit(AgentTestBridge.Command(text = text, send = send, newSession = newSession))
+        }
+    }
+
+    private val debugForceNoShizukuReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            val enabled = intent?.getBooleanExtra("enabled", false) ?: false
+            shizukuCommandRunner.debugForceUnavailable = enabled
         }
     }
 
@@ -219,6 +228,11 @@ class MainActivity : ComponentActivity() {
                     Context.RECEIVER_EXPORTED,
                 )
                 registerReceiver(
+                    debugForceNoShizukuReceiver,
+                    IntentFilter("com.voiceconfig.app.DEBUG_FORCE_NO_SHIZUKU"),
+                    Context.RECEIVER_EXPORTED,
+                )
+                registerReceiver(
                     debugAsrFileReceiver,
                     IntentFilter("com.voiceconfig.app.DEBUG_ASR_FILE"),
                     Context.RECEIVER_EXPORTED,
@@ -227,6 +241,7 @@ class MainActivity : ComponentActivity() {
                 registerReceiver(debugAgentReceiver, IntentFilter("com.voiceconfig.app.DEBUG_AGENT_INPUT"))
                 registerReceiver(debugAsrReceiver, IntentFilter("com.voiceconfig.app.DEBUG_ASR_RESULT"))
                 registerReceiver(debugTaskPlanReceiver, IntentFilter("com.voiceconfig.app.DEBUG_TASKPLAN_ACTION"))
+                registerReceiver(debugForceNoShizukuReceiver, IntentFilter("com.voiceconfig.app.DEBUG_FORCE_NO_SHIZUKU"))
                 registerReceiver(debugAsrFileReceiver, IntentFilter("com.voiceconfig.app.DEBUG_ASR_FILE"))
             }
         }
@@ -248,6 +263,7 @@ class MainActivity : ComponentActivity() {
         runCatching { unregisterReceiver(debugAgentReceiver) }
         runCatching { unregisterReceiver(debugAsrReceiver) }
         runCatching { unregisterReceiver(debugTaskPlanReceiver) }
+        runCatching { unregisterReceiver(debugForceNoShizukuReceiver) }
         runCatching { unregisterReceiver(debugAsrFileReceiver) }
     }
 }
