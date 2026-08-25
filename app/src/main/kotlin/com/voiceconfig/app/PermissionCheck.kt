@@ -11,6 +11,7 @@ import android.net.Uri
 import android.os.Build
 import android.os.PowerManager
 import android.provider.Settings
+import com.voiceconfig.app.service.AgentAccessibilityService
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -215,6 +216,15 @@ private fun buildPermissionStatuses(context: Context): List<PermissionStatus> {
                     Uri.parse("package:${context.packageName}"),
                 ),
             )
+        },
+    )
+
+    val accessibilityEnabled = AgentAccessibilityService.instance != null
+    statuses += PermissionStatus(
+        name = "无障碍服务（无 Shizuku 时的读屏/点击基础）",
+        granted = accessibilityEnabled,
+        action = {
+            context.startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
         },
     )
 
