@@ -48,6 +48,7 @@ import androidx.compose.ui.unit.dp
 import com.voiceconfig.app.ai.LocalAsrManager
 import com.voiceconfig.data.local.entity.AiDebugLogEntity
 import com.voiceconfig.core.model.TriggerRule
+import com.voiceconfig.app.ui.RemoteNodesDialog
 import kotlinx.coroutines.launch
 
 @Composable
@@ -102,6 +103,8 @@ fun SettingsScreen(
     var triggerPackage by remember { mutableStateOf("") }
     var triggerTap by remember { mutableStateOf("") }
     var triggerInput by remember { mutableStateOf("") }
+    var showRemoteNodes by remember { mutableStateOf(false) }
+    val remoteNodes by viewModel.remoteNodes.collectAsState()
 
     val locationPermissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission(),
@@ -479,6 +482,19 @@ fun SettingsScreen(
                 }
 
                 item {
+                    SettingsSectionCard(title = "远程节点") {
+                        Text(
+                            text = "已登记 ${remoteNodes.size} 个远程节点，支持只读命令、任务队列与 Skill 分发。",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        TextButton(onClick = { showRemoteNodes = true }) {
+                            Text("管理远程节点")
+                        }
+                    }
+                }
+
+                item {
                     SettingsSectionCard(title = "权限与系统") {
                         PermissionCheckSection(modifier = Modifier.fillMaxWidth())
                     }
@@ -552,6 +568,16 @@ fun SettingsScreen(
                 }
             }
         }
+    }
+    if (showRemoteNodes) {
+        RemoteNodesDialog(
+            nodes = remoteNodes,
+            onDismiss = { showRemoteNodes = false },
+            onSave = viewModel::saveRemoteNode,
+            onDelete = viewModel::deleteRemoteNode,
+            onToggleEnabled = viewModel::setRemoteNodeEnabled,
+            onTogglePaused = viewModel::setRemoteNodePaused,
+        )
     }
 }
 

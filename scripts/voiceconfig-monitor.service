@@ -1,0 +1,9 @@
+[Unit]
+Description=VoiceConfig remote node periodic monitor
+After=network-online.target voiceconfig-node.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/python3 %h/voiceconfig-node/voiceconfig_remote_monitor.py --auto-tailscale --port 8787 --token-file %h/.voiceconfig-node/node.token --json
+SuccessExitStatus=1

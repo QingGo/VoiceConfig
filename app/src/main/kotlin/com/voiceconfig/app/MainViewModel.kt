@@ -54,6 +54,8 @@ import com.voiceconfig.data.local.entity.TaskEventEntity
 import com.voiceconfig.data.local.repository.AgentHistoryRepository
 import com.voiceconfig.data.local.repository.AiDebugLogRepository
 import com.voiceconfig.data.local.repository.ExecutionLogRepository
+import com.voiceconfig.data.local.repository.RemoteNode
+import com.voiceconfig.data.local.repository.RemoteNodeRepository
 import com.voiceconfig.data.local.repository.TaskRepository
 import com.voiceconfig.data.local.repository.TemplateRepository
 import com.voiceconfig.data.local.repository.TriggerRuleRepository
@@ -88,6 +90,7 @@ class MainViewModel @Inject constructor(
     private val templateRepository: TemplateRepository,
     private val triggerRuleRepository: TriggerRuleRepository,
     private val triggerRuleScheduler: TriggerRuleScheduler,
+    private val remoteNodeRepository: RemoteNodeRepository,
     private val executionLogRepository: ExecutionLogRepository,
     private val userAliasRegistry: UserAliasRegistry,
     private val executionEngine: ExecutionEngine,
@@ -125,6 +128,13 @@ class MainViewModel @Inject constructor(
         )
 
     val templates: StateFlow<List<Template>> = templateRepository.observeTemplates()
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5_000),
+            initialValue = emptyList(),
+        )
+
+    val remoteNodes: StateFlow<List<RemoteNode>> = remoteNodeRepository.observeNodes()
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5_000),
@@ -1339,6 +1349,47 @@ class MainViewModel @Inject constructor(
 
     fun importAgentSkill(json: String, source: String = "Android"): AgentSkill? =
         agentSkillStore.importSkill(json, source)
+
+    fun saveRemoteNode(node: RemoteNode) {
+        viewModelScope.launch {
+            runCatching { remoteNodeRepository.saveNode(node) }
+        }
+    }
+
+    fun deleteRemoteNode(id: Long) {
+        viewModelScope.launch {
+            runCatching { remoteNodeRepository.deleteNode(id) }
+        }
+    }
+
+    fun setRemoteNodeEnabled(id: Long, enabled: Boolean) {
+        viewModelScope.launch {
+            runCatching { remoteNodeRepository.setEnabled(id, enabled) }
+        }
+    }
+
+    fun setRemoteNodePaused(id: Long, paused: Boolean) {
+        viewModelScope.launch {
+            runCatching { remoteNodeRepository.setPaused(id, paused) }
+        }
+    }
+
+    suspend fun getRemoteNode(id: Long): RemoteNode? = remoteNodeRepository.getNode(id)
+
+    suspend fun refreshRemoteNode(id: Long) {
+        val node = remoteNodeRepository.getNode(id) ?: return
+        runCatching {
+            val monitor = com.voiceconfig.app.remote.RemoteMonitorClient(remoteNodeRepository)
+            val snapshot = monitor.snapshot(node.name)
+            remoteNodeRepository.markSeen(
+                id = id,
+                status = "online",
+                error = null,
+            )
+            @Suppress("UNUSED_EXPRESSION")
+            snapshot
+        }
+    }
 
     suspend fun confirmSensitiveAction(request: SensitiveActionRequest): Boolean {
         if (apiKeyStore.agentAutoConfirmSensitiveActions) return true

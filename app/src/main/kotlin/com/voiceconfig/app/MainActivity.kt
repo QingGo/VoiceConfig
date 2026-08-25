@@ -811,6 +811,30 @@ fun MainScreen(viewModel: MainViewModel) {
                         onDeleteSkill = viewModel::deleteAgentSkill,
                         onToggleSkillEnabled = viewModel::setAgentSkillEnabled,
                         onRedactSkill = viewModel::redactAgentSkill,
+                        onExportAllSkills = {
+                            val text = viewModel.exportAllAgentSkills()
+                            val clipboard = context.getSystemService(ClipboardManager::class.java)
+                            clipboard?.setPrimaryClip(ClipData.newPlainText("VoiceConfig Skills", text))
+                            scope.launch { snackbarHostState.showSnackbar("已复制全部技能到剪贴板") }
+                        },
+                        onImportSkillsFromClipboard = {
+                            val clipboard = context.getSystemService(ClipboardManager::class.java)
+                            val text = clipboard?.primaryClip
+                                ?.takeIf { it.itemCount > 0 }
+                                ?.getItemAt(0)
+                                ?.coerceToText(context)
+                                ?.toString()
+                            if (text.isNullOrBlank()) {
+                                scope.launch { snackbarHostState.showSnackbar("剪贴板为空") }
+                            } else {
+                                val skill = viewModel.importAgentSkill(text, "Clipboard")
+                                scope.launch {
+                                    snackbarHostState.showSnackbar(
+                                        if (skill != null) "已导入待审核技能：${skill.name}" else "导入失败：剪贴板不是有效的技能 JSON",
+                                    )
+                                }
+                            }
+                        },
                         onOpenTask = { taskId ->
                             scope.launch { pagerState.animateScrollToPage(0) }
                         },

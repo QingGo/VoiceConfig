@@ -125,6 +125,8 @@ fun AgentPage(
     onDeleteSkill: (String) -> Unit = {},
     onToggleSkillEnabled: (String, Boolean) -> Unit = { _, _ -> },
     onRedactSkill: (String) -> Unit = {},
+    onExportAllSkills: () -> Unit = {},
+    onImportSkillsFromClipboard: () -> Unit = {},
     onOpenTask: (Long) -> Unit = {},
     onOpenAutomation: () -> Unit = {},
     onOpenSettings: () -> Unit = {},
@@ -421,6 +423,8 @@ fun AgentPage(
             onDelete = onDeleteSkill,
             onToggleEnabled = onToggleSkillEnabled,
             onRedact = onRedactSkill,
+            onExportAll = onExportAllSkills,
+            onImportFromClipboard = onImportSkillsFromClipboard,
         )
     }
 
@@ -502,6 +506,8 @@ private fun SkillLibraryDialog(
     onDelete: (String) -> Unit,
     onToggleEnabled: (String, Boolean) -> Unit,
     onRedact: (String) -> Unit,
+    onExportAll: () -> Unit = {},
+    onImportFromClipboard: () -> Unit = {},
 ) {
     var expandedAuditId by remember { mutableStateOf<String?>(null) }
     var expandedSkillId by remember { mutableStateOf<String?>(null) }
@@ -509,6 +515,14 @@ private fun SkillLibraryDialog(
         onDismissRequest = onDismiss,
         title = { Text("经验库") },
         text = {
+            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                TextButton(onClick = onExportAll) {
+                    Text("导出全部")
+                }
+                TextButton(onClick = onImportFromClipboard) {
+                    Text("从剪贴板导入")
+                }
+            }
             if (skills.isEmpty()) {
                 Text("暂无经验。成功完成 Agent 任务后会自动沉淀为待审核经验。")
             } else {

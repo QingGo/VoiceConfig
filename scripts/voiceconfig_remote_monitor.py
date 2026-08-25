@@ -14,8 +14,18 @@ import json
 import sys
 from typing import Optional
 import urllib.error
+import subprocess
 import urllib.request
 from pathlib import Path
+
+
+def tailscale_ipv4() -> str:
+    out = subprocess.check_output(["tailscale", "ip", "-4"], text=True, timeout=5)
+    for line in out.splitlines():
+        line = line.strip()
+        if line:
+            return line
+    raise RuntimeError("Tailscale IPv4 not found")
 
 
 def fetch_monitor(url: str, token: str) -> dict:
@@ -41,7 +51,9 @@ def parse_percent(text: str) -> Optional[float]:
 
 def main() -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--url", default="http://100.91.244.17:8787")
+    parser.add_argument("--url", default=None)
+    parser.add_argument("--auto-tailscale", action="store_true", help="Use Tailscale IPv4 automatically")
+    parser.add_argument("--port", type=int, default=8787)
     parser.add_argument("--token", default=None)
     parser.add_argument("--token-file", default=None)
     parser.add_argument("--disk-threshold", type=float, default=90.0)
@@ -56,8 +68,14 @@ def main() -> int:
         print("token is required (--token or --token-file)", file=sys.stderr)
         return 2
 
+    url = args.url
+    if not url and args.auto_tailscale:
+        url = "http://%s:%d" % (tailscale_ipv4(), args.port)
+    if not url:
+        url = "http://100.91.244.17:8787"
+
     try:
-        data = fetch_monitor(args.url, token)
+        data = fetch_monitor(url, token)
     except Exception as e:
         print(json.dumps({"ok": False, "error": str(e)}, ensure_ascii=False))
         return 2

@@ -434,7 +434,11 @@ curl -X POST -H "Authorization: Bearer $TOKEN"   -H 'Content-Type: application/j
 - 节点常驻 + 只读监控：`GET /api/monitor` 返回 hostname/uptime/free/df/ps/network/tailscale/os_release。
 - Android `RemoteMonitorClient` 可拉取快照。
 - `scripts/voiceconfig_remote_monitor.py` 支持磁盘/内存阈值告警，可接入 cron/systemd timer。
-- 任务队列 + 审计已打通；告警通知 UI/Android 定时任务仍在后续。
+- 已提供 `scripts/install_voiceconfig_remote_monitor_timer.sh`，在节点上安装每 5 分钟一次的 systemd user timer：
+  ```bash
+  ./scripts/install_voiceconfig_remote_monitor_timer.sh 100.91.244.17 zeng
+  ```
+- 任务队列 + 审计已打通；Android 端告警通知仍在后续。
 
 #### Android 控制面（R2/R3/R4 进度）
 
