@@ -66,6 +66,19 @@ class VoiceConfigMigrationTest {
         }
     }
 
+    @Test
+    fun `migration 16 to 17 adds capability summary column`() {
+        val conn = DriverManager.getConnection("jdbc:sqlite::memory:")
+        try {
+            val db = supportDatabase(conn)
+            VoiceConfigDatabase.MIGRATION_15_16.migrate(db)
+            VoiceConfigDatabase.MIGRATION_16_17.migrate(db)
+            assertTrue(columns(conn, "agent_run_records").contains("capabilitySummary"))
+        } finally {
+            conn.close()
+        }
+    }
+
     private fun createV1Schema(conn: Connection) {
         conn.createStatement().use { stmt ->
             stmt.execute(

@@ -566,6 +566,10 @@ private fun AgentRunsDialog(
                                             append(" · 验证")
                                             append(if (verified) "通过" else "未通过")
                                         }
+                                        record.capabilitySummary?.takeIf { it.isNotBlank() }?.let {
+                                            append(" · ")
+                                            append(it)
+                                        }
                                     },
                                     style = MaterialTheme.typography.labelSmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,

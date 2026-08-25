@@ -27,6 +27,7 @@ import com.voiceconfig.app.agent.AgentMessage
 import com.voiceconfig.app.agent.AgentStreamEvent
 import com.voiceconfig.app.agent.AgentRunLedger
 import com.voiceconfig.app.agent.AgentRunRecord
+import com.voiceconfig.app.agent.AgentCapabilityInspector
 import com.voiceconfig.app.agent.AgentRunState
 import com.voiceconfig.app.agent.AgentSession
 import com.voiceconfig.app.agent.AgentSkill
@@ -96,6 +97,7 @@ class MainViewModel @Inject constructor(
     private val agentSession: AgentSession,
     private val agentSkillStore: AgentSkillStore,
     private val agentRunLedger: AgentRunLedger,
+    private val agentCapabilityInspector: AgentCapabilityInspector,
     private val taskPlanStore: TaskPlanStore,
 ) : ViewModel() {
 
@@ -1007,12 +1009,14 @@ class MainViewModel @Inject constructor(
                     null
                 }
                 if (resumePlan != null) taskPlanStore.set(resumePlan)
+                val capabilitySummary = agentCapabilityInspector.snapshot().summary()
                 val result = agentSession.send(
                     text,
                     skills = relevantSkills,
                     verifyPolicy = verifyPolicy,
                     plan = resumePlan,
                     resetHistory = isNewSession,
+                    capabilitySummary = capabilitySummary,
                     onSensitiveAction = { request -> confirmSensitiveAction(request) },
                     onStep = { step ->
                         _agentSteps.update { current ->

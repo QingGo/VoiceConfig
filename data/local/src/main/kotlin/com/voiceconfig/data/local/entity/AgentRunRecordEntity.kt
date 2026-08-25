@@ -21,4 +21,5 @@ data class AgentRunRecordEntity(
     val finishedAtEpochMillis: Long,
     val waitingForHuman: Boolean,
     val verified: Boolean?,
+    val capabilitySummary: String? = null,
 )

@@ -140,6 +140,7 @@ class AgentRunRecordTest {
             finishedAtMs = 112,
             waitingForHuman = false,
             verified = true,
+            capabilitySummary = "Shizuku=Y,Accessibility=N",
         )
         val entity = record.toEntity()
         val restored = entity.toRunRecord()
@@ -147,6 +148,7 @@ class AgentRunRecordTest {
         assertEquals(record.userText, restored.userText)
         assertEquals(record.toolCalls, restored.toolCalls)
         assertEquals(record.verified, restored.verified)
+        assertEquals(record.capabilitySummary, restored.capabilitySummary)
         assertEquals(AgentRunState.DONE, restored.state)
     }
 }

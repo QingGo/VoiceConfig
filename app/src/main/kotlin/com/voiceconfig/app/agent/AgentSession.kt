@@ -106,6 +106,7 @@ class AgentSession @Inject constructor(
         runPolicy: AgentRunPolicy = AgentRunPolicy(),
         plan: TaskPlan? = null,
         resetHistory: Boolean = false,
+        capabilitySummary: String? = null,
         onSensitiveAction: suspend (SensitiveActionRequest) -> Boolean = { false },
     ): AgentTurnResult = runMutex.withLock {
         val saved = history.toList()
@@ -121,7 +122,7 @@ class AgentSession @Inject constructor(
                 resetHistory = resetHistory,
                 onSensitiveAction = onSensitiveAction,
             )
-            runLedger.record(result.toRunRecord(userText))
+            runLedger.record(result.toRunRecord(userText, capabilitySummary))
             cleanupRun(result.runId)
             result
         } finally {
@@ -138,6 +139,7 @@ class AgentSession @Inject constructor(
         runPolicy: AgentRunPolicy = AgentRunPolicy(),
         plan: TaskPlan? = null,
         resetHistory: Boolean = false,
+        capabilitySummary: String? = null,
         onStateChange: (AgentRunState) -> Unit = {},
         onStreamEvent: (AgentStreamEvent) -> Unit = {},
         onMessage: suspend (AgentMessage) -> Unit = {},
@@ -158,7 +160,7 @@ class AgentSession @Inject constructor(
             onSensitiveAction = onSensitiveAction,
             onStep = onStep,
         )
-        runLedger.record(result.toRunRecord(userText))
+        runLedger.record(result.toRunRecord(userText, capabilitySummary))
         cleanupRun(result.runId)
         result
     }

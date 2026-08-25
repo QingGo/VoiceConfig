@@ -48,7 +48,7 @@ import com.voiceconfig.data.local.entity.TriggerRuleEntity
         TaskPlanEntity::class,
         TaskPlanStepEntity::class,
     ],
-    version = 16,
+    version = 17,
     exportSchema = false,
 )
 abstract class VoiceConfigDatabase : RoomDatabase() {
@@ -313,6 +313,12 @@ abstract class VoiceConfigDatabase : RoomDatabase() {
                 )
                 db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_agent_run_records_runId` ON `agent_run_records` (`runId`)")
                 db.execSQL("CREATE INDEX IF NOT EXISTS `index_agent_run_records_startedAtEpochMillis` ON `agent_run_records` (`startedAtEpochMillis`)")
+            }
+        }
+
+        val MIGRATION_16_17 = object : Migration(16, 17) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE `agent_run_records` ADD COLUMN `capabilitySummary` TEXT")
             }
         }
 

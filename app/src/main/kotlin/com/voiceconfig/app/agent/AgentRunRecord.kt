@@ -32,6 +32,7 @@ data class AgentRunRecord(
     val finishedAtMs: Long,
     val waitingForHuman: Boolean,
     val verified: Boolean? = null,
+    val capabilitySummary: String? = null,
 )
 
 interface AgentRunLedger {
@@ -108,6 +109,7 @@ fun AgentRunRecord.toEntity(): AgentRunRecordEntity {
         finishedAtEpochMillis = finishedAtMs,
         waitingForHuman = waitingForHuman,
         verified = verified,
+        capabilitySummary = capabilitySummary,
     )
 }
 
@@ -128,10 +130,14 @@ fun AgentRunRecordEntity.toRunRecord(): AgentRunRecord {
         finishedAtMs = finishedAtEpochMillis,
         waitingForHuman = waitingForHuman,
         verified = verified,
+        capabilitySummary = capabilitySummary,
     )
 }
 
-fun AgentTurnResult.toRunRecord(userText: String): AgentRunRecord {
+fun AgentTurnResult.toRunRecord(
+    userText: String,
+    capabilitySummary: String? = null,
+): AgentRunRecord {
     val now = System.currentTimeMillis()
     return AgentRunRecord(
         runId = runId,
@@ -145,6 +151,7 @@ fun AgentTurnResult.toRunRecord(userText: String): AgentRunRecord {
         finishedAtMs = now,
         waitingForHuman = state == AgentRunState.WAITING_CONFIRM,
         verified = computeVerified(toolCalls, toolResults),
+        capabilitySummary = capabilitySummary,
     )
 }
 

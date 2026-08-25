@@ -10,6 +10,7 @@ import android.os.Build
 import com.voiceconfig.app.MainActivity
 import com.voiceconfig.app.service.VoiceConfigService
 import androidx.core.app.NotificationCompat
+import com.voiceconfig.app.agent.AgentCapabilityInspector
 import com.voiceconfig.app.agent.AgentRunState
 import com.voiceconfig.app.agent.AgentSession
 import com.voiceconfig.app.agent.AgentSkillStore
@@ -44,6 +45,7 @@ class TaskAlarmReceiver : BroadcastReceiver() {
     @Inject lateinit var agentSession: AgentSession
     @Inject lateinit var agentSkillStore: AgentSkillStore
     @Inject lateinit var apiKeyStore: ApiKeyStore
+    @Inject lateinit var agentCapabilityInspector: AgentCapabilityInspector
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
@@ -149,6 +151,7 @@ class TaskAlarmReceiver : BroadcastReceiver() {
         }
         val prompt = task.agentPrompt ?: task.rawText
         val skills = agentSkillStore.relevant(prompt)
+        val capabilitySummary = agentCapabilityInspector.snapshot().summary()
         val result = agentSession.sendIsolated(
             userText = prompt,
             skills = skills,
@@ -156,6 +159,7 @@ class TaskAlarmReceiver : BroadcastReceiver() {
                 enabled = apiKeyStore.agentAutoVerifyEnabled,
                 maxPerRun = apiKeyStore.agentMaxAutoVerifies,
             ),
+            capabilitySummary = capabilitySummary,
             onSensitiveAction = {
                 apiKeyStore.agentAutoConfirmSensitiveActions
             },
