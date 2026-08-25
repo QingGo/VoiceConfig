@@ -25,7 +25,7 @@ if [ -n "$PORT" ]; then
 fi
 
 # 端口会变化；按最近已知顺序尝试，连接成功后停止。
-KNOWN_PORTS=(43063 42123 40061 41085 41583 42889 43303 39181 41659)
+KNOWN_PORTS=(39587 43063 42123 40061 41085 41583 42889 43303 39181 41659)
 for p in "${KNOWN_PORTS[@]}"; do
   echo "==> try ${IP}:${p}"
   if "$ADB" connect "${IP}:${p}" 2>&1 | grep -q "connected"; then
