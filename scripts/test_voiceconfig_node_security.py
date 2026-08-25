@@ -293,5 +293,37 @@ class TaskProtocolTest(unittest.TestCase):
         self.assertIn(query["task"]["status"], ("queued", "running", "done", "failed", "acknowledged", "pending"))
 
 
+    def test_skill_run_local_execution(self):
+        status, body = self._request(
+            "POST",
+            "/api/skills/run",
+            {"skill": {
+                "id": "skill-test-1",
+                "name": "远程主机信息",
+                "steps": [
+                    {"command": "hostname", "purpose": "获取主机名"},
+                    {"command": "hostname", "purpose": "再次获取主机名"},
+                ],
+            }},
+            token=self.token,
+        )
+        self.assertEqual(status, 200, body)
+        self.assertTrue(body["ok"])
+        self.assertEqual(len(body["results"]), 2)
+        self.assertTrue(all(r["ok"] for r in body["results"]))
+
+        status, body = self._request(
+            "POST",
+            "/api/skills/run",
+            {"skill": {
+                "id": "skill-test-bad",
+                "steps": [{"command": "network"}],
+            }},
+            token=self.token,
+        )
+        self.assertEqual(status, 403, body)
+        self.assertFalse(body["ok"])
+
+
 if __name__ == "__main__":
     unittest.main()

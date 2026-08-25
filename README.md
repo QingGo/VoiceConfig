@@ -398,6 +398,15 @@ curl -X POST -H "Authorization: Bearer $TOKEN" http://100.91.244.17:8787/api/tas
 Android 侧已提供 `RemoteTaskClient`，支持 submit/ack/checkpoint/get/resume/list。
 另外节点每次请求都会写审计。
 
+Remote Skill 执行接口：
+
+```bash
+# 在节点本地执行一个只读命令 Skill
+curl -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json'   -d '{"skill":{"id":"s1","name":"host-summary","steps":[{"command":"hostname","purpose":"hostname"},{"command":"uptime","purpose":"uptime"}]}}'   http://100.91.244.17:8787/api/skills/run
+```
+
+Android 侧已提供 `RemoteSkillClient`，以及 `AgentSkillDistributor` 按节点能力过滤已审核 Skill。
+
 Token 管理接口：
 
 ```bash
@@ -410,12 +419,15 @@ curl -X POST -H "Authorization: Bearer $TOKEN"   -H 'Content-Type: application/j
 
 > 当前仍是实验性只读节点。TLS/mTLS 需要自行提供证书；未配置 TLS 时只应通过 Tailscale 等私有网络访问。
 
-#### Android 控制面（R2/R3 进度）
+#### Android 控制面（R2/R3/R4 进度）
 
 - 新增 `RemoteNodeRepository`：节点注册、列表、启停、暂停、删除、状态/错误记录。
 - 节点 Token 使用 Android Keystore + AES/GCM 加密后存入 Room，不落明文。
 - 新增受控 `remote_node` 工具：只允许对已启用/未暂停节点执行其 allowlist 中的只读命令，且不把 Token 返回模型。
 - 新增 `RemoteTaskClient`：任务提交 / ACK / checkpoint / 查询 / resume / list。
+- 新增 `AgentSkillStore.exportSkill/exportAll/importSkill`：导入的 Skill 默认 PENDING，需主控审核。
+- 新增 `AgentSkillDistributor`：按节点能力过滤已审核 Skill。
+- 新增 `RemoteSkillClient`：把命令型 Skill 发送到节点本地执行。
 - 当前 `remote_node` 标记为 ADVANCED，不进入核心工具列表；UI 节点管理页尚未接上。
 
 模拟器本地 ASR 闭环（调试桥，仅 debug 包可用）：

@@ -194,6 +194,51 @@ class AgentSkillStore @Inject constructor(
         }
     }
 
+    fun exportSkill(id: String): String? {
+        val skill = load().firstOrNull { it.id == id } ?: return null
+        return skillToJson(skill).put("format", "voiceconfig-skill").put("formatVersion", 1).toString()
+    }
+
+    fun exportAll(): String {
+        val arr = JSONArray()
+        load().forEach { skill ->
+            arr.put(skillToJson(skill).put("format", "voiceconfig-skill").put("formatVersion", 1))
+        }
+        return arr.toString()
+    }
+
+    fun importSkill(json: String, source: String = "import"): AgentSkill? {
+        val obj = runCatching { JSONObject(json) }.getOrNull() ?: return null
+        val imported = skillFromJson(obj) ?: return null
+        val now = System.currentTimeMillis()
+        val generatedId = "skill_import_${now}_${imported.name.hashCode().toString().replace("-", "").take(6)}"
+        val finalSkill = imported.copy(
+            id = generatedId,
+            status = AgentSkillStatus.PENDING,
+            enabled = true,
+            createdAt = now,
+            updatedAt = now,
+            sourceRunId = "",
+            sourceVerified = null,
+            version = 1,
+            successCount = 1,
+            useCount = 0,
+            lastUsedAt = null,
+            auditLog = listOf(
+                AgentSkillAudit(
+                    skillId = generatedId,
+                    at = now,
+                    action = "import",
+                    detail = "从 $source 导入，等待审核",
+                ),
+            ),
+        )
+        val updated = load() + finalSkill
+        save(updated)
+        appendAudit(finalSkill.id, "import", "从 $source 导入技能：${finalSkill.name}")
+        return finalSkill
+    }
+
     private fun setStatus(id: String, status: AgentSkillStatus, action: String) {
         val now = System.currentTimeMillis()
         val updated = load().map { skill ->
@@ -282,6 +327,136 @@ class AgentSkillStore @Inject constructor(
             )
         }
         save(updated)
+    }
+
+    private fun skillToJson(skill: AgentSkill): JSONObject {
+        val stepsArr = JSONArray()
+        skill.steps.forEach { step ->
+            stepsArr.put(
+                JSONObject()
+                    .put("toolName", step.toolName)
+                    .put("args", step.args)
+                    .put("purpose", step.purpose)
+                    .put("expected", step.expected)
+                    .put("uiEvidence", step.uiEvidence)
+                    .put("verification", step.verification)
+                    .put("fallback", step.fallback)
+                    .put("ok", step.ok),
+            )
+        }
+        val tagsArr = JSONArray()
+        skill.tags.forEach { tagsArr.put(it) }
+        val requiredArr = JSONArray()
+        skill.requiredCapabilities.forEach { requiredArr.put(it) }
+        val auditArr = JSONArray()
+        skill.auditLog.forEach { a ->
+            auditArr.put(
+                JSONObject()
+                    .put("skillId", a.skillId)
+                    .put("at", a.at)
+                    .put("action", a.action)
+                    .put("detail", a.detail),
+            )
+        }
+        return JSONObject()
+            .put("id", skill.id)
+            .put("name", skill.name)
+            .put("description", skill.description)
+            .put("text", skill.text)
+            .put("tags", tagsArr)
+            .put("whenToUse", skill.whenToUse)
+            .put("steps", stepsArr)
+            .put("createdAt", skill.createdAt)
+            .put("updatedAt", skill.updatedAt)
+            .put("successCount", skill.successCount)
+            .put("failCount", skill.failCount)
+            .put("useCount", skill.useCount)
+            .put("status", skill.status.name)
+            .put("lastRunId", skill.lastRunId)
+            .put("lastSessionId", skill.lastSessionId ?: 0L)
+            .put("lastResult", skill.lastResult)
+            .put("version", skill.version)
+            .put("enabled", skill.enabled)
+            .put("redacted", skill.redacted)
+            .put("sourceRunId", skill.sourceRunId)
+            .put("sourceVerified", skill.sourceVerified ?: JSONObject.NULL)
+            .put("requiredCapabilities", requiredArr)
+            .put("lastUsedAt", skill.lastUsedAt ?: 0L)
+            .put("auditLog", auditArr)
+    }
+
+    private fun skillFromJson(obj: JSONObject): AgentSkill? {
+        val stepsArr = obj.optJSONArray("steps") ?: return null
+        val steps = buildList {
+            for (i in 0 until stepsArr.length()) {
+                val step = stepsArr.getJSONObject(i)
+                add(
+                    AgentSkillStep(
+                        toolName = step.optString("toolName"),
+                        args = step.optString("args"),
+                        purpose = step.optString("purpose"),
+                        expected = step.optString("expected"),
+                        uiEvidence = step.optString("uiEvidence"),
+                        verification = step.optString("verification"),
+                        fallback = step.optString("fallback"),
+                        ok = step.optBoolean("ok", true),
+                    ),
+                )
+            }
+        }
+        if (steps.isEmpty()) return null
+        val tags = runCatching {
+            val arr = obj.optJSONArray("tags")
+            if (arr == null) emptyList() else (0 until arr.length()).map { arr.optString(it) }
+        }.getOrDefault(emptyList())
+        val required = runCatching {
+            val arr = obj.optJSONArray("requiredCapabilities")
+            if (arr == null) emptyList() else (0 until arr.length()).map { arr.optString(it) }
+        }.getOrDefault(emptyList())
+        val audit = runCatching {
+            val arr = obj.optJSONArray("auditLog")
+            if (arr == null) emptyList() else (0 until arr.length()).map { k ->
+                val a = arr.getJSONObject(k)
+                AgentSkillAudit(
+                    skillId = a.optString("skillId"),
+                    at = a.optLong("at"),
+                    action = a.optString("action"),
+                    detail = a.optString("detail"),
+                )
+            }
+        }.getOrDefault(emptyList())
+        return AgentSkill(
+            id = obj.optString("id", "skill_import"),
+            name = obj.optString("name", obj.optString("text", "导入技能")),
+            description = obj.optString("description"),
+            text = obj.optString("text"),
+            tags = tags,
+            whenToUse = obj.optString("whenToUse"),
+            steps = steps,
+            createdAt = obj.optLong("createdAt", System.currentTimeMillis()),
+            updatedAt = obj.optLong("updatedAt", System.currentTimeMillis()),
+            successCount = obj.optInt("successCount", 1),
+            failCount = obj.optInt("failCount", 0),
+            useCount = obj.optInt("useCount", 0),
+            status = runCatching {
+                AgentSkillStatus.valueOf(obj.optString("status", AgentSkillStatus.PENDING.name))
+            }.getOrDefault(AgentSkillStatus.PENDING),
+            lastRunId = obj.optString("lastRunId"),
+            lastSessionId = obj.optLong("lastSessionId").takeIf { it != 0L },
+            lastResult = obj.optString("lastResult"),
+            version = obj.optInt("version", 1),
+            enabled = obj.optBoolean("enabled", true),
+            redacted = obj.optBoolean("redacted", false),
+            sourceRunId = obj.optString("sourceRunId"),
+            sourceVerified = if (obj.has("sourceVerified") && !obj.isNull("sourceVerified")) {
+                obj.optBoolean("sourceVerified")
+            } else {
+                null
+            },
+            requiredCapabilities = required,
+            lastUsedAt = obj.optLong("lastUsedAt").takeIf { it != 0L },
+            auditLog = audit,
+        )
     }
 
     private fun load(): List<AgentSkill> {

@@ -28,7 +28,7 @@ import uuid
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-NODE_VERSION = "0.4.0"
+NODE_VERSION = "0.5.0"
 
 # Built-in command set. The node never executes user-supplied argv; it maps a
 # whitelisted command name to a fixed argv list.
@@ -240,6 +240,42 @@ def run_allowed(command: str, allowed_commands) -> dict:
         return {"ok": False, "error": "timeout", "command": command}
     except Exception as e:
         return {"ok": False, "error": str(e), "command": command}
+
+
+def run_skill(skill: dict, allowed_commands) -> dict:
+    """Run an ordered command-skill on the node.
+
+    Expected skill payload:
+      {"id":"...", "steps":[{"command":"uptime", ...}, ...]}
+    """
+    steps = skill.get("steps") if isinstance(skill, dict) else None
+    if not isinstance(steps, list) or not steps:
+        return {"ok": False, "error": "skill_steps_required", "allowed": sorted(allowed_commands)}
+    results = []
+    for index, step in enumerate(steps):
+        if not isinstance(step, dict):
+            results.append({"step": index, "ok": False, "error": "step_not_object"})
+            continue
+        command = str(step.get("command") or step.get("toolName") or "")
+        purpose = str(step.get("purpose") or "")
+        if command not in allowed_commands:
+            result = {
+                "ok": False,
+                "error": "command_not_allowed",
+                "command": command,
+                "allowed": sorted(allowed_commands),
+            }
+        else:
+            result = run_allowed(command, allowed_commands)
+        results.append({
+            "step": index,
+            "command": command,
+            "purpose": purpose,
+            "ok": bool(result.get("ok")),
+            "result": result,
+        })
+    ok = all(r.get("ok", False) for r in results)
+    return {"ok": ok, "results": results, "skill_id": skill.get("id") if isinstance(skill, dict) else None}
 
 
 # ---------------------------------------------------------------------------
@@ -565,6 +601,14 @@ class Handler(BaseHTTPRequestHandler):
             })
         elif self.path.startswith("/api/tasks/"):
             self._handle_task_post(self.path, body)
+        elif self.path == "/api/skills/run":
+            skill = body.get("skill") if isinstance(body.get("skill"), dict) else body
+            result = run_skill(skill, self.server.allowed_commands)
+            self._audit("skill_run", bool(result.get("ok")), {
+                "skill_id": (skill or {}).get("id") if isinstance(skill, dict) else None,
+                "steps": len((skill or {}).get("steps", [])) if isinstance(skill, dict) else 0,
+            })
+            self._send_json(200 if result.get("ok") else 403, result)
         elif self.path == "/api/admin/rotate-token":
             current = self._extract_token()
             with self.server.tokens_lock:

@@ -1333,6 +1333,13 @@ class MainViewModel @Inject constructor(
         agentSkillStore.redact(id)
     }
 
+    fun exportAgentSkill(id: String): String? = agentSkillStore.exportSkill(id)
+
+    fun exportAllAgentSkills(): String = agentSkillStore.exportAll()
+
+    fun importAgentSkill(json: String, source: String = "Android"): AgentSkill? =
+        agentSkillStore.importSkill(json, source)
+
     suspend fun confirmSensitiveAction(request: SensitiveActionRequest): Boolean {
         if (apiKeyStore.agentAutoConfirmSensitiveActions) return true
         val deferred = CompletableDeferred<Boolean>()
