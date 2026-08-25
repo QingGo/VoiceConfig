@@ -58,6 +58,8 @@ import com.voiceconfig.core.model.Task
 import com.voiceconfig.data.local.entity.AgentMessageEntity
 import com.voiceconfig.data.local.entity.AgentSessionEntity
 import com.voiceconfig.data.local.entity.TaskEventEntity
+import com.voiceconfig.app.agent.AgentRunRecord
+import com.voiceconfig.app.agent.AgentRunState
 import com.voiceconfig.app.agent.AgentSkill
 import com.voiceconfig.app.agent.AgentSkillStatus
 import com.voiceconfig.app.agent.AgentStepUi
@@ -81,6 +83,7 @@ fun AgentPage(
     agentSteps: List<AgentStepUi> = emptyList(),
     lastRunDurationMs: Long? = null,
     agentSkills: List<AgentSkill> = emptyList(),
+    agentRunRecords: List<AgentRunRecord> = emptyList(),
     taskEvents: List<TaskEventEntity>,
     recentLogs: List<ExecutionLog>,
     tasks: List<Task>,
@@ -401,9 +404,9 @@ fun AgentPage(
 
     if (showRuns) {
         AgentRunsDialog(
-            sessions = sessions,
+            records = agentRunRecords,
             onDismiss = { showRuns = false },
-            onSelect = { sessionId ->
+            onSelectSession = { sessionId ->
                 showRuns = false
                 onSelectSession(sessionId)
             },
@@ -507,33 +510,75 @@ private fun SkillLibraryDialog(
 
 @Composable
 private fun AgentRunsDialog(
-    sessions: List<AgentSessionEntity>,
+    records: List<AgentRunRecord>,
     onDismiss: () -> Unit,
-    onSelect: (Long) -> Unit,
+    onSelectSession: (Long) -> Unit = {},
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Agent 运行记录") },
         text = {
-            if (sessions.isEmpty()) {
-                Text("暂无 Agent 执行会话")
+            if (records.isEmpty()) {
+                Text("暂无 Agent 运行记录")
             } else {
                 LazyColumn(
                     modifier = Modifier.fillMaxWidth(),
                     verticalArrangement = Arrangement.spacedBy(4.dp),
                 ) {
-                    items(sessions, key = { it.id }) { session ->
-                        Card(
-                            onClick = { onSelect(session.id) },
-                            modifier = Modifier.fillMaxWidth(),
-                        ) {
-                            Column(Modifier.padding(10.dp)) {
-                                Text(session.title, style = MaterialTheme.typography.bodyLarge)
+                    items(records, key = { it.runId }) { record ->
+                        Card(modifier = Modifier.fillMaxWidth()) {
+                            Column(Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                ) {
+                                    Text(
+                                        text = record.userText.take(36),
+                                        style = MaterialTheme.typography.bodyLarge,
+                                        modifier = Modifier.weight(1f),
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                    )
+                                    Text(
+                                        text = when {
+                                            record.state == AgentRunState.WAITING_CONFIRM -> "等待确认"
+                                            record.state == AgentRunState.CANCELLED -> "已取消"
+                                            record.ok -> "成功"
+                                            else -> "失败"
+                                        },
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = when {
+                                            record.state == AgentRunState.WAITING_CONFIRM -> MaterialTheme.colorScheme.tertiary
+                                            record.ok -> MaterialTheme.colorScheme.primary
+                                            else -> MaterialTheme.colorScheme.error
+                                        },
+                                    )
+                                }
                                 Text(
-                                    "${session.messageCount} 条消息 · ${formatTime(session.updatedAtEpochMillis)}",
+                                    text = buildString {
+                                        append(record.toolCalls.size)
+                                        append(" 个工具 · ")
+                                        append(formatTime(record.startedAtMs))
+                                        append(" · ")
+                                        append(record.durationMs)
+                                        append("ms")
+                                        record.verified?.let { verified ->
+                                            append(" · 验证")
+                                            append(if (verified) "通过" else "未通过")
+                                        }
+                                    },
                                     style = MaterialTheme.typography.labelSmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
+                                if (record.toolCalls.isNotEmpty()) {
+                                    Text(
+                                        text = record.toolCalls.joinToString(" → ").take(160),
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        maxLines = 2,
+                                        overflow = TextOverflow.Ellipsis,
+                                    )
+                                }
                             }
                         }
                     }

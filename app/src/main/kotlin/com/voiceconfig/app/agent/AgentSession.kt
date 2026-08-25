@@ -59,13 +59,30 @@ class AgentSession @Inject constructor(
         runControls.getOrPut(id) { RunControl() }.paused = true
     }
 
-    fun clear() {
-        history.clear()
+    fun cancelAll() {
+        runControls.values.forEach { it.cancelled = true }
     }
 
-    fun restore(messages: List<AgentMessage>) {
-        history.clear()
-        history.addAll(messages)
+    fun pauseAll() {
+        runControls.values.forEach { it.paused = true }
+    }
+
+    suspend fun clear() {
+        runMutex.withLock {
+            history.clear()
+        }
+    }
+
+    suspend fun restore(messages: List<AgentMessage>) {
+        runMutex.withLock {
+            history.clear()
+            history.addAll(messages)
+        }
+    }
+
+    private fun cleanupRun(runId: String) {
+        if (activeRunId == runId) activeRunId = null
+        runControls.remove(runId)
     }
 
     fun historySnapshot(): List<AgentMessage> = history.toList()
@@ -88,6 +105,7 @@ class AgentSession @Inject constructor(
         verifyPolicy: AgentVerificationPolicy = AgentVerificationPolicy(),
         runPolicy: AgentRunPolicy = AgentRunPolicy(),
         plan: TaskPlan? = null,
+        resetHistory: Boolean = false,
         onSensitiveAction: suspend (SensitiveActionRequest) -> Boolean = { false },
     ): AgentTurnResult = runMutex.withLock {
         val saved = history.toList()
@@ -100,9 +118,11 @@ class AgentSession @Inject constructor(
                 verifyPolicy = verifyPolicy,
                 runPolicy = runPolicy,
                 plan = plan,
+                resetHistory = resetHistory,
                 onSensitiveAction = onSensitiveAction,
             )
             runLedger.record(result.toRunRecord(userText))
+            cleanupRun(result.runId)
             result
         } finally {
             history.clear()
@@ -117,6 +137,7 @@ class AgentSession @Inject constructor(
         verifyPolicy: AgentVerificationPolicy = AgentVerificationPolicy(),
         runPolicy: AgentRunPolicy = AgentRunPolicy(),
         plan: TaskPlan? = null,
+        resetHistory: Boolean = false,
         onStateChange: (AgentRunState) -> Unit = {},
         onStreamEvent: (AgentStreamEvent) -> Unit = {},
         onMessage: suspend (AgentMessage) -> Unit = {},
@@ -130,6 +151,7 @@ class AgentSession @Inject constructor(
             verifyPolicy = verifyPolicy,
             runPolicy = runPolicy,
             plan = plan,
+            resetHistory = resetHistory,
             onStateChange = onStateChange,
             onStreamEvent = onStreamEvent,
             onMessage = onMessage,
@@ -137,6 +159,7 @@ class AgentSession @Inject constructor(
             onStep = onStep,
         )
         runLedger.record(result.toRunRecord(userText))
+        cleanupRun(result.runId)
         result
     }
 
@@ -147,6 +170,7 @@ class AgentSession @Inject constructor(
         verifyPolicy: AgentVerificationPolicy = AgentVerificationPolicy(),
         runPolicy: AgentRunPolicy = AgentRunPolicy(),
         plan: TaskPlan? = null,
+        resetHistory: Boolean = false,
         onStateChange: (AgentRunState) -> Unit = {},
         onStreamEvent: (AgentStreamEvent) -> Unit = {},
         onMessage: suspend (AgentMessage) -> Unit = {},
@@ -157,6 +181,9 @@ class AgentSession @Inject constructor(
         val runId = trace.startRun(userText)
         val control = runControls.getOrPut(runId) { RunControl() }
         activeRunId = runId
+        if (resetHistory) {
+            history.clear()
+        }
         history += AgentMessage("user", userText)
         onMessage(history.last())
         trace.log(runId, "user_input", mapOf("text" to userText))
@@ -171,6 +198,7 @@ class AgentSession @Inject constructor(
 
         val systemPrompt = buildSystemPrompt(skills)
         val allToolCalls = mutableListOf<ToolCall>()
+        val allToolResults = mutableListOf<ToolResult>()
         val allSteps = mutableListOf<StepExecution>()
         var consecutiveFailures = 0
         var latestScreenBase64: String? = null
@@ -227,7 +255,7 @@ class AgentSession @Inject constructor(
             return AgentTurnResult(
                 ok = true,
                 message = "已暂停：$reason",
-                toolCalls = allToolCalls,
+                toolCalls = allToolCalls, toolResults = allToolResults.toList(),
                 history = historySnapshot(),
                 runId = runId,
                 durationMs = System.currentTimeMillis() - startedAtMs,
@@ -254,7 +282,7 @@ class AgentSession @Inject constructor(
                 history += AgentMessage("assistant", "已停止")
                 onMessage(history.last())
                 finishRun(false, "已停止")
-                return AgentTurnResult(ok = false, message = "已停止", toolCalls = allToolCalls, history = historySnapshot(), runId = runId)
+                return AgentTurnResult(ok = false, message = "已停止", toolCalls = allToolCalls, toolResults = allToolResults.toList(), history = historySnapshot(), runId = runId)
             }
             if (control.paused) {
                 return returnPaused()
@@ -266,7 +294,7 @@ class AgentSession @Inject constructor(
                 history += AgentMessage("assistant", "执行失败：$error")
                 onMessage(history.last())
                 finishRun(false, error)
-                return AgentTurnResult(ok = false, message = error, toolCalls = allToolCalls, history = historySnapshot(), runId = runId, durationMs = System.currentTimeMillis() - startedAtMs, llmWaitMs = llmWaitMs, toolExecMs = toolExecMs, verifyMs = verifyMs, rounds = rounds)
+                return AgentTurnResult(ok = false, message = error, toolCalls = allToolCalls, toolResults = allToolResults.toList(), history = historySnapshot(), runId = runId, durationMs = System.currentTimeMillis() - startedAtMs, llmWaitMs = llmWaitMs, toolExecMs = toolExecMs, verifyMs = verifyMs, rounds = rounds)
             }
             trace.log(
                 runId,
@@ -310,7 +338,7 @@ class AgentSession @Inject constructor(
                 history += AgentMessage("assistant", "执行失败：$llmError")
                 onMessage(history.last())
                 finishRun(false, llmError)
-                return AgentTurnResult(ok = false, message = llmError, toolCalls = allToolCalls, history = historySnapshot(), runId = runId, durationMs = System.currentTimeMillis() - startedAtMs, llmWaitMs = llmWaitMs, toolExecMs = toolExecMs, verifyMs = verifyMs, rounds = rounds)
+                return AgentTurnResult(ok = false, message = llmError, toolCalls = allToolCalls, toolResults = allToolResults.toList(), history = historySnapshot(), runId = runId, durationMs = System.currentTimeMillis() - startedAtMs, llmWaitMs = llmWaitMs, toolExecMs = toolExecMs, verifyMs = verifyMs, rounds = rounds)
             }
             if (control.paused) {
                 return returnPaused()
@@ -355,7 +383,7 @@ class AgentSession @Inject constructor(
                 history += AgentMessage("assistant", "已停止")
                 onMessage(history.last())
                 finishRun(false, "已停止")
-                return AgentTurnResult(ok = false, message = "已停止", toolCalls = allToolCalls, history = historySnapshot(), runId = runId)
+                return AgentTurnResult(ok = false, message = "已停止", toolCalls = allToolCalls, toolResults = allToolResults.toList(), history = historySnapshot(), runId = runId)
             }
 
             if (response.toolCalls.isEmpty()) {
@@ -366,7 +394,7 @@ class AgentSession @Inject constructor(
                     history += AgentMessage("assistant", "执行失败：$error")
                     onMessage(history.last())
                     finishRun(false, error)
-                    return AgentTurnResult(ok = false, message = error, toolCalls = allToolCalls, history = historySnapshot(), runId = runId)
+                    return AgentTurnResult(ok = false, message = error, toolCalls = allToolCalls, toolResults = allToolResults.toList(), history = historySnapshot(), runId = runId)
                 }
                 val currentPlan = taskPlanStore.snapshot()
                 val stopDecision = stopVerifier.evaluate(currentPlan, latestUiEvidence)
@@ -388,7 +416,7 @@ class AgentSession @Inject constructor(
                         return AgentTurnResult(
                             ok = true,
                             message = finalText,
-                            toolCalls = allToolCalls,
+                            toolCalls = allToolCalls, toolResults = allToolResults.toList(),
                             history = historySnapshot(),
                             runId = runId,
                             durationMs = System.currentTimeMillis() - startedAtMs,
@@ -414,7 +442,7 @@ class AgentSession @Inject constructor(
                         return AgentTurnResult(
                             ok = false,
                             message = error,
-                            toolCalls = allToolCalls,
+                            toolCalls = allToolCalls, toolResults = allToolResults.toList(),
                             history = historySnapshot(),
                             runId = runId,
                             durationMs = System.currentTimeMillis() - startedAtMs,
@@ -450,7 +478,7 @@ class AgentSession @Inject constructor(
                         return AgentTurnResult(
                             ok = true,
                             message = finalText,
-                            toolCalls = allToolCalls,
+                            toolCalls = allToolCalls, toolResults = allToolResults.toList(),
                             history = historySnapshot(),
                             runId = runId,
                             durationMs = System.currentTimeMillis() - startedAtMs,
@@ -511,7 +539,7 @@ class AgentSession @Inject constructor(
                     return AgentTurnResult(
                         ok = false,
                         message = error,
-                        toolCalls = allToolCalls,
+                        toolCalls = allToolCalls, toolResults = allToolResults.toList(),
                         history = historySnapshot(),
                         runId = runId,
                         durationMs = System.currentTimeMillis() - startedAtMs,
@@ -546,7 +574,7 @@ class AgentSession @Inject constructor(
                 return AgentTurnResult(
                     ok = true,
                     message = finalText,
-                    toolCalls = allToolCalls,
+                    toolCalls = allToolCalls, toolResults = allToolResults.toList(),
                     history = historySnapshot(),
                     runId = runId,
                     durationMs = System.currentTimeMillis() - startedAtMs,
@@ -563,7 +591,7 @@ class AgentSession @Inject constructor(
                     setState(AgentRunState.CANCELLED)
                     history += AgentMessage("assistant", "已停止")
                     finishRun(false, "已停止")
-                    return AgentTurnResult(ok = false, message = "已停止", toolCalls = allToolCalls, history = historySnapshot(), runId = runId)
+                    return AgentTurnResult(ok = false, message = "已停止", toolCalls = allToolCalls, toolResults = allToolResults.toList(), history = historySnapshot(), runId = runId)
                 }
                 val tool = toolRegistry.get(toolCall.name)
                 if (tool == null) {
@@ -614,7 +642,7 @@ class AgentSession @Inject constructor(
                     history += AgentMessage("assistant", "执行失败：$repeatError")
                     onMessage(history.last())
                     finishRun(false, repeatError)
-                    return AgentTurnResult(ok = false, message = repeatError, toolCalls = allToolCalls, history = historySnapshot(), runId = runId, durationMs = System.currentTimeMillis() - startedAtMs, llmWaitMs = llmWaitMs, toolExecMs = toolExecMs, verifyMs = verifyMs, rounds = rounds)
+                    return AgentTurnResult(ok = false, message = repeatError, toolCalls = allToolCalls, toolResults = allToolResults.toList(), history = historySnapshot(), runId = runId, durationMs = System.currentTimeMillis() - startedAtMs, llmWaitMs = llmWaitMs, toolExecMs = toolExecMs, verifyMs = verifyMs, rounds = rounds)
                 }
                 recentActionKeys += actionKey
                 if (recentActionKeys.size > 30) recentActionKeys.removeAt(0)
@@ -660,10 +688,12 @@ class AgentSession @Inject constructor(
                         )
                         onMessage(history.last())
                         allToolCalls += ToolCall(toolCall.name, args)
+                        val declinedResult = ToolResult.failure(declined)
+                        allToolResults += declinedResult
                         allSteps += StepExecution(
                             index = allSteps.size,
                             call = ToolCall(toolCall.name, args),
-                            result = ToolResult.failure(declined),
+                            result = declinedResult,
                         )
                         continue
                     }
@@ -692,10 +722,12 @@ class AgentSession @Inject constructor(
                     )
                     onMessage(history.last())
                     allToolCalls += ToolCall(toolCall.name, args)
+                    val blockedResult = ToolResult.failure(blocked)
+                    allToolResults += blockedResult
                     allSteps += StepExecution(
                         index = allSteps.size,
                         call = ToolCall(toolCall.name, args),
-                        result = ToolResult.failure(blocked),
+                        result = blockedResult,
                     )
                     setState(AgentRunState.FAILED)
                     history += AgentMessage("assistant", "执行失败：$blocked")
@@ -704,7 +736,7 @@ class AgentSession @Inject constructor(
                     return AgentTurnResult(
                         ok = false,
                         message = blocked,
-                        toolCalls = allToolCalls,
+                        toolCalls = allToolCalls, toolResults = allToolResults.toList(),
                         history = historySnapshot(),
                         runId = runId,
                         durationMs = System.currentTimeMillis() - startedAtMs,
@@ -723,7 +755,7 @@ class AgentSession @Inject constructor(
                     "args" to args,
                     "start_elapsed_ms" to toolStartMs - startedAtMs,
                 ))
-                val result = try {
+                var result = try {
                     withTimeout(runPolicy.toolTimeoutMs) { tool.execute(args) }
                 } catch (e: TimeoutCancellationException) {
                     ToolResult.failure("工具 ${toolCall.name} 执行超时（${runPolicy.toolTimeoutMs / 1000}s）")
@@ -734,6 +766,34 @@ class AgentSession @Inject constructor(
                 val toolDurationMs = toolEndMs - toolStartMs
                 toolExecMs += toolDurationMs
                 roundToolExecMs += toolDurationMs
+                val verificationSpec = AgentVerificationMatrix.specFor(toolCall.name)
+                val evidenceField = verificationSpec.evidenceField
+                val evidenceValue = evidenceField?.let { result.data[it] }
+                val hasVerificationEvidence = when (verificationSpec.requirement) {
+                    VerificationRequirement.FOREGROUND,
+                    VerificationRequirement.TASK_CREATED -> evidenceValue == true
+                    else -> evidenceField == null || result.data.containsKey(evidenceField)
+                }
+                if (result.ok && !hasVerificationEvidence &&
+                    (verificationSpec.requirement == VerificationRequirement.FOREGROUND ||
+                        verificationSpec.requirement == VerificationRequirement.TASK_CREATED)
+                ) {
+                    val reason = when (verificationSpec.requirement) {
+                        VerificationRequirement.FOREGROUND -> "缺少前台包名/目标页面证据"
+                        VerificationRequirement.TASK_CREATED -> "缺少任务已保存并调度的证据"
+                        else -> "缺少验证证据"
+                    }
+                    result = result.copy(
+                        ok = false,
+                        message = "${result.message}（系统验证失败：$reason）",
+                    )
+                    trace.log(runId, "verification_rejected", mapOf(
+                        "tool" to toolCall.name,
+                        "requirement" to verificationSpec.requirement.name,
+                        "evidence_field" to (evidenceField ?: ""),
+                        "message" to result.message,
+                    ))
+                }
                 onStep(
                     AgentStepUi(
                         index = stepIndex,
@@ -748,7 +808,6 @@ class AgentSession @Inject constructor(
                     ),
                 )
                 if (result.ok) consecutiveFailures = 0 else consecutiveFailures++
-                val verificationSpec = AgentVerificationMatrix.specFor(toolCall.name)
                 trace.log(
                 runId,
                     "tool_result",
@@ -784,6 +843,7 @@ class AgentSession @Inject constructor(
                     latestUiEvidence = result.message.take(2000)
                 }
                 allToolCalls += ToolCall(toolCall.name, args)
+                allToolResults += result
                 allSteps += StepExecution(
                     index = allSteps.size,
                     call = ToolCall(toolCall.name, args),
@@ -869,7 +929,7 @@ class AgentSession @Inject constructor(
                     setState(AgentRunState.CANCELLED)
                     history += AgentMessage("assistant", "已停止")
                     finishRun(false, "已停止")
-                    return AgentTurnResult(ok = false, message = "已停止", toolCalls = allToolCalls, history = historySnapshot(), runId = runId)
+                    return AgentTurnResult(ok = false, message = "已停止", toolCalls = allToolCalls, toolResults = allToolResults.toList(), history = historySnapshot(), runId = runId)
                 }
             }
 
@@ -922,7 +982,7 @@ class AgentSession @Inject constructor(
         return AgentTurnResult(
             ok = allSteps.all { it.result.ok },
             message = summary.ifBlank { "达到最大轮数" },
-            toolCalls = allToolCalls,
+            toolCalls = allToolCalls, toolResults = allToolResults.toList(),
             history = historySnapshot(),
             runId = runId,
             durationMs = System.currentTimeMillis() - startedAtMs,
@@ -1035,6 +1095,7 @@ data class AgentTurnResult(
     val ok: Boolean,
     val message: String,
     val toolCalls: List<ToolCall>,
+    val toolResults: List<ToolResult> = emptyList(),
     val history: List<AgentMessage>,
     val runId: String = "",
     val durationMs: Long = 0,

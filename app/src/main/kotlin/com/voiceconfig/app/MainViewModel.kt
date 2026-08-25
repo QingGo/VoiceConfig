@@ -25,6 +25,8 @@ import com.voiceconfig.core.executor.ExecutionResult
 import com.voiceconfig.core.scheduler.TaskScheduler
 import com.voiceconfig.app.agent.AgentMessage
 import com.voiceconfig.app.agent.AgentStreamEvent
+import com.voiceconfig.app.agent.AgentRunLedger
+import com.voiceconfig.app.agent.AgentRunRecord
 import com.voiceconfig.app.agent.AgentRunState
 import com.voiceconfig.app.agent.AgentSession
 import com.voiceconfig.app.agent.AgentSkill
@@ -93,6 +95,7 @@ class MainViewModel @Inject constructor(
     private val agentHistoryRepository: AgentHistoryRepository,
     private val agentSession: AgentSession,
     private val agentSkillStore: AgentSkillStore,
+    private val agentRunLedger: AgentRunLedger,
     private val taskPlanStore: TaskPlanStore,
 ) : ViewModel() {
 
@@ -164,6 +167,13 @@ class MainViewModel @Inject constructor(
     val agentVoiceAutoSend: StateFlow<Boolean> = _agentVoiceAutoSend.asStateFlow()
 
     val agentSessions: StateFlow<List<AgentSessionEntity>> = agentHistoryRepository.observeSessions()
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5_000),
+            initialValue = emptyList(),
+        )
+
+    val agentRunRecords: StateFlow<List<AgentRunRecord>> = agentRunLedger.observeRecords(100)
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5_000),
@@ -826,7 +836,9 @@ class MainViewModel @Inject constructor(
     fun clearSelectedAgentSession() {
         _selectedAgentSessionId.value = null
         _agentSteps.value = emptyList()
-        agentSession.clear()
+        viewModelScope.launch {
+            agentSession.clear()
+        }
     }
 
     fun newAgentSession() {
@@ -977,6 +989,7 @@ class MainViewModel @Inject constructor(
             try {
                 val now = System.currentTimeMillis()
                 var sessionId = _selectedAgentSessionId.value
+                val isNewSession = sessionId == null
                 if (sessionId == null) {
                     sessionId = agentHistoryRepository.createSession(text.take(24), now)
                     _selectedAgentSessionId.value = sessionId
@@ -999,6 +1012,7 @@ class MainViewModel @Inject constructor(
                     skills = relevantSkills,
                     verifyPolicy = verifyPolicy,
                     plan = resumePlan,
+                    resetHistory = isNewSession,
                     onSensitiveAction = { request -> confirmSensitiveAction(request) },
                     onStep = { step ->
                         _agentSteps.update { current ->

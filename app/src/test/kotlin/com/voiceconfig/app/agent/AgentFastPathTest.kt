@@ -75,8 +75,13 @@ class AgentFastPathTest {
         override val name: String,
         override val description: String = name,
     ) : AgentTool {
-        override suspend fun execute(args: Map<String, Any?>): ToolResult =
-            ToolResult.success("$name ok", mapOf("name" to name))
+        override suspend fun execute(args: Map<String, Any?>): ToolResult {
+            val data = mutableMapOf<String, Any?>("name" to name)
+            if (name == "open_app" || name == "create_reminder" || name == "create_scheduled_task") {
+                data["verified"] = true
+            }
+            return ToolResult.success("$name ok", data)
+        }
     }
 
     private fun sessionWith(
@@ -275,7 +280,7 @@ class AgentFastPathTest {
             override val description: String = "open app"
             override suspend fun execute(args: Map<String, Any?>): ToolResult {
                 session.pause()
-                return ToolResult.success("opened")
+                return ToolResult.success("opened", mapOf("verified" to true))
             }
         }
         val registry = ToolRegistry().register(tool)

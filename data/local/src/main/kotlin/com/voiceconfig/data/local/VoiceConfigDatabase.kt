@@ -6,6 +6,7 @@ import androidx.room.TypeConverters
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 import com.voiceconfig.data.local.dao.AgentMessageDao
+import com.voiceconfig.data.local.dao.AgentRunRecordDao
 import com.voiceconfig.data.local.dao.AgentStepDao
 import com.voiceconfig.data.local.dao.AgentSessionDao
 import com.voiceconfig.data.local.dao.TaskPlanDao
@@ -17,6 +18,7 @@ import com.voiceconfig.data.local.dao.TriggerRuleDao
 import com.voiceconfig.data.local.dao.TemplateDao
 import com.voiceconfig.data.local.dao.TaskEventDao
 import com.voiceconfig.data.local.entity.AgentMessageEntity
+import com.voiceconfig.data.local.entity.AgentRunRecordEntity
 import com.voiceconfig.data.local.entity.AgentStepEntity
 import com.voiceconfig.data.local.entity.AgentSessionEntity
 import com.voiceconfig.data.local.entity.TaskPlanEntity
@@ -40,12 +42,13 @@ import com.voiceconfig.data.local.entity.TriggerRuleEntity
         TriggerRuleEntity::class,
         AgentSessionEntity::class,
         AgentMessageEntity::class,
+        AgentRunRecordEntity::class,
         AgentStepEntity::class,
         TaskEventEntity::class,
         TaskPlanEntity::class,
         TaskPlanStepEntity::class,
     ],
-    version = 15,
+    version = 16,
     exportSchema = false,
 )
 abstract class VoiceConfigDatabase : RoomDatabase() {
@@ -57,6 +60,7 @@ abstract class VoiceConfigDatabase : RoomDatabase() {
     abstract fun triggerRuleDao(): TriggerRuleDao
     abstract fun agentSessionDao(): AgentSessionDao
     abstract fun agentMessageDao(): AgentMessageDao
+    abstract fun agentRunRecordDao(): AgentRunRecordDao
     abstract fun agentStepDao(): AgentStepDao
     abstract fun taskEventDao(): TaskEventDao
     abstract fun taskPlanDao(): TaskPlanDao
@@ -287,5 +291,30 @@ abstract class VoiceConfigDatabase : RoomDatabase() {
                 db.execSQL("CREATE INDEX IF NOT EXISTS `index_task_plan_steps_planId` ON `task_plan_steps` (`planId`)")
             }
         }
+        val MIGRATION_15_16 = object : Migration(15, 16) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS `agent_run_records` (
+                        `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        `runId` TEXT NOT NULL,
+                        `userText` TEXT NOT NULL,
+                        `ok` INTEGER NOT NULL,
+                        `state` TEXT NOT NULL,
+                        `message` TEXT NOT NULL,
+                        `toolCallsJson` TEXT NOT NULL,
+                        `durationMs` INTEGER NOT NULL,
+                        `startedAtEpochMillis` INTEGER NOT NULL,
+                        `finishedAtEpochMillis` INTEGER NOT NULL,
+                        `waitingForHuman` INTEGER NOT NULL,
+                        `verified` INTEGER
+                    )
+                    """.trimIndent(),
+                )
+                db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_agent_run_records_runId` ON `agent_run_records` (`runId`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_agent_run_records_startedAtEpochMillis` ON `agent_run_records` (`startedAtEpochMillis`)")
+            }
+        }
+
     }
 }

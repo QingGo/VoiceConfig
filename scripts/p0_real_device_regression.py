@@ -83,6 +83,10 @@ def pull_trace(serial, local_path):
     return data
 
 
+def clear_trace(serial):
+    adb(serial, ["shell", "run-as", PACKAGE, "rm", "-f", REMOTE_TRACE])
+
+
 def parse_trace(text):
     entries = []
     for line in text.splitlines():
@@ -133,6 +137,7 @@ def wait_for_run(serial, local, text, timeout):
 
 
 def check_scenario(serial, scenario, trace_path):
+    clear_trace(serial)
     adb(serial, ["shell", "am", "start", "-W", "-n", f"{PACKAGE}/{ACTIVITY}"])
     time.sleep(1)
     adb(serial, [
@@ -185,11 +190,21 @@ def check_scenario(serial, scenario, trace_path):
         checks.append(("wait_user", has_wait, "应调用 wait_user"))
         checks.append(("no_final_payment", no_final, f"不应调用最终工具 {final_tools}"))
 
+    checks.append(("run_finished_ok", finished.get("ok") is True, "run_finished 应标记成功"))
     ok = all(ok for _, ok, _ in checks)
+    verified_ok = None
+    if scenario.get("require_verified"):
+        verified_ok = any(
+            tr.get("tool") == expected and tr.get("ok") and "verified" in data_keys_of(tr)
+            for tr in tool_results
+        )
     return {
         "name": scenario["name"],
         "ok": ok,
+        "verified": verified_ok,
         "tool_calls": [tc.get("tool") for tc in tool_calls],
+        "tool_count": len(tool_calls),
+        "duration_ms": finished.get("duration_ms"),
         "tool_results": [
             {"tool": tr.get("tool"), "ok": tr.get("ok"), "message": tr.get("message", "")[:120]}
             for tr in tool_results
@@ -203,6 +218,7 @@ def check_scenario(serial, scenario, trace_path):
 
 
 def check_taskplan_scenario(serial, scenario, trace_path):
+    clear_trace(serial)
     adb(serial, ["shell", "am", "start", "-W", "-n", f"{PACKAGE}/{ACTIVITY}"])
     time.sleep(1)
     adb(serial, [
@@ -272,8 +288,26 @@ def main():
         results.append(result)
 
     passed = sum(1 for r in results if r["ok"])
+    all_tool_calls = [tc for r in results for tc in r.get("tool_calls", [])]
+    simple = [r for r in results if r.get("name") != "TaskPlan 创建等待恢复取消"]
+    taskplan_misuse = sum(1 for r in simple if "task_plan" in r.get("tool_calls", []))
+    wait_user_count = sum(1 for r in results if "wait_user" in r.get("tool_calls", []))
+    verified_count = sum(1 for r in results if r.get("verified") is True)
+    durations = [r.get("duration_ms") for r in results if isinstance(r.get("duration_ms"), (int, float))]
+    metric_tool_counts = [r.get("tool_count", 0) for r in results]
+    metrics = {
+        "total": len(results),
+        "passed": passed,
+        "success_rate": round(passed / len(results), 3) if results else 0,
+        "verified_count": verified_count,
+        "taskplan_misuse": taskplan_misuse,
+        "wait_user_count": wait_user_count,
+        "total_tool_calls": len(all_tool_calls),
+        "avg_tool_calls_per_scenario": round(sum(metric_tool_counts) / len(metric_tool_counts), 2) if metric_tool_counts else 0,
+        "avg_duration_ms": round(sum(durations) / len(durations), 1) if durations else None,
+    }
     print("\n=== P0 真机回归汇总 ===")
-    print(json.dumps({"total": len(results), "passed": passed}, ensure_ascii=False, indent=2))
+    print(json.dumps(metrics, ensure_ascii=False, indent=2))
     return 0 if passed == len(results) else 1
 
 

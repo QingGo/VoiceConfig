@@ -8,8 +8,8 @@ import com.voiceconfig.app.agent.AgentChat
 import com.voiceconfig.app.agent.AgentToolChat
 import com.voiceconfig.app.agent.AgentChatClient
 import com.voiceconfig.app.agent.AgentRunLedger
+import com.voiceconfig.app.agent.PersistentAgentRunLedger
 import com.voiceconfig.app.agent.CoreAgentPlugin
-import com.voiceconfig.app.agent.InMemoryAgentRunLedger
 import com.voiceconfig.app.agent.PluginRegistry
 import com.voiceconfig.app.agent.ToolRegistry
 import com.voiceconfig.app.ai.DeepSeekNlpParser
@@ -26,6 +26,7 @@ import com.voiceconfig.core.scheduler.NextRunCalculator
 import com.voiceconfig.core.scheduler.TaskScheduler
 import com.voiceconfig.data.local.VoiceConfigDatabase
 import com.voiceconfig.data.local.dao.AgentMessageDao
+import com.voiceconfig.data.local.dao.AgentRunRecordDao
 import com.voiceconfig.data.local.dao.AgentStepDao
 import com.voiceconfig.data.local.dao.AgentSessionDao
 import com.voiceconfig.data.local.dao.AiDebugLogDao
@@ -37,6 +38,8 @@ import com.voiceconfig.data.local.dao.TemplateDao
 import com.voiceconfig.data.local.dao.TaskEventDao
 import com.voiceconfig.data.local.dao.TriggerRuleDao
 import com.voiceconfig.data.local.repository.AgentHistoryRepository
+import com.voiceconfig.data.local.repository.AgentRunRecordRepository
+import com.voiceconfig.data.local.repository.OfflineAgentRunRecordRepository
 import com.voiceconfig.data.local.repository.AiDebugLogRepository
 import com.voiceconfig.data.local.repository.ExecutionLogRepository
 import com.voiceconfig.data.local.repository.OfflineAgentHistoryRepository
@@ -67,7 +70,7 @@ object AppModule {
             VoiceConfigDatabase::class.java,
             "voice_config.db",
         )
-            .addMigrations(VoiceConfigDatabase.MIGRATION_1_2, VoiceConfigDatabase.MIGRATION_2_3, VoiceConfigDatabase.MIGRATION_3_4, VoiceConfigDatabase.MIGRATION_4_5, VoiceConfigDatabase.MIGRATION_5_6, VoiceConfigDatabase.MIGRATION_6_7, VoiceConfigDatabase.MIGRATION_7_8, VoiceConfigDatabase.MIGRATION_8_9, VoiceConfigDatabase.MIGRATION_9_10, VoiceConfigDatabase.MIGRATION_10_11, VoiceConfigDatabase.MIGRATION_11_12, VoiceConfigDatabase.MIGRATION_12_13, VoiceConfigDatabase.MIGRATION_13_14, VoiceConfigDatabase.MIGRATION_14_15)
+            .addMigrations(VoiceConfigDatabase.MIGRATION_1_2, VoiceConfigDatabase.MIGRATION_2_3, VoiceConfigDatabase.MIGRATION_3_4, VoiceConfigDatabase.MIGRATION_4_5, VoiceConfigDatabase.MIGRATION_5_6, VoiceConfigDatabase.MIGRATION_6_7, VoiceConfigDatabase.MIGRATION_7_8, VoiceConfigDatabase.MIGRATION_8_9, VoiceConfigDatabase.MIGRATION_9_10, VoiceConfigDatabase.MIGRATION_10_11, VoiceConfigDatabase.MIGRATION_11_12, VoiceConfigDatabase.MIGRATION_12_13, VoiceConfigDatabase.MIGRATION_13_14, VoiceConfigDatabase.MIGRATION_14_15, VoiceConfigDatabase.MIGRATION_15_16)
             .build()
 
     @Provides
@@ -90,6 +93,9 @@ object AppModule {
 
     @Provides
     fun provideAgentMessageDao(database: VoiceConfigDatabase): AgentMessageDao = database.agentMessageDao()
+
+    @Provides
+    fun provideAgentRunRecordDao(database: VoiceConfigDatabase): AgentRunRecordDao = database.agentRunRecordDao()
 
     @Provides
     fun provideAgentStepDao(database: VoiceConfigDatabase): AgentStepDao = database.agentStepDao()
@@ -154,6 +160,11 @@ object AppModule {
 
     @Provides
     @Singleton
+    fun provideAgentRunRecordRepository(agentRunRecordDao: AgentRunRecordDao): AgentRunRecordRepository =
+        OfflineAgentRunRecordRepository(agentRunRecordDao)
+
+    @Provides
+    @Singleton
     fun provideInstalledAppProvider(@ApplicationContext context: Context): InstalledAppProvider =
         InstalledAppProvider(context)
 
@@ -208,7 +219,7 @@ object AppModule {
 
     @Provides
     @Singleton
-    fun provideAgentRunLedger(impl: InMemoryAgentRunLedger): AgentRunLedger = impl
+    fun provideAgentRunLedger(impl: PersistentAgentRunLedger): AgentRunLedger = impl
 
     @Provides
     @Singleton

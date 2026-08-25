@@ -48,6 +48,24 @@ class VoiceConfigMigrationTest {
         }
     }
 
+    @Test
+    fun `migration 15 to 16 creates agent run records table`() {
+        val conn = DriverManager.getConnection("jdbc:sqlite::memory:")
+        try {
+            val db = supportDatabase(conn)
+            VoiceConfigDatabase.MIGRATION_15_16.migrate(db)
+            assertTrue(columns(conn, "agent_run_records").containsAll(
+                setOf(
+                    "id", "runId", "userText", "ok", "state", "message",
+                    "toolCallsJson", "durationMs", "startedAtEpochMillis",
+                    "finishedAtEpochMillis", "waitingForHuman", "verified",
+                ),
+            ))
+        } finally {
+            conn.close()
+        }
+    }
+
     private fun createV1Schema(conn: Connection) {
         conn.createStatement().use { stmt ->
             stmt.execute(
