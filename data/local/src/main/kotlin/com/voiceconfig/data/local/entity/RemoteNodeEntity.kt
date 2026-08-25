@@ -1,9 +1,10 @@
 package com.voiceconfig.data.local.entity
 
 import androidx.room.Entity
+import androidx.room.Index
 import androidx.room.PrimaryKey
 
-@Entity(tableName = "remote_nodes")
+@Entity(tableName = "remote_nodes", indices = [Index(value = ["nodeId"], unique = true)])
 data class RemoteNodeEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
     val nodeId: String,
