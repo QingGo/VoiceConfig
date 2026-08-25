@@ -398,6 +398,16 @@ curl -X POST -H "Authorization: Bearer $TOKEN" http://100.91.244.17:8787/api/tas
 Android 侧已提供 `RemoteTaskClient`，支持 submit/ack/checkpoint/get/resume/list。
 另外节点每次请求都会写审计。
 
+只读监控接口：
+
+```bash
+# 获取节点监控快照
+curl -H "Authorization: Bearer $TOKEN" http://100.91.244.17:8787/api/monitor
+
+# 简易监控/告警脚本（可交给 cron/systemd timer）
+python scripts/voiceconfig_remote_monitor.py   --url http://100.91.244.17:8787   --token "$TOKEN"   --json
+```
+
 Remote Skill 执行接口：
 
 ```bash
@@ -418,6 +428,13 @@ curl -X POST -H "Authorization: Bearer $TOKEN"   -H 'Content-Type: application/j
 ```
 
 > 当前仍是实验性只读节点。TLS/mTLS 需要自行提供证书；未配置 TLS 时只应通过 Tailscale 等私有网络访问。
+
+#### R5 服务器运维闭环（进行中）
+
+- 节点常驻 + 只读监控：`GET /api/monitor` 返回 hostname/uptime/free/df/ps/network/tailscale/os_release。
+- Android `RemoteMonitorClient` 可拉取快照。
+- `scripts/voiceconfig_remote_monitor.py` 支持磁盘/内存阈值告警，可接入 cron/systemd timer。
+- 任务队列 + 审计已打通；告警通知 UI/Android 定时任务仍在后续。
 
 #### Android 控制面（R2/R3/R4 进度）
 

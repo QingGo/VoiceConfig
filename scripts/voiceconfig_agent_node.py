@@ -28,7 +28,7 @@ import uuid
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-NODE_VERSION = "0.5.0"
+NODE_VERSION = "0.6.0"
 
 # Built-in command set. The node never executes user-supplied argv; it maps a
 # whitelisted command name to a fixed argv list.
@@ -489,6 +489,23 @@ class Handler(BaseHTTPRequestHandler):
                 "uptime": subprocess.run(["uptime"], capture_output=True, text=True, timeout=5).stdout.strip(),
                 "memory": subprocess.run(["free", "-h"], capture_output=True, text=True, timeout=5).stdout.strip(),
                 "disk": subprocess.run(["df", "-h", "/"], capture_output=True, text=True, timeout=5).stdout.strip(),
+            })
+        elif self.path == "/api/monitor":
+            monitor_commands = ["hostname", "uptime", "free", "df", "ps", "network", "tailscale", "os_release"]
+            snapshot = {}
+            for command in monitor_commands:
+                if command in self.server.allowed_commands:
+                    result = run_allowed(command, self.server.allowed_commands)
+                    if result.get("ok"):
+                        snapshot[command] = result.get("stdout", "").strip()
+            self._send_json(200, {
+                "ok": True,
+                "node": self.identity.get("node_id"),
+                "hostname": self.identity.get("hostname", hostname()),
+                "version": NODE_VERSION,
+                "at": now_ms(),
+                "snapshot": snapshot,
+                "missing_commands": [c for c in monitor_commands if c not in self.server.allowed_commands],
             })
         elif self.path == "/api/tasks":
             with self.server.tasks_lock:

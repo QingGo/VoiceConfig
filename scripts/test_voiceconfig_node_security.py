@@ -293,6 +293,13 @@ class TaskProtocolTest(unittest.TestCase):
         self.assertIn(query["task"]["status"], ("queued", "running", "done", "failed", "acknowledged", "pending"))
 
 
+    def test_monitor_snapshot(self):
+        status, body = self._request("GET", "/api/monitor", token=self.token)
+        self.assertEqual(status, 200, body)
+        self.assertTrue(body["ok"])
+        self.assertTrue("hostname" in body["snapshot"])
+        self.assertTrue("network" in body["missing_commands"])
+
     def test_skill_run_local_execution(self):
         status, body = self._request(
             "POST",
