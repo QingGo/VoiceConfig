@@ -62,7 +62,9 @@ import com.voiceconfig.app.remote.SshBootstrapClient
 import com.voiceconfig.app.remote.SshBootstrapResult
 import com.voiceconfig.app.remote.SshClient
 import com.voiceconfig.app.remote.SshCredentialStore
+import com.voiceconfig.app.remote.SshFileResult
 import com.voiceconfig.app.remote.SshHostKeyStore
+import com.voiceconfig.app.remote.SshPendingTrust
 import com.voiceconfig.app.remote.SshConfig
 import com.voiceconfig.app.remote.SshExecResult
 import com.voiceconfig.app.remote.RemoteCommandResult
@@ -163,6 +165,12 @@ class MainViewModel @Inject constructor(
 
     private val _sshBootstrapResult = MutableStateFlow<SshBootstrapResult?>(null)
     val sshBootstrapResult: StateFlow<SshBootstrapResult?> = _sshBootstrapResult.asStateFlow()
+
+    private val _pendingSshHostKey = MutableStateFlow<SshPendingTrust?>(null)
+    val pendingSshHostKey: StateFlow<SshPendingTrust?> = _pendingSshHostKey.asStateFlow()
+
+    private val _sshFileResult = MutableStateFlow<SshFileResult?>(null)
+    val sshFileResult: StateFlow<SshFileResult?> = _sshFileResult.asStateFlow()
 
     val triggerRules: StateFlow<List<TriggerRule>> = triggerRuleRepository.observeAll()
         .stateIn(
@@ -1440,13 +1448,24 @@ class MainViewModel @Inject constructor(
         viewModelScope.launch {
             _sshResult.value = null
             sshCredentialStore.save(config)
-            val result = sshClient.execute(config, command)
-            result.hostKeyFingerprint?.let { fp ->
-                if (sshHostKeyStore.get(config.host, config.port) == null) {
-                    sshHostKeyStore.save(config.host, config.port, fp)
+            val trusted = sshHostKeyStore.get(config.host, config.port)
+            if (trusted == null) {
+                // 首次连接：先用无害命令换取指纹，等待用户确认后再执行真正命令。
+                val probe = sshClient.execute(config, "true", 15_000)
+                val fp = probe.hostKeyFingerprint
+                if (fp == null) {
+                    _sshResult.value = probe
+                    return@launch
                 }
+                _pendingSshHostKey.value = SshPendingTrust(
+                    config = config,
+                    fingerprint = fp,
+                    command = command,
+                )
+                return@launch
             }
-            _sshResult.value = result
+            val effective = config.copy(hostKeyFingerprint = trusted)
+            _sshResult.value = sshClient.execute(effective, command)
         }
     }
 
@@ -1454,30 +1473,135 @@ class MainViewModel @Inject constructor(
         viewModelScope.launch {
             _sshBootstrapResult.value = null
             sshCredentialStore.save(config)
-            val result = sshBootstrapClient.install(config, bindMode)
-            if (result.ok && result.token != null) {
-                remoteNodeRepository.saveNode(
-                    RemoteNode(
-                        nodeId = result.nodeId ?: ("node_ssh_" + System.currentTimeMillis()),
-                        name = config.host,
-                        host = config.host,
-                        port = 8787,
-                        scheme = "http",
-                        token = result.token,
-                        allowedCommands = listOf(
-                            "hostname", "uname", "uptime", "free", "df", "ps",
-                            "os_release", "network", "tailscale",
-                        ),
-                        enabled = true,
-                        paused = false,
-                        createdAtEpochMillis = System.currentTimeMillis(),
-                        updatedAtEpochMillis = System.currentTimeMillis(),
-                    ),
+            val trusted = sshHostKeyStore.get(config.host, config.port)
+            if (trusted == null) {
+                val probe = sshClient.execute(config, "true", 15_000)
+                val fp = probe.hostKeyFingerprint
+                if (fp == null) {
+                    _sshBootstrapResult.value = SshBootstrapResult(
+                        false,
+                        "无法获取主机指纹：${probe.stderr.ifBlank { probe.stdout }}",
+                    )
+                    return@launch
+                }
+                _pendingSshHostKey.value = SshPendingTrust(
+                    config = config,
+                    fingerprint = fp,
+                    installBindMode = bindMode,
                 )
+                return@launch
             }
-            _sshBootstrapResult.value = result
+            runSshInstallDirect(config.copy(hostKeyFingerprint = trusted), bindMode)
         }
     }
+
+    fun confirmSshHostKey(trusted: Boolean) {
+        val pending = _pendingSshHostKey.value ?: return
+        _pendingSshHostKey.value = null
+        if (!trusted) return
+        viewModelScope.launch {
+            sshHostKeyStore.save(pending.config.host, pending.config.port, pending.fingerprint)
+            val effective = pending.config.copy(hostKeyFingerprint = pending.fingerprint)
+            if (pending.command != null) {
+                _sshResult.value = null
+                _sshResult.value = sshClient.execute(effective, pending.command)
+            } else if (pending.installBindMode != null) {
+                _sshBootstrapResult.value = null
+                runSshInstallDirect(effective, pending.installBindMode)
+            }
+        }
+    }
+
+    private suspend fun runSshInstallDirect(config: SshConfig, bindMode: String) {
+        val result = sshBootstrapClient.install(config, bindMode)
+        if (result.ok && result.token != null) {
+            remoteNodeRepository.saveNode(
+                RemoteNode(
+                    nodeId = result.nodeId ?: ("node_ssh_" + System.currentTimeMillis()),
+                    name = config.host,
+                    host = config.host,
+                    port = 8787,
+                    scheme = "http",
+                    token = result.token,
+                    allowedCommands = listOf(
+                        "hostname", "uname", "uptime", "free", "df", "ps",
+                        "os_release", "network", "tailscale",
+                    ),
+                    enabled = true,
+                    paused = false,
+                    createdAtEpochMillis = System.currentTimeMillis(),
+                    updatedAtEpochMillis = System.currentTimeMillis(),
+                ),
+            )
+        }
+        _sshBootstrapResult.value = result
+    }
+
+    fun listSshFiles(config: SshConfig, path: String) {
+        viewModelScope.launch {
+            _sshFileResult.value = null
+            sshCredentialStore.save(config)
+            val trusted = sshHostKeyStore.get(config.host, config.port)
+            if (trusted == null) {
+                _sshFileResult.value = SshFileResult(false, path, "", "请先在 SSH 命令终端确认主机指纹")
+                return@launch
+            }
+            val effective = config.copy(hostKeyFingerprint = trusted)
+            val result = sshClient.execute(effective, "ls -la --quoting-style=shell " + shellQuote(path))
+            _sshFileResult.value = SshFileResult(
+                ok = result.exitCode == 0,
+                path = path,
+                content = if (result.exitCode == 0) result.stdout else result.stderr.ifBlank { result.stdout },
+                error = if (result.exitCode == 0) null else result.stderr.ifBlank { result.stdout },
+                exitCode = result.exitCode,
+            )
+        }
+    }
+
+    fun readSshFile(config: SshConfig, path: String) {
+        viewModelScope.launch {
+            _sshFileResult.value = null
+            sshCredentialStore.save(config)
+            val trusted = sshHostKeyStore.get(config.host, config.port)
+            if (trusted == null) {
+                _sshFileResult.value = SshFileResult(false, path, "", "请先在 SSH 命令终端确认主机指纹")
+                return@launch
+            }
+            val effective = config.copy(hostKeyFingerprint = trusted)
+            val content = sshClient.download(effective, path)
+            if (content == null) {
+                _sshFileResult.value = SshFileResult(false, path, "", "读取失败（文件不存在或不可读）")
+            } else {
+                _sshFileResult.value = SshFileResult(true, path, content)
+            }
+        }
+    }
+
+    fun writeSshFile(config: SshConfig, path: String, content: String) {
+        viewModelScope.launch {
+            _sshFileResult.value = null
+            sshCredentialStore.save(config)
+            val trusted = sshHostKeyStore.get(config.host, config.port)
+            if (trusted == null) {
+                _sshFileResult.value = SshFileResult(false, path, "", "请先在 SSH 命令终端确认主机指纹")
+                return@launch
+            }
+            val effective = config.copy(hostKeyFingerprint = trusted)
+            val ok = sshClient.upload(effective, path, content)
+            _sshFileResult.value = if (ok) {
+                SshFileResult(true, path, "已写入 $path")
+            } else {
+                SshFileResult(false, path, "", "写入失败（请检查路径权限）")
+            }
+        }
+    }
+
+    fun clearSshFileResult() {
+        _sshFileResult.value = null
+    }
+
+    private fun shellQuote(value: String): String =
+        "'" + value.replace("'", "'\''") + "'"
 
     fun clearSshResult() {
         _sshResult.value = null

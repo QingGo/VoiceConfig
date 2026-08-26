@@ -19,6 +19,7 @@ import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.Button
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.HorizontalDivider
@@ -50,6 +51,7 @@ import com.voiceconfig.data.local.entity.AiDebugLogEntity
 import com.voiceconfig.core.model.TriggerRule
 import com.voiceconfig.app.ui.RemoteNodesDialog
 import com.voiceconfig.app.ui.SshConsoleDialog
+import com.voiceconfig.app.ui.SshFileDialog
 import kotlinx.coroutines.launch
 
 @Composable
@@ -106,10 +108,13 @@ fun SettingsScreen(
     var triggerInput by remember { mutableStateOf("") }
     var showRemoteNodes by remember { mutableStateOf(false) }
     var showSshConsole by remember { mutableStateOf(false) }
+    var showSshFile by remember { mutableStateOf(false) }
     val remoteNodes by viewModel.remoteNodes.collectAsState()
     val remoteCommandResult by viewModel.remoteCommandResult.collectAsState()
     val sshResult by viewModel.sshResult.collectAsState()
     val sshBootstrapResult by viewModel.sshBootstrapResult.collectAsState()
+    val sshFileResult by viewModel.sshFileResult.collectAsState()
+    val pendingSshHostKey by viewModel.pendingSshHostKey.collectAsState()
 
     val locationPermissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission(),
@@ -502,6 +507,12 @@ fun SettingsScreen(
                         }) {
                             Text("SSH 命令终端")
                         }
+                        TextButton(onClick = {
+                            showSshFile = true
+                            viewModel.clearSshFileResult()
+                        }) {
+                            Text("SSH 远程文件")
+                        }
                     }
                 }
 
@@ -604,6 +615,55 @@ fun SettingsScreen(
             onInstall = viewModel::installNodeViaSsh,
             bootstrapResult = sshBootstrapResult,
             onClearBootstrapResult = viewModel::clearSshBootstrapResult,
+        )
+    }
+
+    if (showSshFile) {
+        SshFileDialog(
+            onDismiss = { showSshFile = false },
+            defaultHost = remoteNodes.firstOrNull()?.host.orEmpty(),
+            onList = viewModel::listSshFiles,
+            onRead = viewModel::readSshFile,
+            onWrite = viewModel::writeSshFile,
+            result = sshFileResult,
+            onClearResult = viewModel::clearSshFileResult,
+        )
+    }
+
+    pendingSshHostKey?.let { pending ->
+        AlertDialog(
+            onDismissRequest = { viewModel.confirmSshHostKey(false) },
+            title = { Text("首次连接确认") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        text = "正在连接 ${pending.config.host}:${pending.config.port}，请核对主机指纹：",
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                    SelectionContainer {
+                        Text(
+                            text = pending.fingerprint,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    Text(
+                        text = "确认后才会执行目标命令或安装节点。指纹不匹配请拒绝。",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { viewModel.confirmSshHostKey(true) }) {
+                    Text("信任并继续")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { viewModel.confirmSshHostKey(false) }) {
+                    Text("拒绝")
+                }
+            },
         )
     }
 }

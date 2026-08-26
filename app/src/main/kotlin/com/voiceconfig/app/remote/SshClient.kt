@@ -61,9 +61,12 @@ class SshClient @Inject constructor() {
                 session!!.connect(15_000)
                 val hostKey = session!!.hostKey
                 val fingerprint = hostKey?.getFingerPrint(jsch)
-                if (config.hostKeyFingerprint != null && fingerprint != null && config.hostKeyFingerprint != fingerprint) {
-                    session!!.disconnect()
-                    return@withContext SshExecResult(-1, "", "Host key mismatch: $fingerprint", fingerprint)
+                if (config.hostKeyFingerprint != null) {
+                    val mismatch = fingerprint == null || config.hostKeyFingerprint != fingerprint
+                    if (mismatch) {
+                        session!!.disconnect()
+                        return@withContext SshExecResult(-1, "", "Host key mismatch: $fingerprint", fingerprint)
+                    }
                 }
 
                 channel = session!!.openChannel("exec") as ChannelExec
@@ -114,6 +117,15 @@ class SshClient @Inject constructor() {
                 config.password?.let { session!!.setPassword(it) }
                 session!!.setConfig("StrictHostKeyChecking", "no")
                 session!!.connect(15_000)
+                val hostKey = session!!.hostKey
+                val fingerprint = hostKey?.getFingerPrint(jsch)
+                if (config.hostKeyFingerprint != null) {
+                    val mismatch = fingerprint == null || config.hostKeyFingerprint != fingerprint
+                    if (mismatch) {
+                        session!!.disconnect()
+                        return@withContext false
+                    }
+                }
 
                 sftp = session!!.openChannel("sftp") as ChannelSftp
                 sftp!!.connect(15_000)
@@ -145,6 +157,15 @@ class SshClient @Inject constructor() {
                 config.password?.let { session!!.setPassword(it) }
                 session!!.setConfig("StrictHostKeyChecking", "no")
                 session!!.connect(15_000)
+                val hostKey = session!!.hostKey
+                val fingerprint = hostKey?.getFingerPrint(jsch)
+                if (config.hostKeyFingerprint != null) {
+                    val mismatch = fingerprint == null || config.hostKeyFingerprint != fingerprint
+                    if (mismatch) {
+                        session!!.disconnect()
+                        return@withContext null
+                    }
+                }
 
                 sftp = session!!.openChannel("sftp") as ChannelSftp
                 sftp!!.connect(15_000)

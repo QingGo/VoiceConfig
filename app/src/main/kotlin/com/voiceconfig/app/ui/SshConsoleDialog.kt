@@ -1,5 +1,7 @@
 package com.voiceconfig.app.ui
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -20,6 +22,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.voiceconfig.app.remote.SshBootstrapResult
 import com.voiceconfig.app.remote.SshConfig
@@ -45,6 +48,15 @@ fun SshConsoleDialog(
     var bindMode by remember { mutableStateOf("tailscale") }
 
     val canRun = host.isNotBlank() && username.isNotBlank() && (password.isNotBlank() || privateKey.isNotBlank()) && command.isNotBlank()
+
+    val context = LocalContext.current
+    val privateKeyPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri != null) {
+            runCatching {
+                context.contentResolver.openInputStream(uri)?.bufferedReader()?.use { it.readText() }
+            }.getOrNull()?.let { privateKey = it }
+        }
+    }
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("SSH 远程终端") },
@@ -60,6 +72,12 @@ fun SshConsoleDialog(
                 OutlinedTextField(value = username, onValueChange = { username = it }, label = { Text("用户名") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
                 OutlinedTextField(value = password, onValueChange = { password = it }, label = { Text("密码（可选，私钥为空时使用）") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
                 OutlinedTextField(value = privateKey, onValueChange = { privateKey = it }, label = { Text("私钥（可选）") }, modifier = Modifier.fillMaxWidth(), minLines = 3)
+                TextButton(
+                    onClick = { privateKeyPicker.launch(arrayOf("*/*")) },
+                    enabled = true,
+                ) {
+                    Text("从文件导入私钥")
+                }
                 OutlinedTextField(value = command, onValueChange = { command = it }, label = { Text("命令") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     TextButton(onClick = onDismiss) {
