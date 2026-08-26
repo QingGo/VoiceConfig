@@ -105,6 +105,7 @@ fun SettingsScreen(
     var triggerInput by remember { mutableStateOf("") }
     var showRemoteNodes by remember { mutableStateOf(false) }
     val remoteNodes by viewModel.remoteNodes.collectAsState()
+    val remoteCommandResult by viewModel.remoteCommandResult.collectAsState()
 
     val locationPermissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission(),
@@ -577,6 +578,9 @@ fun SettingsScreen(
             onDelete = viewModel::deleteRemoteNode,
             onToggleEnabled = viewModel::setRemoteNodeEnabled,
             onTogglePaused = viewModel::setRemoteNodePaused,
+            commandResult = remoteCommandResult,
+            onExecute = viewModel::executeRemoteCommand,
+            onClearResult = viewModel::clearRemoteCommandResult,
         )
     }
 }

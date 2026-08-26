@@ -23,6 +23,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.voiceconfig.data.local.repository.RemoteNode
+import com.voiceconfig.app.remote.RemoteCommandResult
 
 @Composable
 fun RemoteNodesDialog(
@@ -32,9 +33,13 @@ fun RemoteNodesDialog(
     onDelete: (Long) -> Unit,
     onToggleEnabled: (Long, Boolean) -> Unit,
     onTogglePaused: (Long, Boolean) -> Unit,
+    commandResult: RemoteCommandResult? = null,
+    onExecute: (RemoteNode, String) -> Unit = { _, _ -> },
+    onClearResult: () -> Unit = {},
 ) {
     var editingId by remember { mutableStateOf<Long?>(null) }
     var showForm by remember { mutableStateOf(false) }
+    var executingNodeId by remember { mutableStateOf<Long?>(null) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -104,7 +109,39 @@ fun RemoteNodesDialog(
                                             style = MaterialTheme.typography.bodySmall,
                                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                                         )
+                                        if (executingNodeId == node.id) {
+                                            var cmdText by remember(node.id) {
+                                                mutableStateOf(node.allowedCommands.firstOrNull() ?: "")
+                                            }
+                                            OutlinedTextField(
+                                                value = cmdText,
+                                                onValueChange = { cmdText = it },
+                                                label = { Text("命令") },
+                                                modifier = Modifier.fillMaxWidth(),
+                                                singleLine = true,
+                                            )
+                                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                                TextButton(onClick = {
+                                                    executingNodeId = null
+                                                    onClearResult()
+                                                }) {
+                                                    Text("取消")
+                                                }
+                                                Button(
+                                                    enabled = cmdText.isNotBlank() && node.allowedCommands.any { it == cmdText.trim() },
+                                                    onClick = { onExecute(node, cmdText.trim()) },
+                                                ) {
+                                                    Text("运行")
+                                                }
+                                            }
+                                        }
                                         Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                                            TextButton(onClick = {
+                                                executingNodeId = node.id
+                                                onClearResult()
+                                            }) {
+                                                Text("执行")
+                                            }
                                             TextButton(onClick = { onToggleEnabled(node.id, !node.enabled) }) {
                                                 Text(if (node.enabled) "停用" else "启用")
                                             }
@@ -121,6 +158,37 @@ fun RemoteNodesDialog(
                                                 Text("删除", color = MaterialTheme.colorScheme.error)
                                             }
                                         }
+                                    }
+                                }
+                            }
+                        }
+                        commandResult?.let { result ->
+                            Card(modifier = Modifier.fillMaxWidth()) {
+                                Column(
+                                    modifier = Modifier.padding(8.dp),
+                                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                                ) {
+                                    Text(
+                                        text = "执行结果：${result.command}",
+                                        style = MaterialTheme.typography.labelMedium,
+                                    )
+                                    if (result.ok) {
+                                        Text(
+                                            text = result.stdout.ifBlank { "(无输出)" },
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            maxLines = 8,
+                                        )
+                                    } else {
+                                        Text(
+                                            text = result.error ?: result.stderr.ifBlank { "执行失败" },
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.error,
+                                            maxLines = 8,
+                                        )
+                                    }
+                                    TextButton(onClick = onClearResult) {
+                                        Text("清除")
                                     }
                                 }
                             }

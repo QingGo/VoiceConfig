@@ -57,6 +57,8 @@ import com.voiceconfig.data.local.repository.ExecutionLogRepository
 import com.voiceconfig.data.local.repository.RemoteNode
 import com.voiceconfig.data.local.repository.RemoteNodeRepository
 import com.voiceconfig.data.local.repository.TaskRepository
+import com.voiceconfig.app.remote.RemoteCommandClient
+import com.voiceconfig.app.remote.RemoteCommandResult
 import com.voiceconfig.data.local.repository.TemplateRepository
 import com.voiceconfig.data.local.repository.TriggerRuleRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -91,6 +93,7 @@ class MainViewModel @Inject constructor(
     private val triggerRuleRepository: TriggerRuleRepository,
     private val triggerRuleScheduler: TriggerRuleScheduler,
     private val remoteNodeRepository: RemoteNodeRepository,
+    private val remoteCommandClient: RemoteCommandClient,
     private val executionLogRepository: ExecutionLogRepository,
     private val userAliasRegistry: UserAliasRegistry,
     private val executionEngine: ExecutionEngine,
@@ -140,6 +143,9 @@ class MainViewModel @Inject constructor(
             started = SharingStarted.WhileSubscribed(5_000),
             initialValue = emptyList(),
         )
+
+    private val _remoteCommandResult = MutableStateFlow<RemoteCommandResult?>(null)
+    val remoteCommandResult: StateFlow<RemoteCommandResult?> = _remoteCommandResult.asStateFlow()
 
     val triggerRules: StateFlow<List<TriggerRule>> = triggerRuleRepository.observeAll()
         .stateIn(
@@ -1389,6 +1395,28 @@ class MainViewModel @Inject constructor(
             @Suppress("UNUSED_EXPRESSION")
             snapshot
         }
+    }
+
+    fun executeRemoteCommand(node: RemoteNode, command: String) {
+        viewModelScope.launch {
+            _remoteCommandResult.value = null
+            _remoteCommandResult.value = runCatching {
+                remoteCommandClient.execute(node.name, command)
+            }.getOrElse { e ->
+                RemoteCommandResult(
+                    ok = false,
+                    command = command,
+                    stdout = "",
+                    stderr = "",
+                    exitCode = null,
+                    error = e.message ?: "执行失败",
+                )
+            }
+        }
+    }
+
+    fun clearRemoteCommandResult() {
+        _remoteCommandResult.value = null
     }
 
     suspend fun confirmSensitiveAction(request: SensitiveActionRequest): Boolean {
