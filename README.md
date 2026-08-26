@@ -442,6 +442,7 @@ curl -X POST -H "Authorization: Bearer $TOKEN"   -H 'Content-Type: application/j
 
 #### Android 控制面（R2/R3/R4 进度）
 
+- 新增 App 内嵌 SSH 客户端（JSch）：可直接从手机 SSH 执行远程命令，不依赖 Termux。
 - 新增 `RemoteNodeRepository`：节点注册、列表、启停、暂停、删除、状态/错误记录。
 - 节点 Token 使用 Android Keystore + AES/GCM 加密后存入 Room，不落明文。
 - 新增受控 `remote_node` 工具：只允许对已启用/未暂停节点执行其 allowlist 中的只读命令，且不把 Token 返回模型。

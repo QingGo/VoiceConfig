@@ -49,6 +49,7 @@ import com.voiceconfig.app.ai.LocalAsrManager
 import com.voiceconfig.data.local.entity.AiDebugLogEntity
 import com.voiceconfig.core.model.TriggerRule
 import com.voiceconfig.app.ui.RemoteNodesDialog
+import com.voiceconfig.app.ui.SshConsoleDialog
 import kotlinx.coroutines.launch
 
 @Composable
@@ -104,8 +105,10 @@ fun SettingsScreen(
     var triggerTap by remember { mutableStateOf("") }
     var triggerInput by remember { mutableStateOf("") }
     var showRemoteNodes by remember { mutableStateOf(false) }
+    var showSshConsole by remember { mutableStateOf(false) }
     val remoteNodes by viewModel.remoteNodes.collectAsState()
     val remoteCommandResult by viewModel.remoteCommandResult.collectAsState()
+    val sshResult by viewModel.sshResult.collectAsState()
 
     val locationPermissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission(),
@@ -492,6 +495,12 @@ fun SettingsScreen(
                         TextButton(onClick = { showRemoteNodes = true }) {
                             Text("管理远程节点")
                         }
+                        TextButton(onClick = {
+                            showSshConsole = true
+                            viewModel.clearSshResult()
+                        }) {
+                            Text("SSH 命令终端")
+                        }
                     }
                 }
 
@@ -581,6 +590,16 @@ fun SettingsScreen(
             commandResult = remoteCommandResult,
             onExecute = viewModel::executeRemoteCommand,
             onClearResult = viewModel::clearRemoteCommandResult,
+        )
+    }
+
+    if (showSshConsole) {
+        SshConsoleDialog(
+            onDismiss = { showSshConsole = false },
+            onRun = viewModel::executeSsh,
+            result = sshResult,
+            onClearResult = viewModel::clearSshResult,
+            defaultHost = remoteNodes.firstOrNull()?.host.orEmpty(),
         )
     }
 }

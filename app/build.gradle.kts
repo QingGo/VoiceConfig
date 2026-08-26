@@ -66,6 +66,7 @@ dependencies {
 
     implementation(libs.lib.sherpa.onnx)
 
+    implementation(libs.jsch)
     implementation(libs.room.runtime)
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
