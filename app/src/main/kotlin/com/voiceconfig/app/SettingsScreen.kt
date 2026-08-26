@@ -632,6 +632,7 @@ fun SettingsScreen(
             onInstall = viewModel::installNodeViaSsh,
             bootstrapResult = sshBootstrapResult,
             onClearBootstrapResult = viewModel::clearSshBootstrapResult,
+            onClearHostKey = viewModel::clearSshHostKey,
         )
     }
 

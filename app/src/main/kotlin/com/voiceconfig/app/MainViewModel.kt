@@ -1465,6 +1465,13 @@ class MainViewModel @Inject constructor(
     fun getSshCredential(host: String, port: Int = 22): StoredSshCredential? =
         sshCredentialStore.load(host, port)
 
+    fun clearSshHostKey(config: SshConfig) {
+        sshHostKeyStore.clear(config.host, config.port)
+    }
+
+    fun getSshHostKey(host: String, port: Int = 22): String? =
+        sshHostKeyStore.get(host, port)
+
     fun executeSsh(config: SshConfig, command: String) {
         viewModelScope.launch {
             _sshResult.value = null

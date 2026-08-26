@@ -40,6 +40,7 @@ fun SshConsoleDialog(
     onInstall: (SshConfig, String) -> Unit = { _, _ -> },
     bootstrapResult: SshBootstrapResult? = null,
     onClearBootstrapResult: () -> Unit = {},
+    onClearHostKey: (SshConfig) -> Unit = {},
 ) {
     var host by remember { mutableStateOf(defaultHost) }
     var port by remember { mutableStateOf((initialCredential?.port ?: 22).toString()) }
@@ -126,6 +127,19 @@ fun SshConsoleDialog(
                     }
                     TextButton(onClick = { bindMode = "lan" }) {
                         Text(if (bindMode == "lan") "● 局域网" else "局域网")
+                    }
+                    TextButton(onClick = {
+                        onClearHostKey(
+                            SshConfig(
+                                host = host.trim(),
+                                port = port.toIntOrNull() ?: 22,
+                                username = username.trim(),
+                                password = password.ifBlank { null },
+                                privateKey = privateKey.ifBlank { null },
+                            ),
+                        )
+                    }) {
+                        Text("清除指纹")
                     }
                 }
                 result?.let { r ->
