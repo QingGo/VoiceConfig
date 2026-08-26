@@ -25,11 +25,13 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.voiceconfig.app.remote.SshConfig
 import com.voiceconfig.app.remote.SshFileResult
+import com.voiceconfig.app.remote.StoredSshCredential
 
 @Composable
 fun SshFileDialog(
     onDismiss: () -> Unit,
     defaultHost: String = "",
+    initialCredential: StoredSshCredential? = null,
     onList: (SshConfig, String) -> Unit = { _, _ -> },
     onRead: (SshConfig, String) -> Unit = { _, _ -> },
     onWrite: (SshConfig, String, String) -> Unit = { _, _, _ -> },
@@ -37,10 +39,10 @@ fun SshFileDialog(
     onClearResult: () -> Unit = {},
 ) {
     var host by remember { mutableStateOf(defaultHost) }
-    var port by remember { mutableStateOf("22") }
-    var username by remember { mutableStateOf("") }
-    var password by remember { mutableStateOf("") }
-    var privateKey by remember { mutableStateOf("") }
+    var port by remember { mutableStateOf((initialCredential?.port ?: 22).toString()) }
+    var username by remember { mutableStateOf(initialCredential?.username ?: "") }
+    var password by remember { mutableStateOf(initialCredential?.password ?: "") }
+    var privateKey by remember { mutableStateOf(initialCredential?.privateKey ?: "") }
     var path by remember { mutableStateOf("/home") }
     var content by remember { mutableStateOf("") }
 

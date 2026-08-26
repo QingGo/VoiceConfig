@@ -66,6 +66,7 @@ import com.voiceconfig.app.remote.SshFileResult
 import com.voiceconfig.app.remote.SshHostKeyStore
 import com.voiceconfig.app.remote.SshPendingTrust
 import com.voiceconfig.app.remote.SshShellHandle
+import com.voiceconfig.app.remote.StoredSshCredential
 import com.voiceconfig.app.remote.SshConfig
 import com.voiceconfig.app.remote.SshExecResult
 import com.voiceconfig.app.remote.RemoteCommandResult
@@ -1455,6 +1456,9 @@ class MainViewModel @Inject constructor(
     fun clearRemoteCommandResult() {
         _remoteCommandResult.value = null
     }
+
+    fun getSshCredential(host: String, port: Int = 22): StoredSshCredential? =
+        sshCredentialStore.load(host, port)
 
     fun executeSsh(config: SshConfig, command: String) {
         viewModelScope.launch {

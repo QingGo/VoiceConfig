@@ -27,6 +27,7 @@ import androidx.compose.ui.unit.dp
 import com.voiceconfig.app.remote.SshBootstrapResult
 import com.voiceconfig.app.remote.SshConfig
 import com.voiceconfig.app.remote.SshExecResult
+import com.voiceconfig.app.remote.StoredSshCredential
 
 @Composable
 fun SshConsoleDialog(
@@ -35,15 +36,16 @@ fun SshConsoleDialog(
     result: SshExecResult?,
     onClearResult: () -> Unit,
     defaultHost: String = "",
+    initialCredential: StoredSshCredential? = null,
     onInstall: (SshConfig, String) -> Unit = { _, _ -> },
     bootstrapResult: SshBootstrapResult? = null,
     onClearBootstrapResult: () -> Unit = {},
 ) {
     var host by remember { mutableStateOf(defaultHost) }
-    var port by remember { mutableStateOf("22") }
-    var username by remember { mutableStateOf("") }
-    var password by remember { mutableStateOf("") }
-    var privateKey by remember { mutableStateOf("") }
+    var port by remember { mutableStateOf((initialCredential?.port ?: 22).toString()) }
+    var username by remember { mutableStateOf(initialCredential?.username ?: "") }
+    var password by remember { mutableStateOf(initialCredential?.password ?: "") }
+    var privateKey by remember { mutableStateOf(initialCredential?.privateKey ?: "") }
     var command by remember { mutableStateOf("uname -a") }
     var bindMode by remember { mutableStateOf("tailscale") }
 

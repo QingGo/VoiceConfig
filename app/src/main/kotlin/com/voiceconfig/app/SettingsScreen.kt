@@ -120,6 +120,10 @@ fun SettingsScreen(
     val sshShellRunning by viewModel.sshShellRunning.collectAsState()
     val sshShellError by viewModel.sshShellError.collectAsState()
     val pendingSshHostKey by viewModel.pendingSshHostKey.collectAsState()
+    val defaultRemoteHost = remoteNodes.firstOrNull()?.host.orEmpty()
+    val savedSshCredential = remember(defaultRemoteHost) {
+        defaultRemoteHost.takeIf { it.isNotBlank() }?.let { viewModel.getSshCredential(it, 22) }
+    }
 
     val locationPermissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission(),
@@ -623,7 +627,8 @@ fun SettingsScreen(
             onRun = viewModel::executeSsh,
             result = sshResult,
             onClearResult = viewModel::clearSshResult,
-            defaultHost = remoteNodes.firstOrNull()?.host.orEmpty(),
+            defaultHost = defaultRemoteHost,
+            initialCredential = savedSshCredential,
             onInstall = viewModel::installNodeViaSsh,
             bootstrapResult = sshBootstrapResult,
             onClearBootstrapResult = viewModel::clearSshBootstrapResult,
@@ -633,7 +638,8 @@ fun SettingsScreen(
     if (showSshFile) {
         SshFileDialog(
             onDismiss = { showSshFile = false },
-            defaultHost = remoteNodes.firstOrNull()?.host.orEmpty(),
+            defaultHost = defaultRemoteHost,
+            initialCredential = savedSshCredential,
             onList = viewModel::listSshFiles,
             onRead = viewModel::readSshFile,
             onWrite = viewModel::writeSshFile,
@@ -648,7 +654,8 @@ fun SettingsScreen(
                 viewModel.closeSshShell()
                 showSshShell = false
             },
-            defaultHost = remoteNodes.firstOrNull()?.host.orEmpty(),
+            defaultHost = defaultRemoteHost,
+            initialCredential = savedSshCredential,
             onStart = viewModel::startSshShell,
             onSend = viewModel::sendSshShellCommand,
             onCloseSession = viewModel::closeSshShell,
