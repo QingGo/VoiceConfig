@@ -82,7 +82,7 @@ fun SshFileDialog(
                 OutlinedTextField(value = port, onValueChange = { port = it }, label = { Text("端口") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
                 OutlinedTextField(value = username, onValueChange = { username = it }, label = { Text("用户名") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
                 OutlinedTextField(value = password, onValueChange = { password = it }, label = { Text("密码（可选）") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
-                OutlinedTextField(value = privateKey, onValueChange = { privateKey = it }, label = { Text("私钥（可选）") }, modifier = Modifier.fillMaxWidth(), minLines = 3)
+                OutlinedTextField(value = privateKey, onValueChange = { privateKey = it }, label = { Text("私钥（可选）") }, modifier = Modifier.fillMaxWidth(), minLines = 3, maxLines = 6)
                 TextButton(onClick = { privateKeyPicker.launch(arrayOf("*/*")) }) {
                     Text("从文件导入私钥")
                 }
@@ -110,6 +110,8 @@ fun SshFileDialog(
                     Button(enabled = canRead, onClick = { onRead(currentConfig(), path.trim()) }) {
                         Text("读取")
                     }
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Button(enabled = canWrite, onClick = { onWrite(currentConfig(), path.trim(), content) }) {
                         Text("写入")
                     }

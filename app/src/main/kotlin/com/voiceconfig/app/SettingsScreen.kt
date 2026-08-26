@@ -123,7 +123,7 @@ fun SettingsScreen(
     val sshAuditText by viewModel.sshAuditText.collectAsState()
     val pendingSshHostKey by viewModel.pendingSshHostKey.collectAsState()
     val defaultRemoteHost = remoteNodes.firstOrNull()?.host.orEmpty()
-    val savedSshCredential = remember(defaultRemoteHost) {
+    val savedSshCredential = remember(defaultRemoteHost, showSshFile, showSshConsole, showSshShell) {
         defaultRemoteHost.takeIf { it.isNotBlank() }?.let { viewModel.getSshCredential(it, 22) }
     }
 

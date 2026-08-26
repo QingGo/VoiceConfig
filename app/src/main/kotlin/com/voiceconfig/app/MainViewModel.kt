@@ -1675,6 +1675,10 @@ class MainViewModel @Inject constructor(
                 effective,
                 onOutput = { text ->
                     _sshShellOutput.value = (_sshShellOutput.value + text).takeLast(200_000)
+                    sshAuditStore.record(
+                        config.host, config.port, config.username,
+                        "shell_out", text.take(200), true,
+                    )
                 },
                 onClosed = {
                     _sshShellRunning.value = false
@@ -1697,25 +1701,39 @@ class MainViewModel @Inject constructor(
     fun sendSshShellCommand(command: String) {
         if (command.isBlank()) return
         val handle = sshShellHandle ?: return
-        handle.send(command)
-        // 终端命令不记录敏感内容太长；只记录前 200 字符。
-        sshAuditStore.record(
-            sshShellHostHost ?: "",
-            sshShellHostPort ?: 22,
-            sshShellHostUser ?: "",
-            "shell_cmd",
-            command.take(200),
-            true,
-        )
+        viewModelScope.launch {
+            val sent = withContext(Dispatchers.IO) {
+                handle.send(command)
+            }
+            // 终端命令不记录敏感内容太长；只记录前 200 字符。
+            sshAuditStore.record(
+                sshShellHostHost ?: "",
+                sshShellHostPort ?: 22,
+                sshShellHostUser ?: "",
+                "shell_cmd",
+                command.take(200),
+                sent,
+            )
+            if (!sent) {
+                _sshShellError.value = "发送命令失败：" + (handle.lastSendError ?: "终端连接可能已断开")
+            }
+        }
     }
 
     fun closeSshShell() {
-        sshShellHandle?.close()
+        val handle = sshShellHandle
         sshShellHandle = null
         _sshShellRunning.value = false
         sshShellHostHost = null
         sshShellHostPort = null
         sshShellHostUser = null
+        if (handle != null) {
+            viewModelScope.launch {
+                withContext(Dispatchers.IO) {
+                    handle.close()
+                }
+            }
+        }
     }
 
     fun clearSshShellOutput() {

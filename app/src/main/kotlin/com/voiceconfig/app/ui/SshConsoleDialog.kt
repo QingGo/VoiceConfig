@@ -74,7 +74,7 @@ fun SshConsoleDialog(
                 OutlinedTextField(value = port, onValueChange = { port = it }, label = { Text("端口") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
                 OutlinedTextField(value = username, onValueChange = { username = it }, label = { Text("用户名") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
                 OutlinedTextField(value = password, onValueChange = { password = it }, label = { Text("密码（可选，私钥为空时使用）") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
-                OutlinedTextField(value = privateKey, onValueChange = { privateKey = it }, label = { Text("私钥（可选）") }, modifier = Modifier.fillMaxWidth(), minLines = 3)
+                OutlinedTextField(value = privateKey, onValueChange = { privateKey = it }, label = { Text("私钥（可选）") }, modifier = Modifier.fillMaxWidth(), minLines = 3, maxLines = 6)
                 TextButton(
                     onClick = { privateKeyPicker.launch(arrayOf("*/*")) },
                     enabled = true,

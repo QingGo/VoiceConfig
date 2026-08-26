@@ -83,7 +83,7 @@ fun SshShellDialog(
                 OutlinedTextField(value = port, onValueChange = { port = it }, label = { Text("端口") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
                 OutlinedTextField(value = username, onValueChange = { username = it }, label = { Text("用户名") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
                 OutlinedTextField(value = password, onValueChange = { password = it }, label = { Text("密码（可选）") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
-                OutlinedTextField(value = privateKey, onValueChange = { privateKey = it }, label = { Text("私钥（可选）") }, modifier = Modifier.fillMaxWidth(), minLines = 3)
+                OutlinedTextField(value = privateKey, onValueChange = { privateKey = it }, label = { Text("私钥（可选）") }, modifier = Modifier.fillMaxWidth(), minLines = 3, maxLines = 6)
                 TextButton(onClick = { privateKeyPicker.launch(arrayOf("*/*")) }) {
                     Text("从文件导入私钥")
                 }
@@ -129,15 +129,15 @@ fun SshShellDialog(
                         TextButton(onClick = { onSend("tail -n 50 ~/.voiceconfig-node/node.log") }) { Text("node日志") }
                     }
                 }
+                Text(
+                    text = "终端输出",
+                    style = MaterialTheme.typography.labelMedium,
+                )
                 SelectionContainer {
-                    OutlinedTextField(
-                        value = output,
-                        onValueChange = {},
-                        label = { Text("终端输出") },
-                        modifier = Modifier.fillMaxWidth(),
-                        minLines = 8,
-                        maxLines = 16,
-                        readOnly = true,
+                    Text(
+                        text = output.ifBlank { "(暂无输出)" },
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {

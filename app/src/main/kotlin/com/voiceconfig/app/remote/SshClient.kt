@@ -48,10 +48,16 @@ class SshShellHandle(
     private val channel: ChannelShell,
     private val output: OutputStream,
 ) {
-    fun send(command: String) {
-        runCatching {
+    var lastSendError: String? = null
+
+    fun send(command: String): Boolean {
+        return try {
             output.write((command.trimEnd() + "\n").toByteArray(Charsets.UTF_8))
             output.flush()
+            true
+        } catch (e: Exception) {
+            lastSendError = e.toString()
+            false
         }
     }
 
