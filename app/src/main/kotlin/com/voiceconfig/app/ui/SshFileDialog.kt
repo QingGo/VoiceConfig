@@ -87,6 +87,12 @@ fun SshFileDialog(
                     Text("从文件导入私钥")
                 }
                 OutlinedTextField(value = path, onValueChange = { path = it }, label = { Text("远程路径") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
+                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    TextButton(onClick = { path = "/home" }) { Text("/home") }
+                    TextButton(onClick = { path = "/etc" }) { Text("/etc") }
+                    TextButton(onClick = { path = "/var/log" }) { Text("/var/log") }
+                    TextButton(onClick = { path = "/tmp" }) { Text("/tmp") }
+                }
                 OutlinedTextField(
                     value = content,
                     onValueChange = { content = it },

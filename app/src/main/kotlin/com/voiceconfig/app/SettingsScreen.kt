@@ -111,6 +111,7 @@ fun SettingsScreen(
     var showSshConsole by remember { mutableStateOf(false) }
     var showSshFile by remember { mutableStateOf(false) }
     var showSshShell by remember { mutableStateOf(false) }
+    var showSshAudit by remember { mutableStateOf(false) }
     val remoteNodes by viewModel.remoteNodes.collectAsState()
     val remoteCommandResult by viewModel.remoteCommandResult.collectAsState()
     val sshResult by viewModel.sshResult.collectAsState()
@@ -119,6 +120,7 @@ fun SettingsScreen(
     val sshShellOutput by viewModel.sshShellOutput.collectAsState()
     val sshShellRunning by viewModel.sshShellRunning.collectAsState()
     val sshShellError by viewModel.sshShellError.collectAsState()
+    val sshAuditText by viewModel.sshAuditText.collectAsState()
     val pendingSshHostKey by viewModel.pendingSshHostKey.collectAsState()
     val defaultRemoteHost = remoteNodes.firstOrNull()?.host.orEmpty()
     val savedSshCredential = remember(defaultRemoteHost) {
@@ -529,6 +531,12 @@ fun SettingsScreen(
                         }) {
                             Text("SSH 交互终端")
                         }
+                        TextButton(onClick = {
+                            showSshAudit = true
+                            viewModel.loadSshAudit()
+                        }) {
+                            Text("查看 SSH 审计")
+                        }
                     }
                 }
 
@@ -665,6 +673,32 @@ fun SettingsScreen(
             error = sshShellError,
             onClearOutput = viewModel::clearSshShellOutput,
             onClearError = viewModel::clearSshShellError,
+        )
+    }
+
+    if (showSshAudit) {
+        AlertDialog(
+            onDismissRequest = {
+                showSshAudit = false
+                viewModel.clearSshAudit()
+            },
+            title = { Text("SSH 审计（最近 200 条）") },
+            text = {
+                SelectionContainer {
+                    Text(
+                        text = sshAuditText.ifBlank { "暂无审计记录" },
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    showSshAudit = false
+                    viewModel.clearSshAudit()
+                }) {
+                    Text("关闭")
+                }
+            },
         )
     }
 

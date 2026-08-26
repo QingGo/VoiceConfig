@@ -18,6 +18,13 @@ class SshAuditStore @Inject constructor(
     private val file = File(context.filesDir, "ssh_audit.jsonl")
 
     @Synchronized
+    fun readRecent(limit: Int = 200): String {
+        return runCatching {
+            file.takeIf { it.exists() }?.readLines()?.takeLast(limit)?.joinToString("\n").orEmpty()
+        }.getOrDefault("")
+    }
+
+    @Synchronized
     fun record(
         host: String,
         port: Int,

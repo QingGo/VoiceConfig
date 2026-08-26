@@ -190,6 +190,9 @@ class MainViewModel @Inject constructor(
     private val _sshShellError = MutableStateFlow<String?>(null)
     val sshShellError: StateFlow<String?> = _sshShellError.asStateFlow()
 
+    private val _sshAuditText = MutableStateFlow("")
+    val sshAuditText: StateFlow<String> = _sshAuditText.asStateFlow()
+
     private var sshShellHandle: SshShellHandle? = null
     private var sshShellHostHost: String? = null
     private var sshShellHostPort: Int? = null
@@ -1721,6 +1724,18 @@ class MainViewModel @Inject constructor(
 
     fun clearSshShellError() {
         _sshShellError.value = null
+    }
+
+    fun loadSshAudit() {
+        viewModelScope.launch {
+            _sshAuditText.value = withContext(Dispatchers.IO) {
+                sshAuditStore.readRecent(200)
+            }
+        }
+    }
+
+    fun clearSshAudit() {
+        _sshAuditText.value = ""
     }
 
     private fun shellQuote(value: String): String =
