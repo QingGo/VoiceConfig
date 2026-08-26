@@ -21,6 +21,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import com.voiceconfig.app.remote.SshBootstrapResult
 import com.voiceconfig.app.remote.SshConfig
 import com.voiceconfig.app.remote.SshExecResult
 
@@ -31,6 +32,9 @@ fun SshConsoleDialog(
     result: SshExecResult?,
     onClearResult: () -> Unit,
     defaultHost: String = "",
+    onInstall: (SshConfig, String) -> Unit = { _, _ -> },
+    bootstrapResult: SshBootstrapResult? = null,
+    onClearBootstrapResult: () -> Unit = {},
 ) {
     var host by remember { mutableStateOf(defaultHost) }
     var port by remember { mutableStateOf("22") }
@@ -38,6 +42,7 @@ fun SshConsoleDialog(
     var password by remember { mutableStateOf("") }
     var privateKey by remember { mutableStateOf("") }
     var command by remember { mutableStateOf("uname -a") }
+    var bindMode by remember { mutableStateOf("tailscale") }
 
     val canRun = host.isNotBlank() && username.isNotBlank() && (password.isNotBlank() || privateKey.isNotBlank()) && command.isNotBlank()
     AlertDialog(
@@ -77,6 +82,31 @@ fun SshConsoleDialog(
                     ) {
                         Text("执行")
                     }
+                    Button(
+                        enabled = canRun,
+                        onClick = {
+                            onInstall(
+                                SshConfig(
+                                    host = host.trim(),
+                                    port = port.toIntOrNull() ?: 22,
+                                    username = username.trim(),
+                                    password = password.ifBlank { null },
+                                    privateKey = privateKey.ifBlank { null },
+                                ),
+                                bindMode,
+                            )
+                        },
+                    ) {
+                        Text("安装节点")
+                    }
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    TextButton(onClick = { bindMode = "tailscale" }) {
+                        Text(if (bindMode == "tailscale") "● Tailscale" else "Tailscale")
+                    }
+                    TextButton(onClick = { bindMode = "lan" }) {
+                        Text(if (bindMode == "lan") "● 局域网" else "局域网")
+                    }
                 }
                 result?.let { r ->
                     SelectionContainer {
@@ -100,6 +130,21 @@ fun SshConsoleDialog(
                             TextButton(onClick = onClearResult) {
                                 Text("清除")
                             }
+                        }
+                    }
+                }
+                bootstrapResult?.let { b ->
+                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text(
+                            text = if (b.ok) "安装结果：${b.message}" else "安装结果：${b.message}",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = if (b.ok) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error,
+                        )
+                        if (b.token != null) {
+                            Text("Token: ${b.token.take(12)}…", style = MaterialTheme.typography.bodySmall)
+                        }
+                        TextButton(onClick = onClearBootstrapResult) {
+                            Text("清除安装结果")
                         }
                     }
                 }

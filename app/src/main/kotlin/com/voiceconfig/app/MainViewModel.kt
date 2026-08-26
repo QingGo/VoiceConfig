@@ -58,7 +58,11 @@ import com.voiceconfig.data.local.repository.RemoteNode
 import com.voiceconfig.data.local.repository.RemoteNodeRepository
 import com.voiceconfig.data.local.repository.TaskRepository
 import com.voiceconfig.app.remote.RemoteCommandClient
+import com.voiceconfig.app.remote.SshBootstrapClient
+import com.voiceconfig.app.remote.SshBootstrapResult
 import com.voiceconfig.app.remote.SshClient
+import com.voiceconfig.app.remote.SshCredentialStore
+import com.voiceconfig.app.remote.SshHostKeyStore
 import com.voiceconfig.app.remote.SshConfig
 import com.voiceconfig.app.remote.SshExecResult
 import com.voiceconfig.app.remote.RemoteCommandResult
@@ -98,6 +102,9 @@ class MainViewModel @Inject constructor(
     private val remoteNodeRepository: RemoteNodeRepository,
     private val remoteCommandClient: RemoteCommandClient,
     private val sshClient: SshClient,
+    private val sshBootstrapClient: SshBootstrapClient,
+    private val sshCredentialStore: SshCredentialStore,
+    private val sshHostKeyStore: SshHostKeyStore,
     private val executionLogRepository: ExecutionLogRepository,
     private val userAliasRegistry: UserAliasRegistry,
     private val executionEngine: ExecutionEngine,
@@ -153,6 +160,9 @@ class MainViewModel @Inject constructor(
 
     private val _sshResult = MutableStateFlow<SshExecResult?>(null)
     val sshResult: StateFlow<SshExecResult?> = _sshResult.asStateFlow()
+
+    private val _sshBootstrapResult = MutableStateFlow<SshBootstrapResult?>(null)
+    val sshBootstrapResult: StateFlow<SshBootstrapResult?> = _sshBootstrapResult.asStateFlow()
 
     val triggerRules: StateFlow<List<TriggerRule>> = triggerRuleRepository.observeAll()
         .stateIn(
@@ -1429,12 +1439,52 @@ class MainViewModel @Inject constructor(
     fun executeSsh(config: SshConfig, command: String) {
         viewModelScope.launch {
             _sshResult.value = null
-            _sshResult.value = sshClient.execute(config, command)
+            sshCredentialStore.save(config)
+            val result = sshClient.execute(config, command)
+            result.hostKeyFingerprint?.let { fp ->
+                if (sshHostKeyStore.get(config.host, config.port) == null) {
+                    sshHostKeyStore.save(config.host, config.port, fp)
+                }
+            }
+            _sshResult.value = result
+        }
+    }
+
+    fun installNodeViaSsh(config: SshConfig, bindMode: String = "tailscale") {
+        viewModelScope.launch {
+            _sshBootstrapResult.value = null
+            sshCredentialStore.save(config)
+            val result = sshBootstrapClient.install(config, bindMode)
+            if (result.ok && result.token != null) {
+                remoteNodeRepository.saveNode(
+                    RemoteNode(
+                        nodeId = result.nodeId ?: ("node_ssh_" + System.currentTimeMillis()),
+                        name = config.host,
+                        host = config.host,
+                        port = 8787,
+                        scheme = "http",
+                        token = result.token,
+                        allowedCommands = listOf(
+                            "hostname", "uname", "uptime", "free", "df", "ps",
+                            "os_release", "network", "tailscale",
+                        ),
+                        enabled = true,
+                        paused = false,
+                        createdAtEpochMillis = System.currentTimeMillis(),
+                        updatedAtEpochMillis = System.currentTimeMillis(),
+                    ),
+                )
+            }
+            _sshBootstrapResult.value = result
         }
     }
 
     fun clearSshResult() {
         _sshResult.value = null
+    }
+
+    fun clearSshBootstrapResult() {
+        _sshBootstrapResult.value = null
     }
 
     suspend fun confirmSensitiveAction(request: SensitiveActionRequest): Boolean {

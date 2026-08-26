@@ -109,6 +109,7 @@ fun SettingsScreen(
     val remoteNodes by viewModel.remoteNodes.collectAsState()
     val remoteCommandResult by viewModel.remoteCommandResult.collectAsState()
     val sshResult by viewModel.sshResult.collectAsState()
+    val sshBootstrapResult by viewModel.sshBootstrapResult.collectAsState()
 
     val locationPermissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission(),
@@ -600,6 +601,9 @@ fun SettingsScreen(
             result = sshResult,
             onClearResult = viewModel::clearSshResult,
             defaultHost = remoteNodes.firstOrNull()?.host.orEmpty(),
+            onInstall = viewModel::installNodeViaSsh,
+            bootstrapResult = sshBootstrapResult,
+            onClearBootstrapResult = viewModel::clearSshBootstrapResult,
         )
     }
 }

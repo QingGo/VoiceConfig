@@ -19,12 +19,14 @@ data class SshConfig(
     val password: String? = null,
     val privateKey: String? = null,
     val privateKeyPassphrase: String? = null,
+    val hostKeyFingerprint: String? = null,
 )
 
 data class SshExecResult(
     val exitCode: Int,
     val stdout: String,
     val stderr: String,
+    val hostKeyFingerprint: String? = null,
 )
 
 /**
@@ -57,6 +59,12 @@ class SshClient @Inject constructor() {
                 session!!.setConfig("StrictHostKeyChecking", "no")
                 session!!.setConfig("PreferredAuthentications", "publickey,password,keyboard-interactive")
                 session!!.connect(15_000)
+                val hostKey = session!!.hostKey
+                val fingerprint = hostKey?.getFingerPrint(jsch)
+                if (config.hostKeyFingerprint != null && fingerprint != null && config.hostKeyFingerprint != fingerprint) {
+                    session!!.disconnect()
+                    return@withContext SshExecResult(-1, "", "Host key mismatch: $fingerprint", fingerprint)
+                }
 
                 channel = session!!.openChannel("exec") as ChannelExec
                 channel!!.setCommand(command)
@@ -70,7 +78,7 @@ class SshClient @Inject constructor() {
                 while (!channel!!.isClosed) {
                     if (System.currentTimeMillis() > deadline) {
                         channel!!.disconnect()
-                        return@withContext SshExecResult(-1, stdout.toString(Charsets.UTF_8), "SSH command timed out")
+                        return@withContext SshExecResult(-1, stdout.toString(Charsets.UTF_8), "SSH command timed out", fingerprint)
                     }
                     delay(50)
                 }
@@ -78,9 +86,10 @@ class SshClient @Inject constructor() {
                     exitCode = channel!!.exitStatus,
                     stdout = stdout.toString(Charsets.UTF_8),
                     stderr = stderr.toString(Charsets.UTF_8),
+                    hostKeyFingerprint = fingerprint,
                 )
             } catch (e: Exception) {
-                SshExecResult(-1, "", e.message ?: "SSH failed")
+                SshExecResult(-1, "", e.message ?: "SSH failed", null)
             } finally {
                 channel?.disconnect()
                 session?.disconnect()
