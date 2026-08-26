@@ -65,6 +65,7 @@ import com.voiceconfig.app.remote.SshCredentialStore
 import com.voiceconfig.app.remote.SshFileResult
 import com.voiceconfig.app.remote.SshHostKeyStore
 import com.voiceconfig.app.remote.SshPendingTrust
+import com.voiceconfig.app.remote.SshShellHandle
 import com.voiceconfig.app.remote.SshConfig
 import com.voiceconfig.app.remote.SshExecResult
 import com.voiceconfig.app.remote.RemoteCommandResult
@@ -171,6 +172,17 @@ class MainViewModel @Inject constructor(
 
     private val _sshFileResult = MutableStateFlow<SshFileResult?>(null)
     val sshFileResult: StateFlow<SshFileResult?> = _sshFileResult.asStateFlow()
+
+    private val _sshShellOutput = MutableStateFlow("")
+    val sshShellOutput: StateFlow<String> = _sshShellOutput.asStateFlow()
+
+    private val _sshShellRunning = MutableStateFlow(false)
+    val sshShellRunning: StateFlow<Boolean> = _sshShellRunning.asStateFlow()
+
+    private val _sshShellError = MutableStateFlow<String?>(null)
+    val sshShellError: StateFlow<String?> = _sshShellError.asStateFlow()
+
+    private var sshShellHandle: SshShellHandle? = null
 
     val triggerRules: StateFlow<List<TriggerRule>> = triggerRuleRepository.observeAll()
         .stateIn(
@@ -1598,6 +1610,55 @@ class MainViewModel @Inject constructor(
 
     fun clearSshFileResult() {
         _sshFileResult.value = null
+    }
+
+    fun startSshShell(config: SshConfig) {
+        viewModelScope.launch {
+            closeSshShell()
+            val trusted = sshHostKeyStore.get(config.host, config.port)
+            if (trusted == null) {
+                _sshShellError.value = "请先在 SSH 命令终端确认主机指纹"
+                _sshShellRunning.value = false
+                return@launch
+            }
+            val effective = config.copy(hostKeyFingerprint = trusted)
+            _sshShellOutput.value = ""
+            _sshShellError.value = null
+            _sshShellRunning.value = true
+            sshShellHandle = sshClient.openShell(
+                effective,
+                onOutput = { text ->
+                    _sshShellOutput.value = (_sshShellOutput.value + text).takeLast(200_000)
+                },
+                onClosed = {
+                    _sshShellRunning.value = false
+                    sshShellHandle = null
+                },
+            )
+            if (sshShellHandle == null) {
+                _sshShellRunning.value = false
+                _sshShellError.value = "无法打开交互式终端"
+            }
+        }
+    }
+
+    fun sendSshShellCommand(command: String) {
+        if (command.isBlank()) return
+        sshShellHandle?.send(command)
+    }
+
+    fun closeSshShell() {
+        sshShellHandle?.close()
+        sshShellHandle = null
+        _sshShellRunning.value = false
+    }
+
+    fun clearSshShellOutput() {
+        _sshShellOutput.value = ""
+    }
+
+    fun clearSshShellError() {
+        _sshShellError.value = null
     }
 
     private fun shellQuote(value: String): String =

@@ -2,8 +2,10 @@ package com.voiceconfig.app.remote
 
 import com.jcraft.jsch.ChannelExec
 import com.jcraft.jsch.ChannelSftp
+import com.jcraft.jsch.ChannelShell
 import com.jcraft.jsch.JSch
 import com.jcraft.jsch.Session
+import java.io.OutputStream
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
 import javax.inject.Inject
@@ -37,6 +39,28 @@ data class SshExecResult(
  * - 直接执行远程 shell 命令
  * - 后续可扩展文件读写、交互式终端等
  */
+/**
+ * SSH 交互式 shell 会话句柄。
+ * UI 持有该对象用于发送命令和关闭会话；后台线程持续读取远端输出。
+ */
+class SshShellHandle(
+    private val session: Session,
+    private val channel: ChannelShell,
+    private val output: OutputStream,
+) {
+    fun send(command: String) {
+        runCatching {
+            output.write((command.trimEnd() + "\n").toByteArray(Charsets.UTF_8))
+            output.flush()
+        }
+    }
+
+    fun close() {
+        runCatching { channel.disconnect() }
+        runCatching { session.disconnect() }
+    }
+}
+
 @Singleton
 class SshClient @Inject constructor() {
 
@@ -178,4 +202,76 @@ class SshClient @Inject constructor() {
                 session?.disconnect()
             }
         }
+
+    /**
+     * 打开一个带 PTY 的交互式 shell。返回句柄后由调用方发送命令/关闭。
+     * 输出通过 onOutput 回调持续送达；会话退出时调用 onClosed。
+     */
+    suspend fun openShell(
+        config: SshConfig,
+        onOutput: (String) -> Unit,
+        onClosed: () -> Unit,
+    ): SshShellHandle? = withContext(Dispatchers.IO) {
+        var session: Session? = null
+        var channel: ChannelShell? = null
+        try {
+            val jsch = JSch()
+            if (!config.privateKey.isNullOrBlank()) {
+                jsch.addIdentity(
+                    "voiceconfig-key",
+                    config.privateKey!!.toByteArray(Charsets.UTF_8),
+                    null,
+                    config.privateKeyPassphrase?.toByteArray(Charsets.UTF_8),
+                )
+            }
+            session = jsch.getSession(config.username, config.host, config.port)
+            config.password?.let { session!!.setPassword(it) }
+            session!!.setConfig("StrictHostKeyChecking", "no")
+            session!!.setConfig("PreferredAuthentications", "publickey,password,keyboard-interactive")
+            session!!.connect(15_000)
+            val hostKey = session!!.hostKey
+            val fingerprint = hostKey?.getFingerPrint(jsch)
+            if (config.hostKeyFingerprint != null) {
+                val mismatch = fingerprint == null || config.hostKeyFingerprint != fingerprint
+                if (mismatch) {
+                    session!!.disconnect()
+                    onClosed()
+                    return@withContext null
+                }
+            }
+
+            channel = session!!.openChannel("shell") as ChannelShell
+            channel!!.setPty(true)
+            channel!!.connect(15_000)
+            val input = channel!!.inputStream
+            val output = channel!!.outputStream
+            val handle = SshShellHandle(session!!, channel!!, output)
+
+            Thread {
+                try {
+                    val buf = ByteArray(8192)
+                    while (!channel!!.isClosed) {
+                        val n = input.read(buf)
+                        if (n < 0) break
+                        if (n > 0) {
+                            onOutput(String(buf, 0, n, Charsets.UTF_8))
+                        }
+                    }
+                } catch (_: Exception) {
+                    // 端关闭时正常退出
+                } finally {
+                    onClosed()
+                }
+            }.apply {
+                isDaemon = true
+                start()
+            }
+            handle
+        } catch (e: Exception) {
+            channel?.disconnect()
+            session?.disconnect()
+            onClosed()
+            null
+        }
+    }
 }

@@ -448,6 +448,7 @@ curl -X POST -H "Authorization: Bearer $TOKEN"   -H 'Content-Type: application/j
 - 新增主机指纹确认 UI：首次连接先显示指纹，经用户信任后才执行真正命令/安装；后续指纹不一致会拒绝连接。
 - 新增 SSH 私钥文件导入（ActivityResult OpenDocument），支持从手机存储加载 PEM 私钥。
 - 新增 SSH 远程文件对话框：通过 SFTP 列出目录、读取文件、写入文件。
+- 新增 SSH 交互终端：基于 JSch ChannelShell + PTY，可调试长驻进程、查看日志、执行任意 shell 命令。
 - 新增 `RemoteTransport` 统一抽象：HTTP 节点与 SSH 共用同一调用接口。
 - 新增 `RemoteNodeRepository`：节点注册、列表、启停、暂停、删除、状态/错误记录。
 - 节点 Token 使用 Android Keystore + AES/GCM 加密后存入 Room，不落明文。

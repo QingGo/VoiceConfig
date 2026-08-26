@@ -52,6 +52,7 @@ import com.voiceconfig.core.model.TriggerRule
 import com.voiceconfig.app.ui.RemoteNodesDialog
 import com.voiceconfig.app.ui.SshConsoleDialog
 import com.voiceconfig.app.ui.SshFileDialog
+import com.voiceconfig.app.ui.SshShellDialog
 import kotlinx.coroutines.launch
 
 @Composable
@@ -109,11 +110,15 @@ fun SettingsScreen(
     var showRemoteNodes by remember { mutableStateOf(false) }
     var showSshConsole by remember { mutableStateOf(false) }
     var showSshFile by remember { mutableStateOf(false) }
+    var showSshShell by remember { mutableStateOf(false) }
     val remoteNodes by viewModel.remoteNodes.collectAsState()
     val remoteCommandResult by viewModel.remoteCommandResult.collectAsState()
     val sshResult by viewModel.sshResult.collectAsState()
     val sshBootstrapResult by viewModel.sshBootstrapResult.collectAsState()
     val sshFileResult by viewModel.sshFileResult.collectAsState()
+    val sshShellOutput by viewModel.sshShellOutput.collectAsState()
+    val sshShellRunning by viewModel.sshShellRunning.collectAsState()
+    val sshShellError by viewModel.sshShellError.collectAsState()
     val pendingSshHostKey by viewModel.pendingSshHostKey.collectAsState()
 
     val locationPermissionLauncher = rememberLauncherForActivityResult(
@@ -513,6 +518,13 @@ fun SettingsScreen(
                         }) {
                             Text("SSH 远程文件")
                         }
+                        TextButton(onClick = {
+                            showSshShell = true
+                            viewModel.clearSshShellOutput()
+                            viewModel.clearSshShellError()
+                        }) {
+                            Text("SSH 交互终端")
+                        }
                     }
                 }
 
@@ -627,6 +639,24 @@ fun SettingsScreen(
             onWrite = viewModel::writeSshFile,
             result = sshFileResult,
             onClearResult = viewModel::clearSshFileResult,
+        )
+    }
+
+    if (showSshShell) {
+        SshShellDialog(
+            onDismiss = {
+                viewModel.closeSshShell()
+                showSshShell = false
+            },
+            defaultHost = remoteNodes.firstOrNull()?.host.orEmpty(),
+            onStart = viewModel::startSshShell,
+            onSend = viewModel::sendSshShellCommand,
+            onCloseSession = viewModel::closeSshShell,
+            output = sshShellOutput,
+            running = sshShellRunning,
+            error = sshShellError,
+            onClearOutput = viewModel::clearSshShellOutput,
+            onClearError = viewModel::clearSshShellError,
         )
     }
 
