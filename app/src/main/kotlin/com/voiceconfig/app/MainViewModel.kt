@@ -59,6 +59,7 @@ import com.voiceconfig.data.local.repository.RemoteNodeRepository
 import com.voiceconfig.data.local.repository.TaskRepository
 import com.voiceconfig.app.remote.RemoteCommandClient
 import com.voiceconfig.app.remote.SshBootstrapClient
+import com.voiceconfig.app.remote.SshAuditStore
 import com.voiceconfig.app.remote.SshBootstrapResult
 import com.voiceconfig.app.remote.SshClient
 import com.voiceconfig.app.remote.SshCredentialStore
@@ -109,6 +110,7 @@ class MainViewModel @Inject constructor(
     private val sshBootstrapClient: SshBootstrapClient,
     private val sshCredentialStore: SshCredentialStore,
     private val sshHostKeyStore: SshHostKeyStore,
+    private val sshAuditStore: SshAuditStore,
     private val executionLogRepository: ExecutionLogRepository,
     private val userAliasRegistry: UserAliasRegistry,
     private val executionEngine: ExecutionEngine,
@@ -189,6 +191,9 @@ class MainViewModel @Inject constructor(
     val sshShellError: StateFlow<String?> = _sshShellError.asStateFlow()
 
     private var sshShellHandle: SshShellHandle? = null
+    private var sshShellHostHost: String? = null
+    private var sshShellHostPort: Int? = null
+    private var sshShellHostUser: String? = null
 
     val triggerRules: StateFlow<List<TriggerRule>> = triggerRuleRepository.observeAll()
         .stateIn(
@@ -1493,7 +1498,12 @@ class MainViewModel @Inject constructor(
                 return@launch
             }
             val effective = config.copy(hostKeyFingerprint = trusted)
-            _sshResult.value = sshClient.execute(effective, command)
+            val result = sshClient.execute(effective, command)
+            sshAuditStore.record(
+                config.host, config.port, config.username,
+                "exec", command, result.exitCode == 0,
+            )
+            _sshResult.value = result
         }
     }
 
@@ -1532,7 +1542,12 @@ class MainViewModel @Inject constructor(
             val effective = pending.config.copy(hostKeyFingerprint = pending.fingerprint)
             if (pending.command != null) {
                 _sshResult.value = null
-                _sshResult.value = sshClient.execute(effective, pending.command)
+                val execResult = sshClient.execute(effective, pending.command)
+                sshAuditStore.record(
+                    pending.config.host, pending.config.port, pending.config.username,
+                    "exec", pending.command, execResult.exitCode == 0,
+                )
+                _sshResult.value = execResult
             } else if (pending.installBindMode != null) {
                 _sshBootstrapResult.value = null
                 runSshInstallDirect(effective, pending.installBindMode)
@@ -1562,6 +1577,10 @@ class MainViewModel @Inject constructor(
                 ),
             )
         }
+        sshAuditStore.record(
+            config.host, config.port, config.username,
+            "bootstrap", bindMode, result.ok,
+        )
         _sshBootstrapResult.value = result
     }
 
@@ -1576,13 +1595,15 @@ class MainViewModel @Inject constructor(
             }
             val effective = config.copy(hostKeyFingerprint = trusted)
             val result = sshClient.execute(effective, "ls -la --quoting-style=shell " + shellQuote(path))
-            _sshFileResult.value = SshFileResult(
+            val fileResult = SshFileResult(
                 ok = result.exitCode == 0,
                 path = path,
                 content = if (result.exitCode == 0) result.stdout else result.stderr.ifBlank { result.stdout },
                 error = if (result.exitCode == 0) null else result.stderr.ifBlank { result.stdout },
                 exitCode = result.exitCode,
             )
+            sshAuditStore.record(config.host, config.port, config.username, "list", path, fileResult.ok)
+            _sshFileResult.value = fileResult
         }
     }
 
@@ -1598,8 +1619,10 @@ class MainViewModel @Inject constructor(
             val effective = config.copy(hostKeyFingerprint = trusted)
             val content = sshClient.download(effective, path)
             if (content == null) {
+                sshAuditStore.record(config.host, config.port, config.username, "read", path, false)
                 _sshFileResult.value = SshFileResult(false, path, "", "读取失败（文件不存在或不可读）")
             } else {
+                sshAuditStore.record(config.host, config.port, config.username, "read", path, true)
                 _sshFileResult.value = SshFileResult(true, path, content)
             }
         }
@@ -1616,6 +1639,7 @@ class MainViewModel @Inject constructor(
             }
             val effective = config.copy(hostKeyFingerprint = trusted)
             val ok = sshClient.upload(effective, path, content)
+            sshAuditStore.record(config.host, config.port, config.username, "write", path, ok)
             _sshFileResult.value = if (ok) {
                 SshFileResult(true, path, "已写入 $path")
             } else {
@@ -1641,6 +1665,9 @@ class MainViewModel @Inject constructor(
             _sshShellOutput.value = ""
             _sshShellError.value = null
             _sshShellRunning.value = true
+            sshShellHostHost = config.host
+            sshShellHostPort = config.port
+            sshShellHostUser = config.username
             sshShellHandle = sshClient.openShell(
                 effective,
                 onOutput = { text ->
@@ -1649,24 +1676,43 @@ class MainViewModel @Inject constructor(
                 onClosed = {
                     _sshShellRunning.value = false
                     sshShellHandle = null
+                    sshShellHostHost = null
+                    sshShellHostPort = null
+                    sshShellHostUser = null
                 },
             )
             if (sshShellHandle == null) {
                 _sshShellRunning.value = false
                 _sshShellError.value = "无法打开交互式终端"
+                sshAuditStore.record(config.host, config.port, config.username, "shell_start", "failed", false)
+            } else {
+                sshAuditStore.record(config.host, config.port, config.username, "shell_start", "opened", true)
             }
         }
     }
 
     fun sendSshShellCommand(command: String) {
         if (command.isBlank()) return
-        sshShellHandle?.send(command)
+        val handle = sshShellHandle ?: return
+        handle.send(command)
+        // 终端命令不记录敏感内容太长；只记录前 200 字符。
+        sshAuditStore.record(
+            sshShellHostHost ?: "",
+            sshShellHostPort ?: 22,
+            sshShellHostUser ?: "",
+            "shell_cmd",
+            command.take(200),
+            true,
+        )
     }
 
     fun closeSshShell() {
         sshShellHandle?.close()
         sshShellHandle = null
         _sshShellRunning.value = false
+        sshShellHostHost = null
+        sshShellHostPort = null
+        sshShellHostUser = null
     }
 
     fun clearSshShellOutput() {
