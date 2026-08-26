@@ -22,6 +22,10 @@ class SshBootstrapClient @Inject constructor(
     private val sshClient: SshClient,
 ) {
 
+    companion object {
+        private const val NODE_SCRIPT_VERSION = "0.6.0"
+    }
+
     suspend fun install(
         config: SshConfig,
         bindMode: String = "tailscale",
@@ -33,6 +37,27 @@ class SshBootstrapClient @Inject constructor(
         val home = homeResult.stdout.trim()
         val remoteDir = "$home/voiceconfig-node"
         val dataDir = "$home/.voiceconfig-node"
+
+        val currentVersionResult = sshClient.execute(
+            config,
+            "python3 $remoteDir/voiceconfig_agent_node.py --version 2>/dev/null || true",
+        )
+        val currentVersion = currentVersionResult.stdout.trim()
+        if (currentVersion == NODE_SCRIPT_VERSION) {
+            val active = sshClient.execute(config, "systemctl --user is-active voiceconfig-node.service")
+            if (active.stdout.trim() == "active") {
+                val tokenResult = sshClient.execute(config, "cat $dataDir/node.token")
+                val token = tokenResult.stdout.trim().ifBlank { null }
+                val identityResult = sshClient.execute(config, "cat $dataDir/identity.json")
+                val nodeId = parseNodeId(identityResult.stdout)
+                return SshBootstrapResult(
+                    ok = token != null,
+                    message = if (token != null) "节点已是最新版本" else "节点已是最新，但未读取到 Token",
+                    token = token,
+                    nodeId = nodeId,
+                )
+            }
+        }
 
         val mkdir = sshClient.execute(
             config,

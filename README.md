@@ -444,6 +444,7 @@ curl -X POST -H "Authorization: Bearer $TOKEN"   -H 'Content-Type: application/j
 
 - 新增 App 内嵌 SSH 客户端（JSch）：可直接从手机 SSH 执行远程命令，不依赖 Termux。
 - 新增 SSH 首次安装引导：App 可上传节点脚本、安装 systemd 服务、保存 Token 并自动登记节点。
+- 节点引导支持版本检查：远端已是同版本且 active 时直接返回“已是最新”，否则自动更新脚本并重启服务。
 - 新增 SSH 凭据加密存储与主机指纹 TOFU 存储。
 - 新增主机指纹确认 UI：首次连接先显示指纹，经用户信任后才执行真正命令/安装；后续指纹不一致会拒绝连接。
 - 新增 SSH 私钥文件导入（ActivityResult OpenDocument），支持从手机存储加载 PEM 私钥。

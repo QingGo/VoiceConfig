@@ -763,6 +763,9 @@ def build_ssl_context(config: dict):
 
 
 def main():
+    if "--version" in sys.argv:
+        print(NODE_VERSION)
+        return
     parser = argparse.ArgumentParser(description="VoiceConfig read-only agent node")
     parser.add_argument("--host", default=None, help="Bind address (overrides node.json bind_host)")
     parser.add_argument("--port", type=int, default=None, help="Port (overrides node.json port)")
