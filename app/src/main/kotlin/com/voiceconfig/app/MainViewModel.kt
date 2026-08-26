@@ -135,6 +135,11 @@ class MainViewModel @Inject constructor(
         }
     }
 
+    override fun onCleared() {
+        closeSshShell()
+        super.onCleared()
+    }
+
     private val _uiState = MutableStateFlow(MainUiState())
     val uiState: StateFlow<MainUiState> = _uiState.asStateFlow()
 
