@@ -279,6 +279,11 @@ object AppModule {
         logcatReadTool: com.voiceconfig.app.agent.LogcatReadTool,
         openFileTool: com.voiceconfig.app.agent.OpenFileTool,
         remoteNodeTool: com.voiceconfig.app.agent.RemoteNodeTool,
+        remoteSshExecTool: com.voiceconfig.app.agent.RemoteSshExecTool,
+        remoteSshReadTool: com.voiceconfig.app.agent.RemoteSshReadTool,
+        remoteSshWriteTool: com.voiceconfig.app.agent.RemoteSshWriteTool,
+        remoteSshListTool: com.voiceconfig.app.agent.RemoteSshListTool,
+        remoteSshSearchTool: com.voiceconfig.app.agent.RemoteSshSearchTool,
     ): CoreAgentPlugin = CoreAgentPlugin(
         openAppTool = openAppTool,
         findAppTool = findAppTool,
@@ -308,6 +313,11 @@ object AppModule {
         logcatReadTool = logcatReadTool,
         openFileTool = openFileTool,
         remoteNodeTool = remoteNodeTool,
+        remoteSshExecTool = remoteSshExecTool,
+        remoteSshReadTool = remoteSshReadTool,
+        remoteSshWriteTool = remoteSshWriteTool,
+        remoteSshListTool = remoteSshListTool,
+        remoteSshSearchTool = remoteSshSearchTool,
     )
 
     @Provides

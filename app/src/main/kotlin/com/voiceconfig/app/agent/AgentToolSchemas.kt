@@ -175,6 +175,28 @@ object AgentToolSchemas {
             "filename" to string("文件名"),
             "path" to string("绝对路径"),
         )
+        "remote_ssh_exec" -> objectSchema(
+            "host" to string("节点名或 IP，可省略；省略时使用第一个可用远程节点"),
+            "command" to string("要执行的 shell 命令"),
+        )
+        "remote_ssh_read" -> objectSchema(
+            "host" to string("节点名或 IP，可省略"),
+            "path" to string("远程文件绝对路径"),
+        )
+        "remote_ssh_write" -> objectSchema(
+            "host" to string("节点名或 IP，可省略"),
+            "path" to string("远程文件绝对路径"),
+            "content" to string("要写入的完整文本内容"),
+        )
+        "remote_ssh_list" -> objectSchema(
+            "host" to string("节点名或 IP，可省略"),
+            "path" to string("远程目录绝对路径，默认 /"),
+        )
+        "remote_ssh_search" -> objectSchema(
+            "host" to string("节点名或 IP，可省略"),
+            "pattern" to string("搜索关键词"),
+            "path" to string("远程目录绝对路径，默认 /home"),
+        )
         "remote_node" -> objectSchema(
             "action" to string("list/health/exec"),
             "node" to string("节点名称或 nodeId；留空表示第一个可用节点"),

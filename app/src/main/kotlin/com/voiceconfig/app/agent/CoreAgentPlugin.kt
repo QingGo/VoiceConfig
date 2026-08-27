@@ -40,6 +40,11 @@ class CoreAgentPlugin @Inject constructor(
     private val logcatReadTool: LogcatReadTool,
     private val openFileTool: OpenFileTool,
     private val remoteNodeTool: RemoteNodeTool,
+    private val remoteSshExecTool: RemoteSshExecTool,
+    private val remoteSshReadTool: RemoteSshReadTool,
+    private val remoteSshWriteTool: RemoteSshWriteTool,
+    private val remoteSshListTool: RemoteSshListTool,
+    private val remoteSshSearchTool: RemoteSshSearchTool,
 ) : AgentPlugin {
 
     override val id: String = "core-tools"
@@ -75,5 +80,10 @@ class CoreAgentPlugin @Inject constructor(
         logcatReadTool,
         openFileTool,
         remoteNodeTool,
+        remoteSshExecTool,
+        remoteSshReadTool,
+        remoteSshWriteTool,
+        remoteSshListTool,
+        remoteSshSearchTool,
     )
 }
