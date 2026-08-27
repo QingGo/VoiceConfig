@@ -183,20 +183,6 @@ fun SshFileDialog(
                     modifier = Modifier.fillMaxWidth(),
                     minLines = 6,
                 )
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    TextButton(onClick = onDismiss) {
-                        Text("关闭")
-                    }
-                    Button(enabled = canList, onClick = { onList(currentConfig(), path.trim()) }) {
-                        Text("列目录")
-                    }
-                    Button(enabled = canRead, onClick = { onRead(currentConfig(), path.trim()) }) {
-                        Text("读取")
-                    }
-                    Button(enabled = canWrite, onClick = { onWrite(currentConfig(), path.trim(), content) }) {
-                        Text("写入")
-                    }
-                }
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
                     OutlinedTextField(
                         value = newName,
@@ -270,6 +256,19 @@ fun SshFileDialog(
             }
         },
         confirmButton = {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Button(enabled = canList, onClick = { onList(currentConfig(), path.trim()) }) {
+                    Text("列目录")
+                }
+                Button(enabled = canRead, onClick = { onRead(currentConfig(), path.trim()) }) {
+                    Text("读取")
+                }
+                Button(enabled = canWrite, onClick = { onWrite(currentConfig(), path.trim(), content) }) {
+                    Text("写入")
+                }
+            }
+        },
+        dismissButton = {
             TextButton(onClick = onDismiss) {
                 Text("关闭")
             }

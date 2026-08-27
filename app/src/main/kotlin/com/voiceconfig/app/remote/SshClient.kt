@@ -1,5 +1,6 @@
 package com.voiceconfig.app.remote
 
+import android.util.Log
 import com.jcraft.jsch.ChannelExec
 import com.jcraft.jsch.ChannelSftp
 import com.jcraft.jsch.ChannelShell
@@ -107,6 +108,8 @@ class SshClient @Inject constructor(
     // ---------- 连接基础设施 ----------
 
     private fun createJSch(config: SshConfig): JSch {
+        // 兼容旧版本保存的 MD5 指纹；后续可由用户升级为 SHA256。
+        JSch.setConfig("FingerprintHash", "md5")
         val jsch = JSch()
         runCatching { jsch.setKnownHosts(hostKeyStore.knownHostsPath()) }
         if (!config.privateKey.isNullOrBlank()) {
@@ -122,8 +125,10 @@ class SshClient @Inject constructor(
 
     private fun hostKeyInfo(session: Session, jsch: JSch): SshHostKeyInfo? {
         val key = runCatching { session.hostKey }.getOrNull() ?: return null
+        val rawFingerprint = runCatching { key.getFingerPrint(jsch) }.getOrNull() ?: return null
         return SshHostKeyInfo(
-            fingerprint = runCatching { key.getFingerPrint(jsch) }.getOrNull() ?: return null,
+            // JSch 输出可能带 "MD5:"/"SHA256:" 前缀，去掉后与历史存储格式兼容。
+            fingerprint = rawFingerprint.substringAfter(':'),
             type = key.getType(),
             keyBase64 = key.getKey(),
         )
@@ -135,6 +140,11 @@ class SshClient @Inject constructor(
             val session = jsch.getSession(config.username, config.host, config.port)
             config.password?.let { session.setPassword(it.toByteArray(Charsets.UTF_8)) }
             session.setConfig("PreferredAuthentications", "publickey,password,keyboard-interactive")
+            // 优先 ECDSA 主机 key，兼容旧版本只保存 ECDSA fingerprint 的迁移场景。
+            session.setConfig(
+                "server_host_key",
+                "ecdsa-sha2-nistp256,ecdsa-sha2-nistp384,ecdsa-sha2-nistp521,ssh-ed25519,ssh-rsa",
+            )
 
             val hasFull = hostKeyStore.getHostKey(config.host, config.port) != null
             val strict = config.hostKeyFingerprint != null && hasFull
@@ -150,6 +160,10 @@ class SshClient @Inject constructor(
             }
             if (config.hostKeyFingerprint != null) {
                 if (info == null || info.fingerprint != config.hostKeyFingerprint) {
+                    Log.e(
+                        "SshClient",
+                        "host key mismatch host=${config.host}:${config.port} stored=${config.hostKeyFingerprint} actual=${info?.fingerprint} type=${info?.type}",
+                    )
                     session.disconnect()
                     return null
                 }
@@ -162,6 +176,7 @@ class SshClient @Inject constructor(
             }
             ConnectedSession(session, jsch, info, strict)
         } catch (e: Exception) {
+            Log.e("SshClient", "connect failed: ${config.host}:${config.port}", e)
             null
         }
     }

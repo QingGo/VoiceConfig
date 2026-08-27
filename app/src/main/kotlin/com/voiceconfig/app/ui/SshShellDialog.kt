@@ -113,33 +113,6 @@ fun SshShellDialog(
                         }
                     }
                 }
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    if (!running) {
-                        Button(
-                            enabled = canConnect,
-                            onClick = {
-                                onClearOutput()
-                                onClearError()
-                                onStart(currentConfig())
-                            },
-                        ) {
-                            Text("连接")
-                        }
-                    } else {
-                        Button(onClick = {
-                            onCloseSession()
-                            onClearOutput()
-                        }) {
-                            Text("断开")
-                        }
-                    }
-                    TextButton(onClick = {
-                        onCloseSession()
-                        onDismiss()
-                    }) {
-                        Text("关闭")
-                    }
-                }
                 error?.let {
                     Text(
                         text = it,
@@ -200,6 +173,29 @@ fun SshShellDialog(
             }
         },
         confirmButton = {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                if (!running) {
+                    Button(
+                        enabled = canConnect,
+                        onClick = {
+                            onClearOutput()
+                            onClearError()
+                            onStart(currentConfig())
+                        },
+                    ) {
+                        Text("连接")
+                    }
+                } else {
+                    Button(onClick = {
+                        onCloseSession()
+                        onClearOutput()
+                    }) {
+                        Text("断开")
+                    }
+                }
+            }
+        },
+        dismissButton = {
             TextButton(onClick = {
                 onCloseSession()
                 onDismiss()

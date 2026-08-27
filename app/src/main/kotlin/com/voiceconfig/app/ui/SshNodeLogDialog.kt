@@ -101,16 +101,8 @@ fun SshNodeLogDialog(
                         }
                     }
                 }
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Button(enabled = canConnect, onClick = { onReadAudit(currentConfig()) }) {
-                        Text("节点审计")
-                    }
-                    Button(enabled = canConnect, onClick = { onReadLog(currentConfig()) }) {
-                        Text("节点 stdout/stderr")
-                    }
-                    TextButton(onClick = onClearResult) {
-                        Text("清除结果")
-                    }
+                TextButton(onClick = onClearResult) {
+                    Text("清除结果")
                 }
                 result?.let { r ->
                     SelectionContainer {
@@ -137,6 +129,16 @@ fun SshNodeLogDialog(
             }
         },
         confirmButton = {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Button(enabled = canConnect, onClick = { onReadAudit(currentConfig()) }) {
+                    Text("节点审计")
+                }
+                Button(enabled = canConnect, onClick = { onReadLog(currentConfig()) }) {
+                    Text("节点日志")
+                }
+            }
+        },
+        dismissButton = {
             TextButton(onClick = onDismiss) {
                 Text("关闭")
             }

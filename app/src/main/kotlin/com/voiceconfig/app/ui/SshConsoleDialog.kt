@@ -56,6 +56,14 @@ fun SshConsoleDialog(
 
     val canRun = host.isNotBlank() && username.isNotBlank() && (password.isNotBlank() || privateKey.isNotBlank()) && command.isNotBlank()
 
+    fun currentConfig() = SshConfig(
+        host = host.trim(),
+        port = port.toIntOrNull() ?: 22,
+        username = username.trim(),
+        password = password.ifBlank { null },
+        privateKey = privateKey.ifBlank { null },
+    )
+
     val context = LocalContext.current
     val privateKeyPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) {
@@ -104,45 +112,6 @@ fun SshConsoleDialog(
                     }
                 }
                 OutlinedTextField(value = command, onValueChange = { command = it }, label = { Text("命令") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    TextButton(onClick = onDismiss) {
-                        Text("关闭")
-                    }
-                    Button(
-                        enabled = canRun,
-                        onClick = {
-                            onRun(
-                                SshConfig(
-                                    host = host.trim(),
-                                    port = port.toIntOrNull() ?: 22,
-                                    username = username.trim(),
-                                    password = password.ifBlank { null },
-                                    privateKey = privateKey.ifBlank { null },
-                                ),
-                                command.trim(),
-                            )
-                        },
-                    ) {
-                        Text("执行")
-                    }
-                    Button(
-                        enabled = canRun,
-                        onClick = {
-                            onInstall(
-                                SshConfig(
-                                    host = host.trim(),
-                                    port = port.toIntOrNull() ?: 22,
-                                    username = username.trim(),
-                                    password = password.ifBlank { null },
-                                    privateKey = privateKey.ifBlank { null },
-                                ),
-                                bindMode,
-                            )
-                        },
-                    ) {
-                        Text("安装节点")
-                    }
-                }
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     TextButton(onClick = { bindMode = "tailscale" }) {
                         Text(if (bindMode == "tailscale") "● Tailscale" else "Tailscale")
@@ -207,6 +176,26 @@ fun SshConsoleDialog(
             }
         },
         confirmButton = {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Button(
+                    enabled = canRun,
+                    onClick = {
+                        onRun(currentConfig(), command.trim())
+                    },
+                ) {
+                    Text("执行")
+                }
+                Button(
+                    enabled = canRun,
+                    onClick = {
+                        onInstall(currentConfig(), bindMode)
+                    },
+                ) {
+                    Text("安装节点")
+                }
+            }
+        },
+        dismissButton = {
             TextButton(onClick = onDismiss) {
                 Text("关闭")
             }
