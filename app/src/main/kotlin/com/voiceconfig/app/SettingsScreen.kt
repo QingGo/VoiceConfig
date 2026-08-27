@@ -834,7 +834,10 @@ private fun SettingsSectionCard(
     defaultExpanded: Boolean = false,
     content: @Composable () -> Unit,
 ) {
-    var expanded by remember(title) { mutableStateOf(defaultExpanded) }
+    val sectionPrefs = LocalContext.current.getSharedPreferences("settings_sections", android.content.Context.MODE_PRIVATE)
+    var expanded by remember(title) {
+        mutableStateOf(sectionPrefs.getBoolean(title, defaultExpanded))
+    }
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
@@ -848,7 +851,10 @@ private fun SettingsSectionCard(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clickable { expanded = !expanded },
+                    .clickable {
+                    expanded = !expanded
+                    sectionPrefs.edit().putBoolean(title, expanded).apply()
+                },
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(
