@@ -66,6 +66,7 @@
 - [x] VoiceSession 状态机（多轮语音基础）
 - [x] Agent 主流程已接入 VoiceSession（开始/等待/完成）
 - [x] WakeWordDetector：SpeechRecognizer 关键词唤醒基础版
+- [x] 唤醒开关与前台保活服务集成（需麦克风权限）
 - [ ] 低功耗远场唤醒优化与真机验证
 
 ## 已提交代码

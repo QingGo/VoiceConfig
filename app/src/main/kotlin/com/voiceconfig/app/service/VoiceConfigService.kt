@@ -13,9 +13,11 @@ import android.net.wifi.WifiManager
 import android.os.Build
 import android.os.IBinder
 import androidx.core.app.NotificationCompat
+import androidx.core.content.ContextCompat
 import com.voiceconfig.app.MainActivity
 import com.voiceconfig.app.R
 import com.voiceconfig.app.agent.TaskPlanStore
+import com.voiceconfig.app.ai.WakeWordDetector
 import com.voiceconfig.app.scheduler.ConditionTriggerHandler
 import com.voiceconfig.app.scheduler.TriggerRuleScheduler
 import kotlinx.coroutines.delay
@@ -45,6 +47,8 @@ class VoiceConfigService : Service() {
     @Inject lateinit var triggerRuleScheduler: TriggerRuleScheduler
     @Inject lateinit var accessibilityKeepAlive: AccessibilityKeepAlive
     @Inject lateinit var taskPlanStore: TaskPlanStore
+    @Inject lateinit var apiKeyStore: com.voiceconfig.app.ai.ApiKeyStore
+    @Inject lateinit var wakeWordDetector: WakeWordDetector
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val receiver = object : BroadcastReceiver() {
@@ -72,6 +76,7 @@ class VoiceConfigService : Service() {
         restoreSchedules()
         startAccessibilityKeepAliveLoop()
         notifyUnfinishedAgentPlans()
+        startWakeWordIfEnabled()
         return START_STICKY
     }
 
@@ -80,6 +85,7 @@ class VoiceConfigService : Service() {
             runCatching { unregisterReceiver(receiver) }
             receiverRegistered = false
         }
+        wakeWordDetector.stop()
         super.onDestroy()
     }
 
@@ -127,6 +133,34 @@ class VoiceConfigService : Service() {
                 triggerRuleScheduler.restoreAll(triggerRuleRepository.getEnabled())
             }
         }
+    }
+
+    private fun startWakeWordIfEnabled() {
+        if (!apiKeyStore.wakeWordEnabled) {
+            wakeWordDetector.stop()
+            return
+        }
+        val granted = ContextCompat.checkSelfPermission(
+            this,
+            android.Manifest.permission.RECORD_AUDIO,
+        ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+        if (!granted) return
+        wakeWordDetector.start(
+            listener = object : WakeWordDetector.Listener {
+                override fun onWakeWord(text: String) {
+                    val intent = Intent(this@VoiceConfigService, MainActivity::class.java).apply {
+                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                        putExtra("wake_word", text)
+                    }
+                    startActivity(intent)
+                }
+
+                override fun onError(error: Int) {
+                    // 由 WakeWordDetector 自动重启；这里可记录日志。
+                }
+            },
+            keywords = listOf("言控", "语音助手", "你好言控"),
+        )
     }
 
     private fun registerConditionReceiver() {

@@ -98,6 +98,12 @@ class ApiKeyStore @Inject constructor(
             prefs.edit().putBoolean(KEY_AGENT_TTS_ENABLED, value).apply()
         }
 
+    var wakeWordEnabled: Boolean
+        get() = prefs.getBoolean(KEY_WAKE_WORD_ENABLED, false)
+        set(value) {
+            prefs.edit().putBoolean(KEY_WAKE_WORD_ENABLED, value).apply()
+        }
+
     private fun readApiKey(): String {
         val encrypted = prefs.getString(KEY_API_KEY_ENCRYPTED, null)
         if (!encrypted.isNullOrBlank()) {
@@ -190,6 +196,7 @@ class ApiKeyStore @Inject constructor(
         private const val KEY_AGENT_IMAGE_DETAIL_LOW = "agent_image_detail_low"
         private const val KEY_AGENT_VOICE_AUTO_SEND = "agent_voice_auto_send"
         private const val KEY_AGENT_TTS_ENABLED = "agent_tts_enabled"
+        private const val KEY_WAKE_WORD_ENABLED = "wake_word_enabled"
         const val DEFAULT_MAX_AUTO_VERIFY = 2
         const val DEFAULT_MODEL = "deepseek-v4-flash-vision-exp"
 

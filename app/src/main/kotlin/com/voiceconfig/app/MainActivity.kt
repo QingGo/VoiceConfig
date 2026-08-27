@@ -304,6 +304,7 @@ fun MainScreen(viewModel: MainViewModel) {
     val agentDraft by viewModel.agentDraft.collectAsState()
     val agentVoiceAutoSend by viewModel.agentVoiceAutoSend.collectAsState()
     val agentTtsEnabled by viewModel.agentTtsEnabled.collectAsState()
+    val wakeWordEnabled by viewModel.wakeWordEnabled.collectAsState()
     var showAiSettings by remember { mutableStateOf(false) }
     var draftApiKey by remember { mutableStateOf("") }
     var draftModel by remember { mutableStateOf("") }
@@ -781,6 +782,8 @@ fun MainScreen(viewModel: MainViewModel) {
                         onAgentVoiceAutoSendChange = viewModel::setAgentVoiceAutoSend,
                         agentTtsEnabled = agentTtsEnabled,
                         onAgentTtsEnabledChange = viewModel::setAgentTtsEnabled,
+                        wakeWordEnabled = wakeWordEnabled,
+                        onWakeWordEnabledChange = viewModel::setWakeWordEnabled,
                         initialLogTaskId = agentLogTaskId,
                         canResumeTask = canResumeTask,
                         activeTaskPlans = activeTaskPlans,

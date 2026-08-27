@@ -102,6 +102,8 @@ fun AgentPage(
     onAgentVoiceAutoSendChange: (Boolean) -> Unit = {},
     agentTtsEnabled: Boolean = false,
     onAgentTtsEnabledChange: (Boolean) -> Unit = {},
+    wakeWordEnabled: Boolean = false,
+    onWakeWordEnabledChange: (Boolean) -> Unit = {},
     initialLogTaskId: Long? = null,
     canResumeTask: Boolean = false,
     activeTaskPlans: List<TaskPlan> = emptyList(),
@@ -368,6 +370,8 @@ fun AgentPage(
             onAgentVoiceAutoSendChange = onAgentVoiceAutoSendChange,
             agentTtsEnabled = agentTtsEnabled,
             onAgentTtsEnabledChange = onAgentTtsEnabledChange,
+            wakeWordEnabled = wakeWordEnabled,
+            onWakeWordEnabledChange = onWakeWordEnabledChange,
         )
     }
 
@@ -867,6 +871,8 @@ private fun ConversationTab(
     onAgentVoiceAutoSendChange: (Boolean) -> Unit = {},
     agentTtsEnabled: Boolean = false,
     onAgentTtsEnabledChange: (Boolean) -> Unit = {},
+    wakeWordEnabled: Boolean = false,
+    onWakeWordEnabledChange: (Boolean) -> Unit = {},
     onApproveSkill: (String) -> Unit = {},
     onRejectSkill: (String) -> Unit = {},
     onDeleteSkill: (String) -> Unit = {},
@@ -1028,6 +1034,22 @@ private fun ConversationTab(
                     androidx.compose.material3.Switch(
                         checked = agentTtsEnabled,
                         onCheckedChange = onAgentTtsEnabledChange,
+                        enabled = hasDeepSeekKey,
+                    )
+                }
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        "语音唤醒（需麦克风权限）",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Spacer(modifier = Modifier.weight(1f))
+                    androidx.compose.material3.Switch(
+                        checked = wakeWordEnabled,
+                        onCheckedChange = onWakeWordEnabledChange,
                         enabled = hasDeepSeekKey,
                     )
                 }
