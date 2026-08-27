@@ -47,6 +47,7 @@ class AgentToolsetTest {
         assertEquals(ToolGroup.APP_SKILL, AgentToolMetadataRegistry.of("wechat_open").group)
         assertEquals(ToolGroup.APP_SKILL, AgentToolMetadataRegistry.of("wework_open").group)
         assertEquals(ToolGroup.APP_SKILL, AgentToolMetadataRegistry.of("wechat_read_messages").group)
+        assertEquals(ToolGroup.APP_SKILL, AgentToolMetadataRegistry.of("wechat_send_reply").group)
         assertEquals(ToolGroup.DEBUG, AgentToolMetadataRegistry.of("file_read").group)
         assertEquals(ToolGroup.REMOTE, AgentToolMetadataRegistry.of("remote_project_inspect").group)
         assertEquals(ToolGroup.REMOTE, AgentToolMetadataRegistry.of("remote_project_install").group)

@@ -325,6 +325,7 @@ object AppModule {
         wechatOpenTool: com.voiceconfig.app.agent.WechatOpenTool,
         weworkOpenTool: com.voiceconfig.app.agent.WeworkOpenTool,
         wechatReadMessagesTool: com.voiceconfig.app.agent.WechatReadMessagesTool,
+        wechatSendReplyTool: com.voiceconfig.app.agent.WechatSendReplyTool,
     ): CoreAgentPlugin = CoreAgentPlugin(
         openAppTool = openAppTool,
         findAppTool = findAppTool,
@@ -376,6 +377,7 @@ object AppModule {
         wechatOpenTool = wechatOpenTool,
         weworkOpenTool = weworkOpenTool,
         wechatReadMessagesTool = wechatReadMessagesTool,
+        wechatSendReplyTool = wechatSendReplyTool,
     )
 
     @Provides

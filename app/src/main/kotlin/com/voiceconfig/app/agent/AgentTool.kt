@@ -321,6 +321,13 @@ object AgentToolMetadataRegistry {
             risk = ToolRisk.READ_ONLY,
             needsShizuku = true,
         ),
+        "wechat_send_reply" to AgentToolMetadata(
+            category = "通信技能",
+            group = ToolGroup.APP_SKILL,
+            risk = ToolRisk.HIGH,
+            mutatesUi = true,
+            sensitive = true,
+        ),
         "wework_open" to AgentToolMetadata(
             category = "通信技能",
             group = ToolGroup.APP_SKILL,

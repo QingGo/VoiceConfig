@@ -62,6 +62,7 @@ class CoreAgentPlugin @Inject constructor(
     private val wechatOpenTool: WechatOpenTool,
     private val weworkOpenTool: WeworkOpenTool,
     private val wechatReadMessagesTool: WechatReadMessagesTool,
+    private val wechatSendReplyTool: WechatSendReplyTool,
 ) : AgentPlugin {
 
     override val id: String = "core-tools"
@@ -119,5 +120,6 @@ class CoreAgentPlugin @Inject constructor(
         wechatOpenTool,
         weworkOpenTool,
         wechatReadMessagesTool,
+        wechatSendReplyTool,
     )
 }

@@ -251,6 +251,10 @@ object AgentToolSchemas {
         )
         "wechat_open" -> objectSchema()
         "wechat_read_messages" -> objectSchema()
+        "wechat_send_reply" -> objectSchema(
+            "draft" to string("要发送的回复内容"),
+            "humanConfirmed" to string("必须 true，表示已经过用户确认"),
+        )
         "wework_open" -> objectSchema()
         "remote_project_inspect" -> objectSchema(
             "host" to string("节点名或 IP，可省略"),

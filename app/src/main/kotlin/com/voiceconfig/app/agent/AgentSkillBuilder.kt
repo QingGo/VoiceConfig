@@ -205,6 +205,7 @@ object AgentSkillBuilder {
         "wechat_open" -> "打开个人微信"
         "wework_open" -> "打开企业微信"
         "wechat_read_messages" -> "读取微信消息页面"
+        "wechat_send_reply" -> "发送微信回复"
         else -> "执行 $toolName"
     }
 
@@ -247,6 +248,7 @@ object AgentSkillBuilder {
         "wechat_open" -> "微信进入前台"
         "wework_open" -> "企业微信进入前台"
         "wechat_read_messages" -> "返回微信消息文本"
+        "wechat_send_reply" -> "微信已发送"
         else -> "$toolName 成功"
     }
 
@@ -289,6 +291,7 @@ object AgentSkillBuilder {
         "wechat_open" -> "若打开失败，检查微信是否安装"
         "wework_open" -> "若打开失败，检查企业微信是否安装"
         "wechat_read_messages" -> "若读取失败，检查无障碍/Shizuku 或确认微信已打开"
+        "wechat_send_reply" -> "若发送失败，确认当前位于微信聊天输入框且已获得用户确认"
         else -> "若失败，重新读取当前 UI 后再尝试或向用户询问"
     }
 
