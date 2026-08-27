@@ -288,6 +288,11 @@ object AgentToolMetadataRegistry {
             group = ToolGroup.RESEARCH,
             risk = ToolRisk.LOW,
         ),
+        "luckin_prepare_order" to AgentToolMetadata(
+            category = "消费技能",
+            group = ToolGroup.APP_SKILL,
+            risk = ToolRisk.LOW,
+        ),
         "file_write" to AgentToolMetadata(
             category = "文件",
             group = ToolGroup.DEBUG,

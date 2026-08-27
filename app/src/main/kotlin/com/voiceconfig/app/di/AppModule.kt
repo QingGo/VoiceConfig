@@ -318,6 +318,7 @@ object AppModule {
         shoppingSaveTool: com.voiceconfig.app.agent.ShoppingSaveTool,
         shoppingListTool: com.voiceconfig.app.agent.ShoppingListTool,
         shoppingUpdateStatusTool: com.voiceconfig.app.agent.ShoppingUpdateStatusTool,
+        luckinPrepareOrderTool: com.voiceconfig.app.agent.LuckinPrepareOrderTool,
     ): CoreAgentPlugin = CoreAgentPlugin(
         openAppTool = openAppTool,
         findAppTool = findAppTool,
@@ -362,6 +363,7 @@ object AppModule {
         shoppingSaveTool = shoppingSaveTool,
         shoppingListTool = shoppingListTool,
         shoppingUpdateStatusTool = shoppingUpdateStatusTool,
+        luckinPrepareOrderTool = luckinPrepareOrderTool,
     )
 
     @Provides

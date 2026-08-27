@@ -198,6 +198,7 @@ object AgentSkillBuilder {
         "shopping_save" -> "保存商品到购物研究清单"
         "shopping_list" -> "读取购物研究清单"
         "shopping_update_status" -> "更新购物清单状态"
+        "luckin_prepare_order" -> "生成瑞幸点单确认清单"
         else -> "执行 $toolName"
     }
 
@@ -233,6 +234,7 @@ object AgentSkillBuilder {
         "shopping_save" -> "商品已保存到购物清单"
         "shopping_list" -> "返回购物清单与状态"
         "shopping_update_status" -> "清单状态已更新"
+        "luckin_prepare_order" -> "返回确认清单，未下单"
         else -> "$toolName 成功"
     }
 
@@ -268,6 +270,7 @@ object AgentSkillBuilder {
         "shopping_save" -> "若保存失败，检查商品数据是否完整"
         "shopping_list" -> "若清单为空，提示先研究并保存商品"
         "shopping_update_status" -> "若找不到商品，用 shopping_list 确认 productId"
+        "luckin_prepare_order" -> "若清单不完整，补充门店/饮品/规格后再生成"
         else -> "若失败，重新读取当前 UI 后再尝试或向用户询问"
     }
 

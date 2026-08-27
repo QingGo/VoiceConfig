@@ -229,6 +229,15 @@ object AgentToolSchemas {
             "productId" to string("商品 ID"),
             "status" to string("WATCH/RECOMMENDED/BOUGHT"),
         )
+        "luckin_prepare_order" -> objectSchema(
+            "store" to string("门店名称或位置"),
+            "drink" to string("饮品名称，如：冰美式/生椰拿铁"),
+            "size" to string("杯型，如：大杯/中杯"),
+            "sugar" to string("甜度"),
+            "ice" to string("冰量"),
+            "quantity" to integer("数量，默认1"),
+            "price" to integer("可选预估单价"),
+        )
         "remote_project_inspect" -> objectSchema(
             "host" to string("节点名或 IP，可省略"),
             "path" to string("远程项目根目录绝对路径"),

@@ -20,6 +20,7 @@ class ToolRegistry {
             ToolGroup.REMOTE,
             ToolGroup.HOME,
             ToolGroup.RESEARCH,
+            ToolGroup.APP_SKILL,
         )
     }
 
