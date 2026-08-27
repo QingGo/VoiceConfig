@@ -315,6 +315,12 @@ object AgentToolMetadataRegistry {
             mutatesUi = true,
             requiresAutoVerify = true,
         ),
+        "wechat_read_messages" to AgentToolMetadata(
+            category = "通信技能",
+            group = ToolGroup.APP_SKILL,
+            risk = ToolRisk.READ_ONLY,
+            needsShizuku = true,
+        ),
         "wework_open" to AgentToolMetadata(
             category = "通信技能",
             group = ToolGroup.APP_SKILL,

@@ -204,6 +204,7 @@ object AgentSkillBuilder {
         "wechat_draft_reply" -> "生成微信回复草稿"
         "wechat_open" -> "打开个人微信"
         "wework_open" -> "打开企业微信"
+        "wechat_read_messages" -> "读取微信消息页面"
         else -> "执行 $toolName"
     }
 
@@ -245,6 +246,7 @@ object AgentSkillBuilder {
         "wechat_draft_reply" -> "返回回复草稿，未发送"
         "wechat_open" -> "微信进入前台"
         "wework_open" -> "企业微信进入前台"
+        "wechat_read_messages" -> "返回微信消息文本"
         else -> "$toolName 成功"
     }
 
@@ -286,6 +288,7 @@ object AgentSkillBuilder {
         "wechat_draft_reply" -> "若缺少上下文，向用户确认后再起草"
         "wechat_open" -> "若打开失败，检查微信是否安装"
         "wework_open" -> "若打开失败，检查企业微信是否安装"
+        "wechat_read_messages" -> "若读取失败，检查无障碍/Shizuku 或确认微信已打开"
         else -> "若失败，重新读取当前 UI 后再尝试或向用户询问"
     }
 

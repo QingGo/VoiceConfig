@@ -33,7 +33,7 @@
 
 - [x] wechat_draft_reply：安全生成回复草稿（不自动发送）
 - [x] wechat_open / wework_open：直接打开微信/企业微信
-- [ ] 读取未读消息
+- [x] wechat_read_messages：读取微信当前页消息（依赖无障碍/Shizuku）
 - [ ] 人工确认后发送
 
 ## Phase E：智能家居

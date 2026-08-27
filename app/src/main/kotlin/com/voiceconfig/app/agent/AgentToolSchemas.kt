@@ -250,6 +250,7 @@ object AgentToolSchemas {
             "reply" to string("回复草稿内容"),
         )
         "wechat_open" -> objectSchema()
+        "wechat_read_messages" -> objectSchema()
         "wework_open" -> objectSchema()
         "remote_project_inspect" -> objectSchema(
             "host" to string("节点名或 IP，可省略"),
