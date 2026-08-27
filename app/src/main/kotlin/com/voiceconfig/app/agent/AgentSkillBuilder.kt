@@ -194,6 +194,7 @@ object AgentSkillBuilder {
         "remote_project_install" -> "安装远程项目依赖"
         "home_devices" -> "读取 Home Assistant 设备列表"
         "home_control" -> "控制 Home Assistant 设备"
+        "product_compare" -> "比较商品价格/评分/评价"
         else -> "执行 $toolName"
     }
 
@@ -225,6 +226,7 @@ object AgentSkillBuilder {
         "remote_project_install" -> "依赖安装命令退出码为0"
         "home_devices" -> "返回设备列表与状态"
         "home_control" -> "Home Assistant 返回调用成功"
+        "product_compare" -> "返回推荐商品与比较摘要"
         else -> "$toolName 成功"
     }
 
@@ -256,6 +258,7 @@ object AgentSkillBuilder {
         "remote_project_install" -> "若安装失败，提示检查远程环境/网络"
         "home_devices" -> "若读取失败，检查 Home Assistant 地址/Token/网络"
         "home_control" -> "若控制失败，先 home_devices 确认设备状态与 entity_id"
+        "product_compare" -> "若商品数据不全，提示用户补充价格/评分后再比较"
         else -> "若失败，重新读取当前 UI 后再尝试或向用户询问"
     }
 

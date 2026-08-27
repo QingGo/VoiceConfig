@@ -214,6 +214,9 @@ object AgentToolSchemas {
                 put("description", "服务附加参数，如 temperature/volume_level")
             },
         )
+        "product_compare" -> objectSchema(
+            "products" to string("商品 JSON 数组字符串，每项含 title/platform/price/rating/reviewCount 等"),
+        )
         "remote_project_inspect" -> objectSchema(
             "host" to string("节点名或 IP，可省略"),
             "path" to string("远程项目根目录绝对路径"),

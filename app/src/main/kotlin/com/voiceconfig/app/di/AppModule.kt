@@ -302,6 +302,7 @@ object AppModule {
         remoteProjectInstallTool: com.voiceconfig.app.agent.RemoteProjectInstallTool,
         homeDevicesTool: com.voiceconfig.app.agent.HomeDevicesTool,
         homeControlTool: com.voiceconfig.app.agent.HomeControlTool,
+        productCompareTool: com.voiceconfig.app.agent.ProductCompareTool,
     ): CoreAgentPlugin = CoreAgentPlugin(
         openAppTool = openAppTool,
         findAppTool = findAppTool,
@@ -342,6 +343,7 @@ object AppModule {
         remoteProjectInstallTool = remoteProjectInstallTool,
         homeDevicesTool = homeDevicesTool,
         homeControlTool = homeControlTool,
+        productCompareTool = productCompareTool,
     )
 
     @Provides

@@ -268,6 +268,11 @@ object AgentToolMetadataRegistry {
             group = ToolGroup.HOME,
             risk = ToolRisk.MEDIUM,
         ),
+        "product_compare" to AgentToolMetadata(
+            category = "购物研究",
+            group = ToolGroup.RESEARCH,
+            risk = ToolRisk.READ_ONLY,
+        ),
         "file_write" to AgentToolMetadata(
             category = "文件",
             group = ToolGroup.DEBUG,

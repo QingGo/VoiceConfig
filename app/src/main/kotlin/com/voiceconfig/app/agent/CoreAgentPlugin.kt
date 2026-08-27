@@ -51,6 +51,7 @@ class CoreAgentPlugin @Inject constructor(
     private val remoteProjectInstallTool: RemoteProjectInstallTool,
     private val homeDevicesTool: HomeDevicesTool,
     private val homeControlTool: HomeControlTool,
+    private val productCompareTool: ProductCompareTool,
 ) : AgentPlugin {
 
     override val id: String = "core-tools"
@@ -97,5 +98,6 @@ class CoreAgentPlugin @Inject constructor(
         remoteProjectInstallTool,
         homeDevicesTool,
         homeControlTool,
+        productCompareTool,
     )
 }

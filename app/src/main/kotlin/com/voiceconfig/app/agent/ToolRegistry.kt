@@ -19,6 +19,7 @@ class ToolRegistry {
             ToolGroup.PHONE,
             ToolGroup.REMOTE,
             ToolGroup.HOME,
+            ToolGroup.RESEARCH,
         )
     }
 
