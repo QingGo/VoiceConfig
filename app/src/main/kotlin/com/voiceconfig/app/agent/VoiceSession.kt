@@ -17,7 +17,8 @@ data class VoiceSession(
     val pendingConfirmation: String? = null,
 )
 
-class VoiceSessionManager {
+@javax.inject.Singleton
+class VoiceSessionManager @javax.inject.Inject constructor() {
     private var session: VoiceSession = VoiceSession()
 
     fun current(): VoiceSession = session
