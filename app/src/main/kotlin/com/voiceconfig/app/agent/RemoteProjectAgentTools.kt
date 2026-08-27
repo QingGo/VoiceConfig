@@ -190,21 +190,21 @@ private fun shellSingleQuote(value: String): String = "'" + value.replace("'", "
 
 private fun probeCommand(path: String): String {
     val safe = shellSingleQuote(path)
-    return listOf(
-        "if [ -f $safe/settings.gradle ] || [ -f $safe/build.gradle ] || [ -f $safe/settings.gradle.kts ] || [ -f $safe/build.gradle.kts ]; then",
-        "  echo gradle",
-        "elif [ -f $safe/package.json ]; then",
-        "  echo node",
-        "elif [ -f $safe/pyproject.toml ] || [ -f $safe/requirements.txt ] || [ -f $safe/setup.py ]; then",
-        "  echo python",
-        "elif [ -f $safe/go.mod ]; then",
-        "  echo go",
-        "elif [ -d $safe ]; then",
-        "  echo generic",
-        "else",
-        "  echo unknown",
-        "fi",
-    ).joinToString(" && ")
+    return """
+        if [ -f $safe/settings.gradle ] || [ -f $safe/build.gradle ] || [ -f $safe/settings.gradle.kts ] || [ -f $safe/build.gradle.kts ]; then
+          echo gradle
+        elif [ -f $safe/package.json ]; then
+          echo node
+        elif [ -f $safe/pyproject.toml ] || [ -f $safe/requirements.txt ] || [ -f $safe/setup.py ]; then
+          echo python
+        elif [ -f $safe/go.mod ]; then
+          echo go
+        elif [ -d $safe ]; then
+          echo generic
+        else
+          echo unknown
+        fi
+    """.trimIndent()
 }
 
 private suspend fun detectInfo(
