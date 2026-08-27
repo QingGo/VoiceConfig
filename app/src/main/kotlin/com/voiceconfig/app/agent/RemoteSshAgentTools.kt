@@ -11,7 +11,7 @@ class RemoteSshExecTool @Inject constructor(
     override val description: String = "在已连接的远程节点执行 shell 命令。参数：{\"host\":\"节点名或IP，可省略\",\"command\":\"要执行的命令\"}"
     override val metadata: AgentToolMetadata = AgentToolMetadata(
         category = "远程开发",
-        group = ToolGroup.ADVANCED,
+        group = ToolGroup.CORE,
         risk = ToolRisk.SENSITIVE,
         sensitive = true,
     )
@@ -30,7 +30,7 @@ class RemoteSshReadTool @Inject constructor(
     override val description: String = "读取远程文本文件。参数：{\"host\":\"节点名或IP，可省略\",\"path\":\"/绝对路径\"}"
     override val metadata: AgentToolMetadata = AgentToolMetadata(
         category = "远程开发",
-        group = ToolGroup.ADVANCED,
+        group = ToolGroup.CORE,
         risk = ToolRisk.READ_ONLY,
     )
     override suspend fun execute(args: Map<String, Any?>): ToolResult {
@@ -48,7 +48,7 @@ class RemoteSshWriteTool @Inject constructor(
     override val description: String = "写入远程文本文件。参数：{\"host\":\"节点名或IP，可省略\",\"path\":\"/绝对路径\",\"content\":\"文件内容\"}"
     override val metadata: AgentToolMetadata = AgentToolMetadata(
         category = "远程开发",
-        group = ToolGroup.ADVANCED,
+        group = ToolGroup.CORE,
         risk = ToolRisk.HIGH,
         sensitive = true,
     )
@@ -68,7 +68,7 @@ class RemoteSshListTool @Inject constructor(
     override val description: String = "列出远程目录。参数：{\"host\":\"节点名或IP，可省略\",\"path\":\"/绝对路径\"}"
     override val metadata: AgentToolMetadata = AgentToolMetadata(
         category = "远程开发",
-        group = ToolGroup.ADVANCED,
+        group = ToolGroup.CORE,
         risk = ToolRisk.READ_ONLY,
     )
     override suspend fun execute(args: Map<String, Any?>): ToolResult {
@@ -85,7 +85,7 @@ class RemoteSshSearchTool @Inject constructor(
     override val description: String = "在远程目录中搜索文本。参数：{\"host\":\"节点名或IP，可省略\",\"pattern\":\"搜索词\",\"path\":\"/绝对路径\"}"
     override val metadata: AgentToolMetadata = AgentToolMetadata(
         category = "远程开发",
-        group = ToolGroup.ADVANCED,
+        group = ToolGroup.CORE,
         risk = ToolRisk.READ_ONLY,
     )
     override suspend fun execute(args: Map<String, Any?>): ToolResult {
