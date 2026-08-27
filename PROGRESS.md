@@ -66,5 +66,8 @@
 - 能力预检
 - 工具分层
 - 企业微信模板与失败重试
-- RemoteProject 工具
+- RemoteProject 工具与持久化
 - 安全指标持久化与 UI
+- Home Assistant 桥与 home_devices/home_control
+- product_compare 购物比较工具
+- Agent 结果 TTS
