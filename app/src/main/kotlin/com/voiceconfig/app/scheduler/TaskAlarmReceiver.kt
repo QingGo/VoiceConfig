@@ -11,6 +11,7 @@ import com.voiceconfig.app.MainActivity
 import com.voiceconfig.app.service.VoiceConfigService
 import androidx.core.app.NotificationCompat
 import com.voiceconfig.app.agent.AgentCapabilityInspector
+import com.voiceconfig.app.agent.AgentPreflight
 import com.voiceconfig.app.agent.AgentRunState
 import com.voiceconfig.app.agent.AgentStepStatus
 import com.voiceconfig.app.agent.AgentStepUi
@@ -157,8 +158,17 @@ class TaskAlarmReceiver : BroadcastReceiver() {
             )
         }
         val prompt = task.agentPrompt ?: task.rawText
+        val capability = agentCapabilityInspector.snapshot()
+        val preflight = AgentPreflight.evaluate(capability, prompt)
+        if (!preflight.ready) {
+            return ExecutionResult.failure(
+                mode = ExecutionMode.AGENT,
+                errorCode = "CAPABILITY_PREFLIGHT",
+                message = preflight.summary(),
+            )
+        }
         val skills = agentSkillStore.relevant(prompt)
-        val capabilitySummary = agentCapabilityInspector.snapshot().summary()
+        val capabilitySummary = capability.summary()
         val result = agentSession.sendIsolated(
             userText = prompt,
             skills = skills,

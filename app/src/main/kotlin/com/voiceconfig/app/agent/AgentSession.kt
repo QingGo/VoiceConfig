@@ -666,11 +666,28 @@ class AgentSession @Inject constructor(
                         startedAtElapsedMs = toolStartElapsedMs,
                     ),
                 )
+                val decision = safety.decide(tool, args)
+                trace.log(runId, "safety_evaluate", mapOf(
+                    "tool" to tool.name,
+                    "args" to args,
+                    "level" to decision.level.name,
+                    "requiresConfirmation" to decision.requiresConfirmation,
+                    "blocked" to decision.blocked,
+                    "reason" to decision.reason,
+                ))
                 val sensitiveRequest = SensitiveActionRequest(tool.name, args)
-                if (safety.requiresConfirmation(tool, args)) {
+                if (decision.requiresConfirmation) {
                     setState(AgentRunState.WAITING_CONFIRM)
                     val approved = onSensitiveAction(sensitiveRequest)
                     setState(AgentRunState.RUNNING)
+                    trace.log(runId, "safety_decision", mapOf(
+                        "tool" to tool.name,
+                        "args" to args,
+                        "level" to decision.level.name,
+                        "approved" to approved,
+                        "approvedBy" to if (approved) "user" else "user_denied",
+                        "reason" to decision.reason,
+                    ))
                     if (!approved) {
                         val declined = "用户未确认敏感操作，已取消：${safety.describe(tool.name, args)}"
                         onStep(
@@ -705,7 +722,7 @@ class AgentSession @Inject constructor(
                     }
                 }
 
-                if (safety.isAlwaysBlocked(tool.name, args)) {
+                if (decision.blocked) {
                     val blocked = "系统安全拦截：不允许直接执行最终操作（${safety.describe(tool.name, args)}）。请停在确认页等待用户。"
                     onStep(
                         AgentStepUi(
@@ -718,6 +735,12 @@ class AgentSession @Inject constructor(
                         ),
                     )
                     trace.log(runId, "tool_blocked", mapOf("tool" to toolCall.name, "args" to args, "reason" to "hard_safety_gate"))
+                    trace.log(runId, "safety_blocked", mapOf(
+                        "tool" to tool.name,
+                        "args" to args,
+                        "level" to decision.level.name,
+                        "reason" to "hard_safety_gate",
+                    ))
                     history += AgentMessage(
                         role = "tool",
                         content = blocked,

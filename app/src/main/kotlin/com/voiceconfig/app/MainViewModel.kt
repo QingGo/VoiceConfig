@@ -28,6 +28,7 @@ import com.voiceconfig.app.agent.AgentStreamEvent
 import com.voiceconfig.app.agent.AgentRunLedger
 import com.voiceconfig.app.agent.AgentRunRecord
 import com.voiceconfig.app.agent.AgentCapabilityInspector
+import com.voiceconfig.app.agent.AgentPreflight
 import com.voiceconfig.app.agent.AgentRunState
 import com.voiceconfig.app.agent.AgentSession
 import com.voiceconfig.app.agent.AgentSkill
@@ -641,39 +642,49 @@ class MainViewModel @Inject constructor(
             val result = runCatching {
                 if (task.actionType == ActionType.AGENT) {
                     val prompt = task.agentPrompt ?: task.rawText
-                    val capabilitySummary = agentCapabilityInspector.snapshot().summary()
-                    val agentResult = agentSession.sendIsolated(
-                        userText = prompt,
-                        skills = agentSkillStore.relevant(prompt),
-                        verifyPolicy = AgentVerificationPolicy(
-                            enabled = apiKeyStore.agentAutoVerifyEnabled,
-                            maxPerRun = apiKeyStore.agentMaxAutoVerifies,
-                        ),
-                        capabilitySummary = capabilitySummary,
-                        onSensitiveAction = {
-                            apiKeyStore.agentAutoConfirmSensitiveActions
-                        },
-                    )
-                    if (agentResult.ok) {
-                        agentSkillStore.recordFromTurn(
-                            text = prompt,
-                            result = agentResult,
-                            capabilitySummary = capabilitySummary,
-                        )
-                    }
-                    when {
-                        !agentResult.ok -> ExecutionResult.failure(
+                    val capability = agentCapabilityInspector.snapshot()
+                    val preflight = AgentPreflight.evaluate(capability, prompt)
+                    if (!preflight.ready) {
+                        ExecutionResult.failure(
                             mode = ExecutionMode.AGENT,
-                            errorCode = "AGENT_FAILED",
-                            message = agentResult.message,
+                            errorCode = "CAPABILITY_PREFLIGHT",
+                            message = preflight.summary(),
                         )
-                        agentResult.state == AgentRunState.WAITING_CONFIRM -> ExecutionResult(
-                            status = ExecutionStatus.WAITING_HUMAN,
-                            usedMode = ExecutionMode.AGENT,
-                            errorCode = "WAITING_HUMAN",
-                            message = agentResult.message,
+                    } else {
+                        val capabilitySummary = capability.summary()
+                        val agentResult = agentSession.sendIsolated(
+                            userText = prompt,
+                            skills = agentSkillStore.relevant(prompt),
+                            verifyPolicy = AgentVerificationPolicy(
+                                enabled = apiKeyStore.agentAutoVerifyEnabled,
+                                maxPerRun = apiKeyStore.agentMaxAutoVerifies,
+                            ),
+                            capabilitySummary = capabilitySummary,
+                            onSensitiveAction = {
+                                apiKeyStore.agentAutoConfirmSensitiveActions
+                            },
                         )
-                        else -> ExecutionResult.success(ExecutionMode.AGENT).copy(message = agentResult.message)
+                        if (agentResult.ok) {
+                            agentSkillStore.recordFromTurn(
+                                text = prompt,
+                                result = agentResult,
+                                capabilitySummary = capabilitySummary,
+                            )
+                        }
+                        when {
+                            !agentResult.ok -> ExecutionResult.failure(
+                                mode = ExecutionMode.AGENT,
+                                errorCode = "AGENT_FAILED",
+                                message = agentResult.message,
+                            )
+                            agentResult.state == AgentRunState.WAITING_CONFIRM -> ExecutionResult(
+                                status = ExecutionStatus.WAITING_HUMAN,
+                                usedMode = ExecutionMode.AGENT,
+                                errorCode = "WAITING_HUMAN",
+                                message = agentResult.message,
+                            )
+                            else -> ExecutionResult.success(ExecutionMode.AGENT).copy(message = agentResult.message)
+                        }
                     }
                 } else {
                     executionEngine.execute(
@@ -2087,6 +2098,12 @@ class MainViewModel @Inject constructor(
             description = "每天 9:00 打开瑞幸咖啡",
             category = "生活",
             configJson = "每天上午9点打开瑞幸咖啡",
+        ),
+        Template(
+            name = "企业微信定时打开",
+            description = "工作场景：每天 08:00 自动打开企业微信",
+            category = "工作",
+            configJson = "每天早上8点打开企业微信",
         ),
         Template(
             name = "午休提醒",
