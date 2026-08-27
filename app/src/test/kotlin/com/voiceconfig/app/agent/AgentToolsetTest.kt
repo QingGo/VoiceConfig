@@ -52,6 +52,7 @@ class AgentToolsetTest {
         assertEquals(ToolGroup.DEBUG, AgentToolMetadataRegistry.of("file_read").group)
         assertEquals(ToolGroup.REMOTE, AgentToolMetadataRegistry.of("remote_project_inspect").group)
         assertEquals(ToolGroup.REMOTE, AgentToolMetadataRegistry.of("remote_project_install").group)
+        assertEquals(ToolGroup.REMOTE, AgentToolMetadataRegistry.of("remote_project_verify").group)
     }
 
 }

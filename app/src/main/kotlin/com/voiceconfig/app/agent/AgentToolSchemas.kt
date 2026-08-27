@@ -279,6 +279,13 @@ object AgentToolSchemas {
             "projectId" to string("已保存项目 ID，可省略"),
             "command" to string("可选的安装命令，省略时自动识别"),
         )
+        "remote_project_verify" -> objectSchema(
+            "host" to string("节点名或 IP，可省略"),
+            "path" to string("远程项目根目录绝对路径"),
+            "projectId" to string("已保存项目 ID，可省略"),
+            "buildCommand" to string("可选构建命令"),
+            "testCommand" to string("可选测试命令"),
+        )
         else -> JSONObject().apply {
             put("type", "object")
             put("properties", JSONObject())

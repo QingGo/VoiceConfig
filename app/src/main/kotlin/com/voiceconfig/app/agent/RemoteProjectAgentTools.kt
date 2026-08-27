@@ -262,3 +262,60 @@ private suspend fun resolveProjectContext(
     }
     return ResolvedProject(host, path, info)
 }
+
+@Singleton
+class RemoteProjectVerifyTool @Inject constructor(
+    private val service: RemoteSshAgentService,
+    private val repository: RemoteProjectRepository,
+) : AgentTool {
+    override val name: String = "remote_project_verify"
+    override val description: String =
+        "验证远程项目：自动执行构建和测试，返回通过/失败诊断。参数：{\"host\":\"节点名或IP，可省略\",\"path\":\"/远程项目根目录\",\"projectId\":\"可省略\",\"buildCommand\":\"可选\",\"testCommand\":\"可选\"}"
+    override val metadata: AgentToolMetadata = AgentToolMetadata(
+        category = "远程开发",
+        group = ToolGroup.REMOTE,
+        risk = ToolRisk.MEDIUM,
+    )
+
+    override suspend fun execute(args: Map<String, Any?>): ToolResult {
+        val ctx = resolveProjectContext(repository, service, args)
+            ?: return ToolResult.failure("缺少 path 或 projectId")
+        val explicitBuild = args["buildCommand"]?.toString()?.trim()?.ifBlank { null }
+        val explicitTest = args["testCommand"]?.toString()?.trim()?.ifBlank { null }
+        val build = explicitBuild ?: ctx.info.buildCommand
+        val test = explicitTest ?: ctx.info.testCommand
+
+        if (build != null) {
+            val buildResult = service.exec(ctx.host, "cd ${shellSingleQuote(ctx.path)} && $build")
+            if (!buildResult.ok) {
+                return ToolResult.failure(
+                    "远程项目构建失败：${buildResult.message}",
+                    mapOf(
+                        "phase" to "build",
+                        "command" to build,
+                        "stdout" to buildResult.data["stdout"],
+                        "stderr" to buildResult.data["stderr"],
+                    ),
+                )
+            }
+        }
+        if (test != null) {
+            val testResult = service.exec(ctx.host, "cd ${shellSingleQuote(ctx.path)} && $test")
+            if (!testResult.ok) {
+                return ToolResult.failure(
+                    "远程项目测试失败：${testResult.message}",
+                    mapOf(
+                        "phase" to "test",
+                        "command" to test,
+                        "stdout" to testResult.data["stdout"],
+                        "stderr" to testResult.data["stderr"],
+                    ),
+                )
+            }
+        }
+        return ToolResult.success(
+            "远程项目验证通过：${ctx.path}",
+            mapOf("path" to ctx.path, "build" to build, "test" to test),
+        )
+    }
+}

@@ -134,6 +134,11 @@ object AgentToolMetadataRegistry {
             risk = ToolRisk.HIGH,
             sensitive = true,
         ),
+        "remote_project_verify" to AgentToolMetadata(
+            category = "远程开发",
+            group = ToolGroup.REMOTE,
+            risk = ToolRisk.MEDIUM,
+        ),
         "read_ui" to AgentToolMetadata(
             category = "感知",
             group = ToolGroup.CORE,
