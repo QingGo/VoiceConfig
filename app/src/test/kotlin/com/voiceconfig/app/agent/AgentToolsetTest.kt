@@ -25,4 +25,17 @@ class AgentToolsetTest {
         }
     }
 
+    @Test
+    fun `default model groups include core phone and remote but not research or debug`() {
+        assertEquals(
+            setOf(ToolGroup.CORE, ToolGroup.PHONE, ToolGroup.REMOTE),
+            ToolRegistry.DEFAULT_MODEL_GROUPS,
+        )
+        assertEquals(ToolGroup.PHONE, AgentToolMetadataRegistry.of("tap").group)
+        assertEquals(ToolGroup.PHONE, AgentToolMetadataRegistry.of("input_text").group)
+        assertEquals(ToolGroup.REMOTE, AgentToolMetadataRegistry.of("remote_ssh_exec").group)
+        assertEquals(ToolGroup.RESEARCH, AgentToolMetadataRegistry.of("web_search").group)
+        assertEquals(ToolGroup.DEBUG, AgentToolMetadataRegistry.of("file_read").group)
+    }
+
 }

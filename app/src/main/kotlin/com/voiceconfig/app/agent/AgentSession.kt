@@ -321,7 +321,7 @@ class AgentSession @Inject constructor(
                             systemPrompt,
                             // 为最大化 DeepSeek 前缀缓存，保持天然追加前缀，不做历史压缩。
                             historySnapshot(),
-                            toolRegistry.coreTools(),
+                            toolRegistry.modelTools(),
                             onStreamEvent,
                         )
                     }
@@ -1057,7 +1057,7 @@ class AgentSession @Inject constructor(
     }
 
     private fun buildSystemPrompt(skills: List<AgentSkill> = emptyList()): String {
-        val toolDesc = toolRegistry.coreDescriptions()
+        val toolDesc = toolRegistry.modelDescriptions()
         val skillText = if (skills.isEmpty()) {
             ""
         } else {

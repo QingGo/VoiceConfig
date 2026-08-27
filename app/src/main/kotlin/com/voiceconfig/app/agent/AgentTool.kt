@@ -23,6 +23,11 @@ interface AgentTool {
 
 enum class ToolGroup {
     CORE,
+    PHONE,
+    REMOTE,
+    HOME,
+    RESEARCH,
+    APP_SKILL,
     ADVANCED,
     DEBUG,
 }
@@ -63,7 +68,7 @@ object AgentToolMetadataRegistry {
         ),
         "find_app" to AgentToolMetadata(
             category = "应用",
-            group = ToolGroup.ADVANCED,
+            group = ToolGroup.CORE,
             risk = ToolRisk.READ_ONLY,
         ),
         "run_shell" to AgentToolMetadata(
@@ -77,9 +82,36 @@ object AgentToolMetadataRegistry {
         ),
         "remote_node" to AgentToolMetadata(
             category = "远程",
-            group = ToolGroup.ADVANCED,
+            group = ToolGroup.REMOTE,
             risk = ToolRisk.SENSITIVE,
             sensitive = true,
+        ),
+        "remote_ssh_exec" to AgentToolMetadata(
+            category = "远程开发",
+            group = ToolGroup.REMOTE,
+            risk = ToolRisk.SENSITIVE,
+            sensitive = true,
+        ),
+        "remote_ssh_read" to AgentToolMetadata(
+            category = "远程开发",
+            group = ToolGroup.REMOTE,
+            risk = ToolRisk.READ_ONLY,
+        ),
+        "remote_ssh_write" to AgentToolMetadata(
+            category = "远程开发",
+            group = ToolGroup.REMOTE,
+            risk = ToolRisk.HIGH,
+            sensitive = true,
+        ),
+        "remote_ssh_list" to AgentToolMetadata(
+            category = "远程开发",
+            group = ToolGroup.REMOTE,
+            risk = ToolRisk.READ_ONLY,
+        ),
+        "remote_ssh_search" to AgentToolMetadata(
+            category = "远程开发",
+            group = ToolGroup.REMOTE,
+            risk = ToolRisk.READ_ONLY,
         ),
         "read_ui" to AgentToolMetadata(
             category = "感知",
@@ -89,7 +121,7 @@ object AgentToolMetadataRegistry {
         ),
         "read_screen" to AgentToolMetadata(
             category = "感知",
-            group = ToolGroup.ADVANCED,
+            group = ToolGroup.CORE,
             risk = ToolRisk.READ_ONLY,
             needsShizuku = true,
         ),
@@ -114,7 +146,7 @@ object AgentToolMetadataRegistry {
         ),
         "tap" to AgentToolMetadata(
             category = "交互",
-            group = ToolGroup.CORE,
+            group = ToolGroup.PHONE,
             risk = ToolRisk.MEDIUM,
             mutatesUi = true,
             requiresAutoVerify = false,
@@ -122,7 +154,7 @@ object AgentToolMetadataRegistry {
         ),
         "tap_text" to AgentToolMetadata(
             category = "交互",
-            group = ToolGroup.CORE,
+            group = ToolGroup.PHONE,
             risk = ToolRisk.MEDIUM,
             mutatesUi = true,
             requiresAutoVerify = false,
@@ -136,7 +168,7 @@ object AgentToolMetadataRegistry {
         ),
         "input_text" to AgentToolMetadata(
             category = "交互",
-            group = ToolGroup.CORE,
+            group = ToolGroup.PHONE,
             risk = ToolRisk.MEDIUM,
             mutatesUi = true,
             requiresAutoVerify = false,
@@ -144,7 +176,7 @@ object AgentToolMetadataRegistry {
         ),
         "swipe" to AgentToolMetadata(
             category = "交互",
-            group = ToolGroup.CORE,
+            group = ToolGroup.PHONE,
             risk = ToolRisk.MEDIUM,
             mutatesUi = true,
             requiresAutoVerify = false,
@@ -152,7 +184,7 @@ object AgentToolMetadataRegistry {
         ),
         "press_key" to AgentToolMetadata(
             category = "交互",
-            group = ToolGroup.CORE,
+            group = ToolGroup.PHONE,
             risk = ToolRisk.MEDIUM,
             mutatesUi = true,
             requiresAutoVerify = false,
@@ -165,7 +197,7 @@ object AgentToolMetadataRegistry {
         ),
         "notify" to AgentToolMetadata(
             category = "通知",
-            group = ToolGroup.ADVANCED,
+            group = ToolGroup.CORE,
             risk = ToolRisk.LOW,
         ),
         "create_reminder" to AgentToolMetadata(
@@ -186,7 +218,7 @@ object AgentToolMetadataRegistry {
         ),
         "web_search" to AgentToolMetadata(
             category = "信息",
-            group = ToolGroup.ADVANCED,
+            group = ToolGroup.RESEARCH,
             risk = ToolRisk.READ_ONLY,
         ),
         "open_search" to AgentToolMetadata(
@@ -199,7 +231,7 @@ object AgentToolMetadataRegistry {
         ),
         "create_calendar_event" to AgentToolMetadata(
             category = "日历",
-            group = ToolGroup.ADVANCED,
+            group = ToolGroup.PHONE,
             risk = ToolRisk.MEDIUM,
             mutatesUi = true,
             requiresAutoVerify = true,
