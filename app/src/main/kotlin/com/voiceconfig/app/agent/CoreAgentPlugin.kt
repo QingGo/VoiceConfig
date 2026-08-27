@@ -45,6 +45,10 @@ class CoreAgentPlugin @Inject constructor(
     private val remoteSshWriteTool: RemoteSshWriteTool,
     private val remoteSshListTool: RemoteSshListTool,
     private val remoteSshSearchTool: RemoteSshSearchTool,
+    private val remoteProjectInspectTool: RemoteProjectInspectTool,
+    private val remoteProjectBuildTool: RemoteProjectBuildTool,
+    private val remoteProjectTestTool: RemoteProjectTestTool,
+    private val remoteProjectInstallTool: RemoteProjectInstallTool,
 ) : AgentPlugin {
 
     override val id: String = "core-tools"
@@ -85,5 +89,9 @@ class CoreAgentPlugin @Inject constructor(
         remoteSshWriteTool,
         remoteSshListTool,
         remoteSshSearchTool,
+        remoteProjectInspectTool,
+        remoteProjectBuildTool,
+        remoteProjectTestTool,
+        remoteProjectInstallTool,
     )
 }

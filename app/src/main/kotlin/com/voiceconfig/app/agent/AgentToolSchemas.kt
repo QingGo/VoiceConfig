@@ -202,6 +202,25 @@ object AgentToolSchemas {
             "node" to string("节点名称或 nodeId；留空表示第一个可用节点"),
             "command" to string("要执行的只读命令名，例如 uptime/hostname"),
         )
+        "remote_project_inspect" -> objectSchema(
+            "host" to string("节点名或 IP，可省略"),
+            "path" to string("远程项目根目录绝对路径"),
+        )
+        "remote_project_build" -> objectSchema(
+            "host" to string("节点名或 IP，可省略"),
+            "path" to string("远程项目根目录绝对路径"),
+            "command" to string("可选的构建命令，省略时自动识别"),
+        )
+        "remote_project_test" -> objectSchema(
+            "host" to string("节点名或 IP，可省略"),
+            "path" to string("远程项目根目录绝对路径"),
+            "command" to string("可选的测试命令，省略时自动识别"),
+        )
+        "remote_project_install" -> objectSchema(
+            "host" to string("节点名或 IP，可省略"),
+            "path" to string("远程项目根目录绝对路径"),
+            "command" to string("可选的安装命令，省略时自动识别"),
+        )
         else -> JSONObject().apply {
             put("type", "object")
             put("properties", JSONObject())

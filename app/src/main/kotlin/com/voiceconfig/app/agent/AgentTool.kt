@@ -113,6 +113,27 @@ object AgentToolMetadataRegistry {
             group = ToolGroup.REMOTE,
             risk = ToolRisk.READ_ONLY,
         ),
+        "remote_project_inspect" to AgentToolMetadata(
+            category = "远程开发",
+            group = ToolGroup.REMOTE,
+            risk = ToolRisk.READ_ONLY,
+        ),
+        "remote_project_build" to AgentToolMetadata(
+            category = "远程开发",
+            group = ToolGroup.REMOTE,
+            risk = ToolRisk.MEDIUM,
+        ),
+        "remote_project_test" to AgentToolMetadata(
+            category = "远程开发",
+            group = ToolGroup.REMOTE,
+            risk = ToolRisk.MEDIUM,
+        ),
+        "remote_project_install" to AgentToolMetadata(
+            category = "远程开发",
+            group = ToolGroup.REMOTE,
+            risk = ToolRisk.HIGH,
+            sensitive = true,
+        ),
         "read_ui" to AgentToolMetadata(
             category = "感知",
             group = ToolGroup.CORE,

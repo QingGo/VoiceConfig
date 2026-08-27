@@ -284,6 +284,10 @@ object AppModule {
         remoteSshWriteTool: com.voiceconfig.app.agent.RemoteSshWriteTool,
         remoteSshListTool: com.voiceconfig.app.agent.RemoteSshListTool,
         remoteSshSearchTool: com.voiceconfig.app.agent.RemoteSshSearchTool,
+        remoteProjectInspectTool: com.voiceconfig.app.agent.RemoteProjectInspectTool,
+        remoteProjectBuildTool: com.voiceconfig.app.agent.RemoteProjectBuildTool,
+        remoteProjectTestTool: com.voiceconfig.app.agent.RemoteProjectTestTool,
+        remoteProjectInstallTool: com.voiceconfig.app.agent.RemoteProjectInstallTool,
     ): CoreAgentPlugin = CoreAgentPlugin(
         openAppTool = openAppTool,
         findAppTool = findAppTool,
@@ -318,6 +322,10 @@ object AppModule {
         remoteSshWriteTool = remoteSshWriteTool,
         remoteSshListTool = remoteSshListTool,
         remoteSshSearchTool = remoteSshSearchTool,
+        remoteProjectInspectTool = remoteProjectInspectTool,
+        remoteProjectBuildTool = remoteProjectBuildTool,
+        remoteProjectTestTool = remoteProjectTestTool,
+        remoteProjectInstallTool = remoteProjectInstallTool,
     )
 
     @Provides
