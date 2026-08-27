@@ -85,6 +85,10 @@ class SshCredentialStore @Inject constructor(
         generator.generateKey()
     }.getOrNull()
 
+    fun encryptText(plain: String): String? = encrypt(plain)
+
+    fun decryptText(data: String): String? = decrypt(data)
+
     private fun encrypt(plain: String): String? = runCatching {
         val key = getOrCreateKey() ?: return null
         val cipher = Cipher.getInstance("AES/GCM/NoPadding")

@@ -3,11 +3,13 @@ package com.voiceconfig.app.remote
 import com.jcraft.jsch.ChannelExec
 import com.jcraft.jsch.ChannelSftp
 import com.jcraft.jsch.ChannelShell
+import com.jcraft.jsch.HostKey
 import com.jcraft.jsch.JSch
 import com.jcraft.jsch.Session
 import java.io.OutputStream
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
+import java.util.Vector
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.Dispatchers
@@ -24,24 +26,34 @@ data class SshConfig(
     val hostKeyFingerprint: String? = null,
 )
 
+data class SshHostKeyInfo(
+    val fingerprint: String,
+    val type: String,
+    val keyBase64: String,
+)
+
 data class SshExecResult(
     val exitCode: Int,
     val stdout: String,
     val stderr: String,
     val hostKeyFingerprint: String? = null,
+    val hostKeyType: String? = null,
+    val hostKeyBase64: String? = null,
+)
+
+data class SshRemoteFile(
+    val name: String,
+    val path: String,
+    val isDirectory: Boolean,
+    val isSymlink: Boolean = false,
+    val size: Long = 0,
+    val permissions: String = "",
+    val modified: Long = 0,
 )
 
 /**
- * App 内嵌 SSH 客户端（JSch）。
- *
- * 用于：
- * - 首次向树莓派安装/引导 VoiceConfig 节点
- * - 直接执行远程 shell 命令
- * - 后续可扩展文件读写、交互式终端等
- */
-/**
  * SSH 交互式 shell 会话句柄。
- * UI 持有该对象用于发送命令和关闭会话；后台线程持续读取远端输出。
+ * UI 持有该对象用于发送命令、调整 PTY 大小和关闭会话。
  */
 class SshShellHandle(
     private val session: Session,
@@ -61,45 +73,110 @@ class SshShellHandle(
         }
     }
 
+    fun resize(width: Int, height: Int) {
+        runCatching { channel.setPtySize(width, height, 0, 0) }
+    }
+
     fun close() {
         runCatching { channel.disconnect() }
         runCatching { session.disconnect() }
     }
 }
 
+private class ConnectedSession(
+    val session: Session,
+    val jsch: JSch,
+    val info: SshHostKeyInfo?,
+    val strict: Boolean,
+)
+
+/**
+ * 应用内嵌 SSH 客户端（JSch mwiede 维护版）。
+ *
+ * 信任模型：
+ * - 首次连接：StrictHostKeyChecking=no，仅获取完整 host key 供用户 TOFU。
+ * - 用户确认后：保存到 OpenSSH known_hosts 文件。
+ * - 后续连接：StrictHostKeyChecking=yes，JSch 在认证前校验主机 key。
+ * - 对旧版本只保存 fingerprint 的记录：自动迁移为完整 key 后同样进入严格校验。
+ */
 @Singleton
-class SshClient @Inject constructor() {
+class SshClient @Inject constructor(
+    private val hostKeyStore: SshHostKeyStore,
+) {
+
+    // ---------- 连接基础设施 ----------
+
+    private fun createJSch(config: SshConfig): JSch {
+        val jsch = JSch()
+        runCatching { jsch.setKnownHosts(hostKeyStore.knownHostsPath()) }
+        if (!config.privateKey.isNullOrBlank()) {
+            jsch.addIdentity(
+                "voiceconfig-key",
+                config.privateKey!!.toByteArray(Charsets.UTF_8),
+                null,
+                config.privateKeyPassphrase?.toByteArray(Charsets.UTF_8),
+            )
+        }
+        return jsch
+    }
+
+    private fun hostKeyInfo(session: Session, jsch: JSch): SshHostKeyInfo? {
+        val key = runCatching { session.hostKey }.getOrNull() ?: return null
+        return SshHostKeyInfo(
+            fingerprint = runCatching { key.getFingerPrint(jsch) }.getOrNull() ?: return null,
+            type = key.getType(),
+            keyBase64 = key.getKey(),
+        )
+    }
+
+    private fun connect(config: SshConfig): ConnectedSession? {
+        return try {
+            val jsch = createJSch(config)
+            val session = jsch.getSession(config.username, config.host, config.port)
+            config.password?.let { session.setPassword(it.toByteArray(Charsets.UTF_8)) }
+            session.setConfig("PreferredAuthentications", "publickey,password,keyboard-interactive")
+
+            val hasFull = hostKeyStore.getHostKey(config.host, config.port) != null
+            val strict = config.hostKeyFingerprint != null && hasFull
+            session.setConfig("StrictHostKeyChecking", if (strict) "yes" else "no")
+            session.connect(15_000)
+
+            val info = hostKeyInfo(session, jsch)
+            // 首次探测时不把未确认的主机 key 持久化到 known_hosts；
+            // JSch 在 StrictHostKeyChecking=no 时会自动 add，这里立即撤回，
+            // 等用户确认后再由上层保存。
+            if (config.hostKeyFingerprint == null) {
+                hostKeyStore.clear(config.host, config.port)
+            }
+            if (config.hostKeyFingerprint != null) {
+                if (info == null || info.fingerprint != config.hostKeyFingerprint) {
+                    session.disconnect()
+                    return null
+                }
+                // 迁移旧版本：只有 fingerprint、没有完整 key 的记录。
+                if (!hasFull) {
+                    hostKeyStore.saveHostKey(
+                        config.host, config.port, info.type, info.keyBase64, info.fingerprint,
+                    )
+                }
+            }
+            ConnectedSession(session, jsch, info, strict)
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    // ---------- 执行命令 ----------
 
     suspend fun execute(config: SshConfig, command: String, timeoutMs: Long = 60_000): SshExecResult =
         withContext(Dispatchers.IO) {
-            var session: Session? = null
             var channel: ChannelExec? = null
             try {
-                val jsch = JSch()
-                if (!config.privateKey.isNullOrBlank()) {
-                    jsch.addIdentity(
-                        "voiceconfig-key",
-                        config.privateKey!!.toByteArray(Charsets.UTF_8),
-                        null,
-                        config.privateKeyPassphrase?.toByteArray(Charsets.UTF_8),
-                    )
-                }
-                session = jsch.getSession(config.username, config.host, config.port)
-                config.password?.let { session!!.setPassword(it) }
-                session!!.setConfig("StrictHostKeyChecking", "no")
-                session!!.setConfig("PreferredAuthentications", "publickey,password,keyboard-interactive")
-                session!!.connect(15_000)
-                val hostKey = session!!.hostKey
-                val fingerprint = hostKey?.getFingerPrint(jsch)
-                if (config.hostKeyFingerprint != null) {
-                    val mismatch = fingerprint == null || config.hostKeyFingerprint != fingerprint
-                    if (mismatch) {
-                        session!!.disconnect()
-                        return@withContext SshExecResult(-1, "", "Host key mismatch: $fingerprint", fingerprint)
-                    }
-                }
-
-                channel = session!!.openChannel("exec") as ChannelExec
+                val connected = connect(config) ?: return@withContext SshExecResult(
+                    -1, "", "SSH 连接失败或主机指纹不匹配"
+                )
+                val info = connected.info
+                channel = connected.session.openChannel("exec") as ChannelExec
                 channel!!.setCommand(command)
                 val stdout = ByteArrayOutputStream()
                 val stderr = ByteArrayOutputStream()
@@ -111,7 +188,10 @@ class SshClient @Inject constructor() {
                 while (!channel!!.isClosed) {
                     if (System.currentTimeMillis() > deadline) {
                         channel!!.disconnect()
-                        return@withContext SshExecResult(-1, stdout.toString(Charsets.UTF_8), "SSH command timed out", fingerprint)
+                        return@withContext SshExecResult(
+                            -1, stdout.toString(Charsets.UTF_8), "SSH command timed out",
+                            info?.fingerprint, info?.type, info?.keyBase64,
+                        )
                     }
                     delay(50)
                 }
@@ -119,45 +199,25 @@ class SshClient @Inject constructor() {
                     exitCode = channel!!.exitStatus,
                     stdout = stdout.toString(Charsets.UTF_8),
                     stderr = stderr.toString(Charsets.UTF_8),
-                    hostKeyFingerprint = fingerprint,
+                    hostKeyFingerprint = info?.fingerprint,
+                    hostKeyType = info?.type,
+                    hostKeyBase64 = info?.keyBase64,
                 )
             } catch (e: Exception) {
-                SshExecResult(-1, "", e.message ?: "SSH failed", null)
+                SshExecResult(-1, "", e.message ?: "SSH failed", null, null, null)
             } finally {
                 channel?.disconnect()
-                session?.disconnect()
             }
         }
 
+    // ---------- SFTP ----------
+
     suspend fun upload(config: SshConfig, remotePath: String, content: String): Boolean =
         withContext(Dispatchers.IO) {
-            var session: Session? = null
             var sftp: ChannelSftp? = null
             try {
-                val jsch = JSch()
-                if (!config.privateKey.isNullOrBlank()) {
-                    jsch.addIdentity(
-                        "voiceconfig-key",
-                        config.privateKey!!.toByteArray(Charsets.UTF_8),
-                        null,
-                        config.privateKeyPassphrase?.toByteArray(Charsets.UTF_8),
-                    )
-                }
-                session = jsch.getSession(config.username, config.host, config.port)
-                config.password?.let { session!!.setPassword(it) }
-                session!!.setConfig("StrictHostKeyChecking", "no")
-                session!!.connect(15_000)
-                val hostKey = session!!.hostKey
-                val fingerprint = hostKey?.getFingerPrint(jsch)
-                if (config.hostKeyFingerprint != null) {
-                    val mismatch = fingerprint == null || config.hostKeyFingerprint != fingerprint
-                    if (mismatch) {
-                        session!!.disconnect()
-                        return@withContext false
-                    }
-                }
-
-                sftp = session!!.openChannel("sftp") as ChannelSftp
+                val connected = connect(config) ?: return@withContext false
+                sftp = connected.session.openChannel("sftp") as ChannelSftp
                 sftp!!.connect(15_000)
                 sftp!!.put(ByteArrayInputStream(content.toByteArray(Charsets.UTF_8)), remotePath)
                 true
@@ -165,93 +225,132 @@ class SshClient @Inject constructor() {
                 false
             } finally {
                 sftp?.disconnect()
-                session?.disconnect()
             }
         }
 
-    suspend fun download(config: SshConfig, remotePath: String): String? =
+    suspend fun download(config: SshConfig, remotePath: String, maxBytes: Int = 2 * 1024 * 1024): String? =
         withContext(Dispatchers.IO) {
-            var session: Session? = null
             var sftp: ChannelSftp? = null
             try {
-                val jsch = JSch()
-                if (!config.privateKey.isNullOrBlank()) {
-                    jsch.addIdentity(
-                        "voiceconfig-key",
-                        config.privateKey!!.toByteArray(Charsets.UTF_8),
-                        null,
-                        config.privateKeyPassphrase?.toByteArray(Charsets.UTF_8),
-                    )
-                }
-                session = jsch.getSession(config.username, config.host, config.port)
-                config.password?.let { session!!.setPassword(it) }
-                session!!.setConfig("StrictHostKeyChecking", "no")
-                session!!.connect(15_000)
-                val hostKey = session!!.hostKey
-                val fingerprint = hostKey?.getFingerPrint(jsch)
-                if (config.hostKeyFingerprint != null) {
-                    val mismatch = fingerprint == null || config.hostKeyFingerprint != fingerprint
-                    if (mismatch) {
-                        session!!.disconnect()
-                        return@withContext null
-                    }
-                }
-
-                sftp = session!!.openChannel("sftp") as ChannelSftp
+                val connected = connect(config) ?: return@withContext null
+                sftp = connected.session.openChannel("sftp") as ChannelSftp
                 sftp!!.connect(15_000)
+                val attrs = sftp!!.stat(remotePath)
+                if (attrs.isDir) return@withContext null
+                if (attrs.size > maxBytes) return@withContext null
                 val stream = sftp!!.get(remotePath)
-                stream.readBytes().toString(Charsets.UTF_8)
+                val bytes = stream.readBytes()
+                if (bytes.size > maxBytes) return@withContext null
+                // 简单二进制保护：NUL 字节较多时拒绝显示为文本
+                if (bytes.count { it == 0.toByte() } > bytes.size / 10) return@withContext null
+                bytes.toString(Charsets.UTF_8)
             } catch (e: Exception) {
                 null
             } finally {
                 sftp?.disconnect()
-                session?.disconnect()
             }
         }
 
-    /**
-     * 打开一个带 PTY 的交互式 shell。返回句柄后由调用方发送命令/关闭。
-     * 输出通过 onOutput 回调持续送达；会话退出时调用 onClosed。
-     */
+    suspend fun listFiles(config: SshConfig, remotePath: String): List<SshRemoteFile>? =
+        withContext(Dispatchers.IO) {
+            var sftp: ChannelSftp? = null
+            try {
+                val connected = connect(config) ?: return@withContext null
+                sftp = connected.session.openChannel("sftp") as ChannelSftp
+                sftp!!.connect(15_000)
+                @Suppress("UNCHECKED_CAST")
+                val entries = sftp!!.ls(remotePath) as? Vector<ChannelSftp.LsEntry> ?: return@withContext null
+                val base = if (remotePath.endsWith("/")) remotePath else remotePath + "/"
+                entries.mapNotNull { entry ->
+                    val name = entry.filename
+                    if (name == "." || name == "..") return@mapNotNull null
+                    val attrs = entry.attrs
+                    SshRemoteFile(
+                        name = name,
+                        path = base + name,
+                        isDirectory = attrs.isDir,
+                        isSymlink = attrs.isLink,
+                        size = attrs.size,
+                        permissions = runCatching { attrs.permissionsString ?: "" }.getOrDefault(""),
+                        modified = attrs.mTime.toLong(),
+                    )
+                }.sortedWith(compareByDescending<SshRemoteFile> { it.isDirectory }.thenBy { it.name })
+            } catch (e: Exception) {
+                null
+            } finally {
+                sftp?.disconnect()
+            }
+        }
+
+    suspend fun mkdir(config: SshConfig, remotePath: String): Boolean =
+        withContext(Dispatchers.IO) {
+            var sftp: ChannelSftp? = null
+            try {
+                val connected = connect(config) ?: return@withContext false
+                sftp = connected.session.openChannel("sftp") as ChannelSftp
+                sftp!!.connect(15_000)
+                sftp!!.mkdir(remotePath)
+                true
+            } catch (e: Exception) {
+                false
+            } finally {
+                sftp?.disconnect()
+            }
+        }
+
+    suspend fun delete(config: SshConfig, remotePath: String): Boolean =
+        withContext(Dispatchers.IO) {
+            var sftp: ChannelSftp? = null
+            try {
+                val connected = connect(config) ?: return@withContext false
+                sftp = connected.session.openChannel("sftp") as ChannelSftp
+                sftp!!.connect(15_000)
+                val attrs = sftp!!.stat(remotePath)
+                if (attrs.isDir) sftp!!.rmdir(remotePath) else sftp!!.rm(remotePath)
+                true
+            } catch (e: Exception) {
+                false
+            } finally {
+                sftp?.disconnect()
+            }
+        }
+
+    suspend fun rename(config: SshConfig, oldPath: String, newPath: String): Boolean =
+        withContext(Dispatchers.IO) {
+            var sftp: ChannelSftp? = null
+            try {
+                val connected = connect(config) ?: return@withContext false
+                sftp = connected.session.openChannel("sftp") as ChannelSftp
+                sftp!!.connect(15_000)
+                sftp!!.rename(oldPath, newPath)
+                true
+            } catch (e: Exception) {
+                false
+            } finally {
+                sftp?.disconnect()
+            }
+        }
+
+    // ---------- 交互终端 ----------
+
     suspend fun openShell(
         config: SshConfig,
         onOutput: (String) -> Unit,
         onClosed: () -> Unit,
     ): SshShellHandle? = withContext(Dispatchers.IO) {
-        var session: Session? = null
         var channel: ChannelShell? = null
         try {
-            val jsch = JSch()
-            if (!config.privateKey.isNullOrBlank()) {
-                jsch.addIdentity(
-                    "voiceconfig-key",
-                    config.privateKey!!.toByteArray(Charsets.UTF_8),
-                    null,
-                    config.privateKeyPassphrase?.toByteArray(Charsets.UTF_8),
-                )
+            val connected = connect(config) ?: run {
+                onClosed()
+                return@withContext null
             }
-            session = jsch.getSession(config.username, config.host, config.port)
-            config.password?.let { session!!.setPassword(it) }
-            session!!.setConfig("StrictHostKeyChecking", "no")
-            session!!.setConfig("PreferredAuthentications", "publickey,password,keyboard-interactive")
-            session!!.connect(15_000)
-            val hostKey = session!!.hostKey
-            val fingerprint = hostKey?.getFingerPrint(jsch)
-            if (config.hostKeyFingerprint != null) {
-                val mismatch = fingerprint == null || config.hostKeyFingerprint != fingerprint
-                if (mismatch) {
-                    session!!.disconnect()
-                    onClosed()
-                    return@withContext null
-                }
-            }
-
-            channel = session!!.openChannel("shell") as ChannelShell
+            channel = connected.session.openChannel("shell") as ChannelShell
             channel!!.setPty(true)
+            channel!!.setPtySize(120, 40, 0, 0)
             channel!!.connect(15_000)
             val input = channel!!.inputStream
             val output = channel!!.outputStream
-            val handle = SshShellHandle(session!!, channel!!, output)
+            val handle = SshShellHandle(connected.session, channel!!, output)
 
             Thread {
                 try {
@@ -275,7 +374,6 @@ class SshClient @Inject constructor() {
             handle
         } catch (e: Exception) {
             channel?.disconnect()
-            session?.disconnect()
             onClosed()
             null
         }

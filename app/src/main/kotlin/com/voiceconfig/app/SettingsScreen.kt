@@ -53,6 +53,9 @@ import com.voiceconfig.app.ui.RemoteNodesDialog
 import com.voiceconfig.app.ui.SshConsoleDialog
 import com.voiceconfig.app.ui.SshFileDialog
 import com.voiceconfig.app.ui.SshShellDialog
+import com.voiceconfig.app.ui.SshKeysDialog
+import com.voiceconfig.app.ui.SshServiceDialog
+import com.voiceconfig.app.ui.SshNodeLogDialog
 import kotlinx.coroutines.launch
 
 @Composable
@@ -112,11 +115,18 @@ fun SettingsScreen(
     var showSshFile by remember { mutableStateOf(false) }
     var showSshShell by remember { mutableStateOf(false) }
     var showSshAudit by remember { mutableStateOf(false) }
+    var showSshKeys by remember { mutableStateOf(false) }
+    var showSshServices by remember { mutableStateOf(false) }
+    var showSshNodeLogs by remember { mutableStateOf(false) }
     val remoteNodes by viewModel.remoteNodes.collectAsState()
     val remoteCommandResult by viewModel.remoteCommandResult.collectAsState()
     val sshResult by viewModel.sshResult.collectAsState()
     val sshBootstrapResult by viewModel.sshBootstrapResult.collectAsState()
     val sshFileResult by viewModel.sshFileResult.collectAsState()
+    val sshFileEntries by viewModel.sshFileEntries.collectAsState()
+    val sshKeys by viewModel.sshKeys.collectAsState()
+    val sshServiceResult by viewModel.sshServiceResult.collectAsState()
+    val sshNodeLogResult by viewModel.sshNodeLogResult.collectAsState()
     val sshShellOutput by viewModel.sshShellOutput.collectAsState()
     val sshShellRunning by viewModel.sshShellRunning.collectAsState()
     val sshShellError by viewModel.sshShellError.collectAsState()
@@ -537,6 +547,24 @@ fun SettingsScreen(
                         }) {
                             Text("查看 SSH 审计")
                         }
+                        TextButton(onClick = {
+                            showSshKeys = true
+                            viewModel.refreshSshKeys()
+                        }) {
+                            Text("SSH 密钥管理")
+                        }
+                        TextButton(onClick = {
+                            showSshServices = true
+                            viewModel.clearSshServiceResult()
+                        }) {
+                            Text("SSH 系统服务")
+                        }
+                        TextButton(onClick = {
+                            showSshNodeLogs = true
+                            viewModel.clearSshNodeLogResult()
+                        }) {
+                            Text("SSH 节点日志")
+                        }
                     }
                 }
 
@@ -641,6 +669,7 @@ fun SettingsScreen(
             bootstrapResult = sshBootstrapResult,
             onClearBootstrapResult = viewModel::clearSshBootstrapResult,
             onClearHostKey = viewModel::clearSshHostKey,
+            savedKeys = sshKeys,
         )
     }
 
@@ -654,6 +683,11 @@ fun SettingsScreen(
             onWrite = viewModel::writeSshFile,
             result = sshFileResult,
             onClearResult = viewModel::clearSshFileResult,
+            entries = sshFileEntries,
+            onMkdir = viewModel::mkdirSshFile,
+            onDelete = viewModel::deleteSshFile,
+            onRename = viewModel::renameSshFile,
+            savedKeys = sshKeys,
         )
     }
 
@@ -673,6 +707,8 @@ fun SettingsScreen(
             error = sshShellError,
             onClearOutput = viewModel::clearSshShellOutput,
             onClearError = viewModel::clearSshShellError,
+            savedKeys = sshKeys,
+            onResize = viewModel::resizeSshShell,
         )
     }
 
@@ -699,6 +735,46 @@ fun SettingsScreen(
                     Text("关闭")
                 }
             },
+        )
+    }
+
+    if (showSshKeys) {
+        SshKeysDialog(
+            keys = sshKeys,
+            onDismiss = { showSshKeys = false },
+            onGenerate = viewModel::generateSshKey,
+            onRename = viewModel::renameSshKey,
+            onDelete = viewModel::deleteSshKey,
+        )
+    }
+
+    if (showSshServices) {
+        SshServiceDialog(
+            onDismiss = { showSshServices = false },
+            defaultHost = defaultRemoteHost,
+            initialCredential = savedSshCredential,
+            result = sshServiceResult,
+            onClearResult = viewModel::clearSshServiceResult,
+            onList = viewModel::listSshServices,
+            onStart = viewModel::startSshService,
+            onStop = viewModel::stopSshService,
+            onRestart = viewModel::restartSshService,
+            onStatus = viewModel::statusSshService,
+            onLogs = viewModel::logsSshService,
+            savedKeys = sshKeys,
+        )
+    }
+
+    if (showSshNodeLogs) {
+        SshNodeLogDialog(
+            onDismiss = { showSshNodeLogs = false },
+            defaultHost = defaultRemoteHost,
+            initialCredential = savedSshCredential,
+            result = sshNodeLogResult,
+            onClearResult = viewModel::clearSshNodeLogResult,
+            onReadAudit = viewModel::readSshNodeAudit,
+            onReadLog = viewModel::readSshNodeLog,
+            savedKeys = sshKeys,
         )
     }
 

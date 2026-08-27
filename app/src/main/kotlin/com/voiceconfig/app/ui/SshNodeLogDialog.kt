@@ -6,7 +6,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
@@ -24,7 +23,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import com.voiceconfig.app.remote.SshBootstrapResult
 import com.voiceconfig.app.remote.SshConfig
 import com.voiceconfig.app.remote.SshExecResult
 import com.voiceconfig.app.remote.detectSshKeyType
@@ -33,17 +31,14 @@ import com.voiceconfig.app.remote.SshManagedKey
 import com.voiceconfig.app.remote.StoredSshCredential
 
 @Composable
-fun SshConsoleDialog(
+fun SshNodeLogDialog(
     onDismiss: () -> Unit,
-    onRun: (SshConfig, String) -> Unit,
-    result: SshExecResult?,
-    onClearResult: () -> Unit,
     defaultHost: String = "",
     initialCredential: StoredSshCredential? = null,
-    onInstall: (SshConfig, String) -> Unit = { _, _ -> },
-    bootstrapResult: SshBootstrapResult? = null,
-    onClearBootstrapResult: () -> Unit = {},
-    onClearHostKey: (SshConfig) -> Unit = {},
+    result: SshExecResult? = null,
+    onClearResult: () -> Unit = {},
+    onReadAudit: (SshConfig) -> Unit = {},
+    onReadLog: (SshConfig) -> Unit = {},
     savedKeys: List<SshManagedKey> = emptyList(),
 ) {
     var host by remember { mutableStateOf(defaultHost) }
@@ -51,11 +46,8 @@ fun SshConsoleDialog(
     var username by remember { mutableStateOf(initialCredential?.username ?: "") }
     var password by remember { mutableStateOf(initialCredential?.password ?: "") }
     var privateKey by remember { mutableStateOf(initialCredential?.privateKey ?: "") }
-    var command by remember { mutableStateOf("uname -a") }
-    var bindMode by remember { mutableStateOf("tailscale") }
 
-    val canRun = host.isNotBlank() && username.isNotBlank() && (password.isNotBlank() || privateKey.isNotBlank()) && command.isNotBlank()
-
+    val canConnect = host.isNotBlank() && username.isNotBlank() && (password.isNotBlank() || privateKey.isNotBlank())
     val context = LocalContext.current
     val privateKeyPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) {
@@ -64,9 +56,18 @@ fun SshConsoleDialog(
             }.getOrNull()?.let { privateKey = it }
         }
     }
+
+    fun currentConfig() = SshConfig(
+        host = host.trim(),
+        port = port.toIntOrNull() ?: 22,
+        username = username.trim(),
+        password = password.ifBlank { null },
+        privateKey = privateKey.ifBlank { null },
+    )
+
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("SSH 远程终端") },
+        title = { Text("SSH 节点日志") },
         text = {
             Column(
                 modifier = Modifier
@@ -77,20 +78,17 @@ fun SshConsoleDialog(
                 OutlinedTextField(value = host, onValueChange = { host = it }, label = { Text("树莓派地址") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
                 OutlinedTextField(value = port, onValueChange = { port = it }, label = { Text("端口") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
                 OutlinedTextField(value = username, onValueChange = { username = it }, label = { Text("用户名") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
-                OutlinedTextField(value = password, onValueChange = { password = it }, label = { Text("密码（可选，私钥为空时使用）") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
+                OutlinedTextField(value = password, onValueChange = { password = it }, label = { Text("密码（可选）") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
                 OutlinedTextField(value = privateKey, onValueChange = { privateKey = it }, label = { Text("私钥（可选）") }, modifier = Modifier.fillMaxWidth(), minLines = 3, maxLines = 6)
                 val detectedKeyType = remember(privateKey) { detectSshKeyType(privateKey) }
                 if (isRsaLikelyIncompatible(detectedKeyType)) {
                     Text(
-                        text = "检测到 ${detectedKeyType} 私钥；现代 OpenSSH 可能拒绝旧 RSA/DSA，建议生成 Ed25519 或 ECDSA。",
+                        text = "检测到 ${detectedKeyType} 私钥；建议生成 Ed25519 或 ECDSA。",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.error,
                     )
                 }
-                TextButton(
-                    onClick = { privateKeyPicker.launch(arrayOf("*/*")) },
-                    enabled = true,
-                ) {
+                TextButton(onClick = { privateKeyPicker.launch(arrayOf("*/*")) }) {
                     Text("从文件导入私钥")
                 }
                 if (savedKeys.isNotEmpty()) {
@@ -103,65 +101,15 @@ fun SshConsoleDialog(
                         }
                     }
                 }
-                OutlinedTextField(value = command, onValueChange = { command = it }, label = { Text("命令") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    TextButton(onClick = onDismiss) {
-                        Text("关闭")
+                    Button(enabled = canConnect, onClick = { onReadAudit(currentConfig()) }) {
+                        Text("节点审计")
                     }
-                    Button(
-                        enabled = canRun,
-                        onClick = {
-                            onRun(
-                                SshConfig(
-                                    host = host.trim(),
-                                    port = port.toIntOrNull() ?: 22,
-                                    username = username.trim(),
-                                    password = password.ifBlank { null },
-                                    privateKey = privateKey.ifBlank { null },
-                                ),
-                                command.trim(),
-                            )
-                        },
-                    ) {
-                        Text("执行")
+                    Button(enabled = canConnect, onClick = { onReadLog(currentConfig()) }) {
+                        Text("节点 stdout/stderr")
                     }
-                    Button(
-                        enabled = canRun,
-                        onClick = {
-                            onInstall(
-                                SshConfig(
-                                    host = host.trim(),
-                                    port = port.toIntOrNull() ?: 22,
-                                    username = username.trim(),
-                                    password = password.ifBlank { null },
-                                    privateKey = privateKey.ifBlank { null },
-                                ),
-                                bindMode,
-                            )
-                        },
-                    ) {
-                        Text("安装节点")
-                    }
-                }
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    TextButton(onClick = { bindMode = "tailscale" }) {
-                        Text(if (bindMode == "tailscale") "● Tailscale" else "Tailscale")
-                    }
-                    TextButton(onClick = { bindMode = "lan" }) {
-                        Text(if (bindMode == "lan") "● 局域网" else "局域网")
-                    }
-                    TextButton(onClick = {
-                        onClearHostKey(
-                            SshConfig(
-                                host = host.trim(),
-                                port = port.toIntOrNull() ?: 22,
-                                username = username.trim(),
-                                password = password.ifBlank { null },
-                                privateKey = privateKey.ifBlank { null },
-                            ),
-                        )
-                    }) {
-                        Text("清除指纹")
+                    TextButton(onClick = onClearResult) {
+                        Text("清除结果")
                     }
                 }
                 result?.let { r ->
@@ -183,24 +131,6 @@ fun SshConsoleDialog(
                                     color = MaterialTheme.colorScheme.error,
                                 )
                             }
-                            TextButton(onClick = onClearResult) {
-                                Text("清除")
-                            }
-                        }
-                    }
-                }
-                bootstrapResult?.let { b ->
-                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Text(
-                            text = if (b.ok) "安装结果：${b.message}" else "安装结果：${b.message}",
-                            style = MaterialTheme.typography.labelMedium,
-                            color = if (b.ok) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error,
-                        )
-                        if (b.token != null) {
-                            Text("Token: ${b.token.take(12)}…", style = MaterialTheme.typography.bodySmall)
-                        }
-                        TextButton(onClick = onClearBootstrapResult) {
-                            Text("清除安装结果")
                         }
                     }
                 }

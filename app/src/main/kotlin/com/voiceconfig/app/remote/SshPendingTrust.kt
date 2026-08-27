@@ -1,14 +1,16 @@
 package com.voiceconfig.app.remote
 
 /**
- * 等待用户确认的主机指纹。
+ * 等待用户确认的主机信任信息。
  *
- * 首次连接时先执行一个无害命令取得指纹，再在界面上请用户确认；
- * 确认后才执行真正的目标命令 / 安装动作，并把指纹写入信任存储。
+ * 首次连接时先执行一个无害命令取得完整 host key，
+ * 再由用户确认指纹；确认后保存完整 key 到 known_hosts。
  */
 data class SshPendingTrust(
     val config: SshConfig,
     val fingerprint: String,
+    val hostKeyType: String? = null,
+    val hostKeyBase64: String? = null,
     val command: String? = null,
     val installBindMode: String? = null,
 )

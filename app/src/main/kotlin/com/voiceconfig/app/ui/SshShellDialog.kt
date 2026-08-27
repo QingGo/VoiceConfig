@@ -1,5 +1,7 @@
 package com.voiceconfig.app.ui
 
+import android.content.ClipData
+import android.content.ClipboardManager
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
@@ -24,6 +26,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.voiceconfig.app.remote.SshConfig
+import com.voiceconfig.app.remote.SshManagedKey
+import com.voiceconfig.app.remote.detectSshKeyType
+import com.voiceconfig.app.remote.isRsaLikelyIncompatible
 import com.voiceconfig.app.remote.StoredSshCredential
 
 @Composable
@@ -39,6 +44,8 @@ fun SshShellDialog(
     error: String? = null,
     onClearOutput: () -> Unit = {},
     onClearError: () -> Unit = {},
+    savedKeys: List<SshManagedKey> = emptyList(),
+    onResize: (Int, Int) -> Unit = { _, _ -> },
 ) {
     var host by remember { mutableStateOf(defaultHost) }
     var port by remember { mutableStateOf((initialCredential?.port ?: 22).toString()) }
@@ -48,6 +55,7 @@ fun SshShellDialog(
     var command by remember { mutableStateOf("") }
 
     val canConnect = host.isNotBlank() && username.isNotBlank() && (password.isNotBlank() || privateKey.isNotBlank())
+    val visibleOutput = remember(output) { stripAnsi(output) }
 
     val context = LocalContext.current
     val privateKeyPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
@@ -84,8 +92,26 @@ fun SshShellDialog(
                 OutlinedTextField(value = username, onValueChange = { username = it }, label = { Text("用户名") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
                 OutlinedTextField(value = password, onValueChange = { password = it }, label = { Text("密码（可选）") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
                 OutlinedTextField(value = privateKey, onValueChange = { privateKey = it }, label = { Text("私钥（可选）") }, modifier = Modifier.fillMaxWidth(), minLines = 3, maxLines = 6)
+                val detectedKeyType = remember(privateKey) { detectSshKeyType(privateKey) }
+                if (isRsaLikelyIncompatible(detectedKeyType)) {
+                    Text(
+                        text = "检测到 ${detectedKeyType} 私钥；建议生成 Ed25519 或 ECDSA。",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                }
                 TextButton(onClick = { privateKeyPicker.launch(arrayOf("*/*")) }) {
                     Text("从文件导入私钥")
+                }
+                if (savedKeys.isNotEmpty()) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text("密钥库：", style = MaterialTheme.typography.bodySmall)
+                        savedKeys.take(5).forEach { key ->
+                            TextButton(onClick = { privateKey = key.privateKey }) {
+                                Text(key.name)
+                            }
+                        }
+                    }
                 }
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     if (!running) {
@@ -133,9 +159,19 @@ fun SshShellDialog(
                     text = "终端输出",
                     style = MaterialTheme.typography.labelMedium,
                 )
+                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    TextButton(onClick = {
+                        val clipboard = context.getSystemService(ClipboardManager::class.java)
+                        clipboard?.setPrimaryClip(ClipData.newPlainText("SSH输出", visibleOutput))
+                    }) {
+                        Text("复制输出")
+                    }
+                    TextButton(onClick = { onResize(80, 24) }) { Text("80×24") }
+                    TextButton(onClick = { onResize(120, 40) }) { Text("120×40") }
+                }
                 SelectionContainer {
                     Text(
-                        text = output.ifBlank { "(暂无输出)" },
+                        text = visibleOutput.ifBlank { "(暂无输出)" },
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -172,4 +208,10 @@ fun SshShellDialog(
             }
         },
     )
+}
+
+private fun stripAnsi(text: String): String {
+    val csi = Regex("\u001B\\[[0-9;?]*[ -/]*[@-~]")
+    val osc = Regex("\u001B][^\u0007]*\u0007")
+    return text.replace(csi, "").replace(osc, "").replace("\r\n", "\n").replace("\r", "\n")
 }
