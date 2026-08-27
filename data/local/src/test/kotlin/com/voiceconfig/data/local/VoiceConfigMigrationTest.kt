@@ -80,6 +80,25 @@ class VoiceConfigMigrationTest {
     }
 
     @Test
+    fun `migration 18 to 19 adds safety metrics columns to run records`() {
+        val conn = DriverManager.getConnection("jdbc:sqlite::memory:")
+        try {
+            val db = supportDatabase(conn)
+            VoiceConfigDatabase.MIGRATION_15_16.migrate(db)
+            VoiceConfigDatabase.MIGRATION_18_19.migrate(db)
+            val cols = columns(conn, "agent_run_records")
+            assertTrue(cols.containsAll(setOf(
+                "safetyConfirmations",
+                "safetyApprovals",
+                "safetyDenials",
+                "safetyBlocks",
+            )))
+        } finally {
+            conn.close()
+        }
+    }
+
+    @Test
     fun `migration 17 to 18 creates remote nodes table`() {
         val conn = DriverManager.getConnection("jdbc:sqlite::memory:")
         try {

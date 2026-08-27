@@ -19,6 +19,16 @@ class RunControl {
 }
 
 /**
+ * 单个 run 的安全事件计数，供运行记录/审计指标使用。
+ */
+data class SafetyRunStats(
+    var confirmations: Int = 0,
+    var approvals: Int = 0,
+    var denials: Int = 0,
+    var blocks: Int = 0,
+)
+
+/**
  * 多轮 Agent 会话层：原生 function calling 循环。
  *
  * 流程：
@@ -41,6 +51,7 @@ class AgentSession @Inject constructor(
     var argumentParser: (String) -> Map<String, Any?> = { JsonToolCallParser.parseArguments(it) }
 
     private val runControls = ConcurrentHashMap<String, RunControl>()
+    private val safetyStatsByRun = ConcurrentHashMap<String, SafetyRunStats>()
 
     @Volatile
     private var activeRunId: String? = null
@@ -114,7 +125,7 @@ class AgentSession @Inject constructor(
         val saved = history.toList()
         history.clear()
         try {
-            val result = sendLocked(
+            val rawResult = sendLocked(
                 userText = userText,
                 maxRounds = maxRounds,
                 skills = skills,
@@ -126,6 +137,8 @@ class AgentSession @Inject constructor(
                 onStep = onStep,
                 onSensitiveAction = onSensitiveAction,
             )
+            val stats = safetyStatsByRun.remove(rawResult.runId) ?: SafetyRunStats()
+            val result = rawResult.withSafetyStats(stats)
             runLedger.record(result.toRunRecord(userText, capabilitySummary))
             cleanupRun(result.runId)
             result
@@ -150,7 +163,7 @@ class AgentSession @Inject constructor(
         onSensitiveAction: suspend (SensitiveActionRequest) -> Boolean = { false },
         onStep: (AgentStepUi) -> Unit = {},
     ): AgentTurnResult = runMutex.withLock {
-        val result = sendLocked(
+        val rawResult = sendLocked(
             userText = userText,
             maxRounds = maxRounds,
             skills = skills,
@@ -164,6 +177,8 @@ class AgentSession @Inject constructor(
             onSensitiveAction = onSensitiveAction,
             onStep = onStep,
         )
+        val stats = safetyStatsByRun.remove(rawResult.runId) ?: SafetyRunStats()
+        val result = rawResult.withSafetyStats(stats)
         runLedger.record(result.toRunRecord(userText, capabilitySummary))
         cleanupRun(result.runId)
         result
@@ -186,6 +201,7 @@ class AgentSession @Inject constructor(
         if (userText.isBlank()) return AgentTurnResult(ok = false, message = "输入为空", toolCalls = emptyList(), history = historySnapshot(), runId = "")
         val runId = trace.startRun(userText)
         val control = runControls.getOrPut(runId) { RunControl() }
+        safetyStatsByRun[runId] = SafetyRunStats()
         activeRunId = runId
         if (resetHistory) {
             history.clear()
@@ -677,8 +693,12 @@ class AgentSession @Inject constructor(
                 ))
                 val sensitiveRequest = SensitiveActionRequest(tool.name, args)
                 if (decision.requiresConfirmation) {
+                    safetyStatsByRun[runId]?.let { it.confirmations++ }
                     setState(AgentRunState.WAITING_CONFIRM)
                     val approved = onSensitiveAction(sensitiveRequest)
+                    safetyStatsByRun[runId]?.let {
+                        if (approved) it.approvals++ else it.denials++
+                    }
                     setState(AgentRunState.RUNNING)
                     trace.log(runId, "safety_decision", mapOf(
                         "tool" to tool.name,
@@ -723,6 +743,7 @@ class AgentSession @Inject constructor(
                 }
 
                 if (decision.blocked) {
+                    safetyStatsByRun[runId]?.let { it.blocks++ }
                     val blocked = "系统安全拦截：不允许直接执行最终操作（${safety.describe(tool.name, args)}）。请停在确认页等待用户。"
                     onStep(
                         AgentStepUi(
@@ -1132,6 +1153,13 @@ class AgentSession @Inject constructor(
     }
 }
 
+private fun AgentTurnResult.withSafetyStats(stats: SafetyRunStats): AgentTurnResult = copy(
+    safetyConfirmations = stats.confirmations,
+    safetyApprovals = stats.approvals,
+    safetyDenials = stats.denials,
+    safetyBlocks = stats.blocks,
+)
+
 data class AgentTurnResult(
     val ok: Boolean,
     val message: String,
@@ -1146,6 +1174,10 @@ data class AgentTurnResult(
     val rounds: Int = 0,
     val state: AgentRunState = AgentRunState.DONE,
     val plan: TaskPlan? = null,
+    val safetyConfirmations: Int = 0,
+    val safetyApprovals: Int = 0,
+    val safetyDenials: Int = 0,
+    val safetyBlocks: Int = 0,
 )
 
 

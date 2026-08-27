@@ -745,6 +745,13 @@ private fun AgentRunsDialog(
                                     style = MaterialTheme.typography.labelSmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
+                                if (record.safetyConfirmations > 0 || record.safetyBlocks > 0) {
+                                    Text(
+                                        text = "安全：确认 ${record.safetyConfirmations} · 批准 ${record.safetyApprovals} · 拒绝 ${record.safetyDenials} · 硬拦截 ${record.safetyBlocks}",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                }
                                 if (record.toolCalls.isNotEmpty()) {
                                     Text(
                                         text = record.toolCalls.joinToString(" → ").take(160),

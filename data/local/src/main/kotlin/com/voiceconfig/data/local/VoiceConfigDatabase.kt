@@ -51,7 +51,7 @@ import com.voiceconfig.data.local.entity.TriggerRuleEntity
         TaskPlanStepEntity::class,
         RemoteNodeEntity::class,
     ],
-    version = 18,
+    version = 19,
     exportSchema = false,
 )
 abstract class VoiceConfigDatabase : RoomDatabase() {
@@ -351,6 +351,15 @@ abstract class VoiceConfigDatabase : RoomDatabase() {
                     """.trimIndent(),
                 )
                 db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_remote_nodes_nodeId` ON `remote_nodes` (`nodeId`)")
+            }
+        }
+
+        val MIGRATION_18_19 = object : Migration(18, 19) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE `agent_run_records` ADD COLUMN `safetyConfirmations` INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("ALTER TABLE `agent_run_records` ADD COLUMN `safetyApprovals` INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("ALTER TABLE `agent_run_records` ADD COLUMN `safetyDenials` INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("ALTER TABLE `agent_run_records` ADD COLUMN `safetyBlocks` INTEGER NOT NULL DEFAULT 0")
             }
         }
 

@@ -22,4 +22,8 @@ data class AgentRunRecordEntity(
     val waitingForHuman: Boolean,
     val verified: Boolean?,
     val capabilitySummary: String? = null,
+    val safetyConfirmations: Int = 0,
+    val safetyApprovals: Int = 0,
+    val safetyDenials: Int = 0,
+    val safetyBlocks: Int = 0,
 )

@@ -33,6 +33,10 @@ data class AgentRunRecord(
     val waitingForHuman: Boolean,
     val verified: Boolean? = null,
     val capabilitySummary: String? = null,
+    val safetyConfirmations: Int = 0,
+    val safetyApprovals: Int = 0,
+    val safetyDenials: Int = 0,
+    val safetyBlocks: Int = 0,
 )
 
 interface AgentRunLedger {
@@ -110,6 +114,10 @@ fun AgentRunRecord.toEntity(): AgentRunRecordEntity {
         waitingForHuman = waitingForHuman,
         verified = verified,
         capabilitySummary = capabilitySummary,
+        safetyConfirmations = safetyConfirmations,
+        safetyApprovals = safetyApprovals,
+        safetyDenials = safetyDenials,
+        safetyBlocks = safetyBlocks,
     )
 }
 
@@ -131,6 +139,10 @@ fun AgentRunRecordEntity.toRunRecord(): AgentRunRecord {
         waitingForHuman = waitingForHuman,
         verified = verified,
         capabilitySummary = capabilitySummary,
+        safetyConfirmations = safetyConfirmations,
+        safetyApprovals = safetyApprovals,
+        safetyDenials = safetyDenials,
+        safetyBlocks = safetyBlocks,
     )
 }
 
@@ -152,6 +164,10 @@ fun AgentTurnResult.toRunRecord(
         waitingForHuman = state == AgentRunState.WAITING_CONFIRM,
         verified = computeVerified(toolCalls, toolResults),
         capabilitySummary = capabilitySummary,
+        safetyConfirmations = safetyConfirmations,
+        safetyApprovals = safetyApprovals,
+        safetyDenials = safetyDenials,
+        safetyBlocks = safetyBlocks,
     )
 }
 

@@ -75,7 +75,7 @@ object AppModule {
             VoiceConfigDatabase::class.java,
             "voice_config.db",
         )
-            .addMigrations(VoiceConfigDatabase.MIGRATION_1_2, VoiceConfigDatabase.MIGRATION_2_3, VoiceConfigDatabase.MIGRATION_3_4, VoiceConfigDatabase.MIGRATION_4_5, VoiceConfigDatabase.MIGRATION_5_6, VoiceConfigDatabase.MIGRATION_6_7, VoiceConfigDatabase.MIGRATION_7_8, VoiceConfigDatabase.MIGRATION_8_9, VoiceConfigDatabase.MIGRATION_9_10, VoiceConfigDatabase.MIGRATION_10_11, VoiceConfigDatabase.MIGRATION_11_12, VoiceConfigDatabase.MIGRATION_12_13, VoiceConfigDatabase.MIGRATION_13_14, VoiceConfigDatabase.MIGRATION_14_15, VoiceConfigDatabase.MIGRATION_15_16, VoiceConfigDatabase.MIGRATION_16_17, VoiceConfigDatabase.MIGRATION_17_18)
+            .addMigrations(VoiceConfigDatabase.MIGRATION_1_2, VoiceConfigDatabase.MIGRATION_2_3, VoiceConfigDatabase.MIGRATION_3_4, VoiceConfigDatabase.MIGRATION_4_5, VoiceConfigDatabase.MIGRATION_5_6, VoiceConfigDatabase.MIGRATION_6_7, VoiceConfigDatabase.MIGRATION_7_8, VoiceConfigDatabase.MIGRATION_8_9, VoiceConfigDatabase.MIGRATION_9_10, VoiceConfigDatabase.MIGRATION_10_11, VoiceConfigDatabase.MIGRATION_11_12, VoiceConfigDatabase.MIGRATION_12_13, VoiceConfigDatabase.MIGRATION_13_14, VoiceConfigDatabase.MIGRATION_14_15, VoiceConfigDatabase.MIGRATION_15_16, VoiceConfigDatabase.MIGRATION_16_17, VoiceConfigDatabase.MIGRATION_17_18, VoiceConfigDatabase.MIGRATION_18_19)
             .build()
 
     @Provides

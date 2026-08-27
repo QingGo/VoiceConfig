@@ -141,6 +141,10 @@ class AgentRunRecordTest {
             waitingForHuman = false,
             verified = true,
             capabilitySummary = "Shizuku=Y,Accessibility=N",
+            safetyConfirmations = 3,
+            safetyApprovals = 2,
+            safetyDenials = 1,
+            safetyBlocks = 1,
         )
         val entity = record.toEntity()
         val restored = entity.toRunRecord()
@@ -150,5 +154,90 @@ class AgentRunRecordTest {
         assertEquals(record.verified, restored.verified)
         assertEquals(record.capabilitySummary, restored.capabilitySummary)
         assertEquals(AgentRunState.DONE, restored.state)
+        assertEquals(record.safetyConfirmations, restored.safetyConfirmations)
+        assertEquals(record.safetyApprovals, restored.safetyApprovals)
+        assertEquals(record.safetyDenials, restored.safetyDenials)
+        assertEquals(record.safetyBlocks, restored.safetyBlocks)
+    }
+
+    private class SensitiveTool : AgentTool {
+        override val name: String = "sensitive_tool"
+        override val description: String = "sensitive"
+        override val metadata: AgentToolMetadata = AgentToolMetadata(
+            category = "测试",
+            group = ToolGroup.CORE,
+            risk = ToolRisk.SENSITIVE,
+            sensitive = true,
+        )
+        override suspend fun execute(args: Map<String, Any?>): ToolResult =
+            ToolResult.success("ok", emptyMap())
+    }
+
+    @Test
+    fun `run record counts denied sensitive confirmation`() = runBlocking {
+        val ledger = InMemoryAgentRunLedger()
+        val session = sessionWith(
+            SensitiveTool(),
+            listOf(
+                AgentChatResponse(
+                    content = null,
+                    reasoningContent = null,
+                    toolCalls = listOf(AgentToolCall("call1", "sensitive_tool", "{}")),
+                ),
+                AgentChatResponse(content = "完成", reasoningContent = null, toolCalls = emptyList()),
+            ),
+            ledger,
+        ).apply { argumentParser = { emptyMap() } }
+        val result = session.send(
+            "执行敏感操作",
+            onSensitiveAction = { false },
+        )
+        assertTrue(result.ok)
+        val record = ledger.latest()
+        assertEquals(1, record?.safetyConfirmations)
+        assertEquals(0, record?.safetyApprovals)
+        assertEquals(1, record?.safetyDenials)
+        assertEquals(0, record?.safetyBlocks)
+    }
+
+    @Test
+    fun `run record counts hard blocked irreversible action even when auto approved`() = runBlocking {
+        val ledger = InMemoryAgentRunLedger()
+        val tool = object : AgentTool {
+            override val name: String = "tap_text"
+            override val description: String = "tap text"
+            override val metadata: AgentToolMetadata = AgentToolMetadata(
+                category = "交互",
+                group = ToolGroup.PHONE,
+                risk = ToolRisk.MEDIUM,
+                mutatesUi = true,
+            )
+            override suspend fun execute(args: Map<String, Any?>): ToolResult =
+                ToolResult.success("tapped", emptyMap())
+        }
+        val session = sessionWith(
+            tool,
+            listOf(
+                AgentChatResponse(
+                    content = null,
+                    reasoningContent = null,
+                    toolCalls = listOf(
+                        AgentToolCall("call1", "tap_text", """{"text":"确认支付"}"""),
+                    ),
+                ),
+            ),
+            ledger,
+        ).apply { argumentParser = { mapOf("text" to "确认支付") } }
+        val result = session.send(
+            "确认支付",
+            onSensitiveAction = { true },
+        )
+        assertFalse(result.ok)
+        assertTrue(result.message.contains("安全拦截"))
+        val record = ledger.latest()
+        assertEquals(1, record?.safetyConfirmations)
+        assertEquals(1, record?.safetyApprovals)
+        assertEquals(0, record?.safetyDenials)
+        assertEquals(1, record?.safetyBlocks)
     }
 }
