@@ -36,6 +36,8 @@ class AgentToolsetTest {
         assertEquals(ToolGroup.REMOTE, AgentToolMetadataRegistry.of("remote_ssh_exec").group)
         assertEquals(ToolGroup.RESEARCH, AgentToolMetadataRegistry.of("web_search").group)
         assertEquals(ToolGroup.DEBUG, AgentToolMetadataRegistry.of("file_read").group)
+        assertEquals(ToolGroup.REMOTE, AgentToolMetadataRegistry.of("remote_project_inspect").group)
+        assertEquals(ToolGroup.REMOTE, AgentToolMetadataRegistry.of("remote_project_install").group)
     }
 
 }
