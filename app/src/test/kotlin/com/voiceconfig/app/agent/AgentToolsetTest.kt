@@ -43,6 +43,7 @@ class AgentToolsetTest {
         assertEquals(ToolGroup.RESEARCH, AgentToolMetadataRegistry.of("shopping_save").group)
         assertEquals(ToolGroup.RESEARCH, AgentToolMetadataRegistry.of("shopping_list").group)
         assertEquals(ToolGroup.APP_SKILL, AgentToolMetadataRegistry.of("luckin_prepare_order").group)
+        assertEquals(ToolGroup.APP_SKILL, AgentToolMetadataRegistry.of("luckin_open").group)
         assertEquals(ToolGroup.APP_SKILL, AgentToolMetadataRegistry.of("wechat_draft_reply").group)
         assertEquals(ToolGroup.APP_SKILL, AgentToolMetadataRegistry.of("wechat_open").group)
         assertEquals(ToolGroup.APP_SKILL, AgentToolMetadataRegistry.of("wework_open").group)

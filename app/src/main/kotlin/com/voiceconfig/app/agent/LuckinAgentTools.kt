@@ -62,3 +62,21 @@ class LuckinPrepareOrderTool @Inject constructor() : AgentTool {
         )
     }
 }
+
+@Singleton
+class LuckinOpenTool @Inject constructor(
+    private val openAppTool: OpenAppTool,
+) : AgentTool {
+    override val name: String = "luckin_open"
+    override val description: String = "打开瑞幸咖啡 App"
+    override val metadata: AgentToolMetadata = AgentToolMetadata(
+        category = "消费技能",
+        group = ToolGroup.APP_SKILL,
+        risk = ToolRisk.MEDIUM,
+        mutatesUi = true,
+        requiresAutoVerify = true,
+    )
+
+    override suspend fun execute(args: Map<String, Any?>): ToolResult =
+        openAppTool.execute(mapOf("package" to "com.luckincoffee.android"))
+}

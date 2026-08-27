@@ -235,6 +235,7 @@ object AgentToolSchemas {
             "productId" to string("商品 ID"),
             "status" to string("WATCH/RECOMMENDED/BOUGHT"),
         )
+        "luckin_open" -> objectSchema()
         "luckin_prepare_order" -> objectSchema(
             "store" to string("门店名称或位置"),
             "drink" to string("饮品名称，如：冰美式/生椰拿铁"),
