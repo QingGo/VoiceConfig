@@ -58,7 +58,8 @@
 ## Phase H：语音闭环
 
 - [x] TTS：Agent 结果可语音播报，设置开关
-- [ ] 多轮语音
+- [x] VoiceSession 状态机（多轮语音基础）
+- [ ] ASR/TTS 与 VoiceSession 打通
 - [ ] 远场唤醒可行性评估
 
 ## 已提交代码
