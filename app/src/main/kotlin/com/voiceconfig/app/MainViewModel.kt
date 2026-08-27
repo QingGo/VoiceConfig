@@ -41,6 +41,8 @@ import com.voiceconfig.app.agent.AgentStepStatus
 import com.voiceconfig.app.agent.AgentStepUi
 import com.voiceconfig.app.agent.AgentTrace
 import com.voiceconfig.app.agent.SensitiveActionRequest
+import com.voiceconfig.app.agent.VoiceSessionManager
+import com.voiceconfig.app.agent.VoiceSession
 import com.voiceconfig.app.ai.ApiKeyStore
 import com.voiceconfig.app.ai.DeepSeekNlpParser
 import com.voiceconfig.app.ai.VoiceIntent
@@ -135,6 +137,7 @@ class MainViewModel @Inject constructor(
     private val taskPlanStore: TaskPlanStore,
     private val ttsSpeaker: TtsSpeaker,
     private val homeAssistantConfigStore: HomeAssistantConfigStore,
+    private val voiceSessionManager: VoiceSessionManager,
 ) : ViewModel() {
 
     private var skillBackfillStarted = false
@@ -272,6 +275,9 @@ class MainViewModel @Inject constructor(
     val homeAssistantToken: StateFlow<String> = _homeAssistantToken.asStateFlow()
     private val _homeAssistantConfigured = MutableStateFlow(homeAssistantConfigStore.load().isConfigured)
     val homeAssistantConfigured: StateFlow<Boolean> = _homeAssistantConfigured.asStateFlow()
+
+    private val _voiceSession = MutableStateFlow(VoiceSession())
+    val voiceSession: StateFlow<VoiceSession> = _voiceSession.asStateFlow()
 
     val agentSessions: StateFlow<List<AgentSessionEntity>> = agentHistoryRepository.observeSessions()
         .stateIn(
@@ -1164,6 +1170,8 @@ class MainViewModel @Inject constructor(
             _agentStreamText.value = ""
             _agentReasoningText.value = ""
             _agentSteps.value = emptyList()
+            voiceSessionManager.begin(text)
+            _voiceSession.value = voiceSessionManager.current()
             try {
                 val now = System.currentTimeMillis()
                 var sessionId = _selectedAgentSessionId.value
@@ -1281,6 +1289,12 @@ class MainViewModel @Inject constructor(
                         sourceSessionId = sessionId,
                         capabilitySummary = capabilitySummary,
                     )
+                }
+                _voiceSession.value = when {
+                    result.state == AgentRunState.WAITING_CONFIRM ->
+                        voiceSessionManager.waitUser(result.message)
+                    result.ok -> voiceSessionManager.complete()
+                    else -> voiceSessionManager.current().copy(state = com.voiceconfig.app.agent.VoiceSessionState.IDLE)
                 }
                 if (_agentTtsEnabled.value && result.message.isNotBlank()) {
                     ttsSpeaker.speak(result.message)
