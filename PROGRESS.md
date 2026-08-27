@@ -65,8 +65,8 @@
 - [x] TTS：Agent 结果可语音播报，设置开关
 - [x] VoiceSession 状态机（多轮语音基础）
 - [x] Agent 主流程已接入 VoiceSession（开始/等待/完成）
-- [ ] ASR 持续监听与远场唤醒
-- [ ] 远场唤醒可行性评估
+- [x] WakeWordDetector：SpeechRecognizer 关键词唤醒基础版
+- [ ] 低功耗远场唤醒优化与真机验证
 
 ## 已提交代码
 
