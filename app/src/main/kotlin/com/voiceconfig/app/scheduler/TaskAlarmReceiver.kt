@@ -278,9 +278,25 @@ class TaskAlarmReceiver : BroadcastReceiver() {
             .setAutoCancel(true)
             .setContentIntent(openAppIntent(context))
             .addAction(0, "取消", cancelAgentIntent(context, task.id))
+            .apply {
+                if (result.status == ExecutionStatus.FAILED) {
+                    addAction(0, "重试", retryAgentIntent(context, task.id))
+                }
+            }
             .build()
         manager.notify(notificationId(task.id), notification)
     }
+
+    private fun retryAgentIntent(context: Context, taskId: Long): PendingIntent =
+        PendingIntent.getBroadcast(
+            context,
+            (System.currentTimeMillis().toInt() + 2),
+            Intent(context, TaskAlarmReceiver::class.java).apply {
+                action = ACTION_EXECUTE_TASK
+                putExtra(EXTRA_TASK_ID, taskId)
+            },
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+        )
 
     private fun ensureBackgroundChannel(manager: NotificationManager) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
