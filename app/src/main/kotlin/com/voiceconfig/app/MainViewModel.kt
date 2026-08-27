@@ -45,6 +45,7 @@ import com.voiceconfig.app.ai.ApiKeyStore
 import com.voiceconfig.app.ai.DeepSeekNlpParser
 import com.voiceconfig.app.ai.VoiceIntent
 import com.voiceconfig.app.ai.VoiceIntentType
+import com.voiceconfig.app.ai.TtsSpeaker
 import com.voiceconfig.app.scheduler.TriggerRuleScheduler
 import com.voiceconfig.app.di.UserAliasRegistry
 import com.voiceconfig.data.local.entity.AgentMessageEntity
@@ -131,6 +132,7 @@ class MainViewModel @Inject constructor(
     private val agentCapabilityInspector: AgentCapabilityInspector,
     private val agentTrace: AgentTrace,
     private val taskPlanStore: TaskPlanStore,
+    private val ttsSpeaker: TtsSpeaker,
 ) : ViewModel() {
 
     private var skillBackfillStarted = false
@@ -258,6 +260,9 @@ class MainViewModel @Inject constructor(
 
     private val _agentVoiceAutoSend = MutableStateFlow(apiKeyStore.agentVoiceAutoSend)
     val agentVoiceAutoSend: StateFlow<Boolean> = _agentVoiceAutoSend.asStateFlow()
+
+    private val _agentTtsEnabled = MutableStateFlow(apiKeyStore.agentTtsEnabled)
+    val agentTtsEnabled: StateFlow<Boolean> = _agentTtsEnabled.asStateFlow()
 
     val agentSessions: StateFlow<List<AgentSessionEntity>> = agentHistoryRepository.observeSessions()
         .stateIn(
@@ -1050,6 +1055,11 @@ class MainViewModel @Inject constructor(
         _agentVoiceAutoSend.value = enabled
     }
 
+    fun setAgentTtsEnabled(enabled: Boolean) {
+        apiKeyStore.agentTtsEnabled = enabled
+        _agentTtsEnabled.value = enabled
+    }
+
     fun submitAgentDraft() {
         val text = _agentDraft.value.trim()
         if (text.isNotBlank() && !_isAgentBusy.value) {
@@ -1254,6 +1264,9 @@ class MainViewModel @Inject constructor(
                         sourceSessionId = sessionId,
                         capabilitySummary = capabilitySummary,
                     )
+                }
+                if (_agentTtsEnabled.value && result.message.isNotBlank()) {
+                    ttsSpeaker.speak(result.message)
                 }
             } finally {
                 _isAgentBusy.value = false

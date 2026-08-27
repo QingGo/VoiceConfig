@@ -100,6 +100,8 @@ fun AgentPage(
     hasDeepSeekKey: Boolean = true,
     agentVoiceAutoSend: Boolean = false,
     onAgentVoiceAutoSendChange: (Boolean) -> Unit = {},
+    agentTtsEnabled: Boolean = false,
+    onAgentTtsEnabledChange: (Boolean) -> Unit = {},
     initialLogTaskId: Long? = null,
     canResumeTask: Boolean = false,
     activeTaskPlans: List<TaskPlan> = emptyList(),
@@ -364,6 +366,8 @@ fun AgentPage(
             hasDeepSeekKey = hasDeepSeekKey,
             agentVoiceAutoSend = agentVoiceAutoSend,
             onAgentVoiceAutoSendChange = onAgentVoiceAutoSendChange,
+            agentTtsEnabled = agentTtsEnabled,
+            onAgentTtsEnabledChange = onAgentTtsEnabledChange,
         )
     }
 
@@ -861,6 +865,8 @@ private fun ConversationTab(
     hasDeepSeekKey: Boolean = true,
     agentVoiceAutoSend: Boolean = false,
     onAgentVoiceAutoSendChange: (Boolean) -> Unit = {},
+    agentTtsEnabled: Boolean = false,
+    onAgentTtsEnabledChange: (Boolean) -> Unit = {},
     onApproveSkill: (String) -> Unit = {},
     onRejectSkill: (String) -> Unit = {},
     onDeleteSkill: (String) -> Unit = {},
@@ -1006,6 +1012,22 @@ private fun ConversationTab(
                     androidx.compose.material3.Switch(
                         checked = agentVoiceAutoSend,
                         onCheckedChange = onAgentVoiceAutoSendChange,
+                        enabled = hasDeepSeekKey,
+                    )
+                }
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        "Agent 结果语音播报",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Spacer(modifier = Modifier.weight(1f))
+                    androidx.compose.material3.Switch(
+                        checked = agentTtsEnabled,
+                        onCheckedChange = onAgentTtsEnabledChange,
                         enabled = hasDeepSeekKey,
                     )
                 }

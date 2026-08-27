@@ -303,6 +303,7 @@ fun MainScreen(viewModel: MainViewModel) {
     val agentReasoningText by viewModel.agentReasoningText.collectAsState()
     val agentDraft by viewModel.agentDraft.collectAsState()
     val agentVoiceAutoSend by viewModel.agentVoiceAutoSend.collectAsState()
+    val agentTtsEnabled by viewModel.agentTtsEnabled.collectAsState()
     var showAiSettings by remember { mutableStateOf(false) }
     var draftApiKey by remember { mutableStateOf("") }
     var draftModel by remember { mutableStateOf("") }
@@ -778,6 +779,8 @@ fun MainScreen(viewModel: MainViewModel) {
                         hasDeepSeekKey = deepSeekApiKey.isNotBlank(),
                         agentVoiceAutoSend = agentVoiceAutoSend,
                         onAgentVoiceAutoSendChange = viewModel::setAgentVoiceAutoSend,
+                        agentTtsEnabled = agentTtsEnabled,
+                        onAgentTtsEnabledChange = viewModel::setAgentTtsEnabled,
                         initialLogTaskId = agentLogTaskId,
                         canResumeTask = canResumeTask,
                         activeTaskPlans = activeTaskPlans,

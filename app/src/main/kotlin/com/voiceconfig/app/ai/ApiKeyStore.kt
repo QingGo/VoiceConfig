@@ -92,6 +92,12 @@ class ApiKeyStore @Inject constructor(
             prefs.edit().putBoolean(KEY_AGENT_VOICE_AUTO_SEND, value).apply()
         }
 
+    var agentTtsEnabled: Boolean
+        get() = prefs.getBoolean(KEY_AGENT_TTS_ENABLED, false)
+        set(value) {
+            prefs.edit().putBoolean(KEY_AGENT_TTS_ENABLED, value).apply()
+        }
+
     private fun readApiKey(): String {
         val encrypted = prefs.getString(KEY_API_KEY_ENCRYPTED, null)
         if (!encrypted.isNullOrBlank()) {
@@ -183,6 +189,7 @@ class ApiKeyStore @Inject constructor(
         private const val KEY_AGENT_MAX_AUTO_VERIFY = "agent_max_auto_verifies"
         private const val KEY_AGENT_IMAGE_DETAIL_LOW = "agent_image_detail_low"
         private const val KEY_AGENT_VOICE_AUTO_SEND = "agent_voice_auto_send"
+        private const val KEY_AGENT_TTS_ENABLED = "agent_tts_enabled"
         const val DEFAULT_MAX_AUTO_VERIFY = 2
         const val DEFAULT_MODEL = "deepseek-v4-flash-vision-exp"
 
