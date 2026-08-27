@@ -249,6 +249,8 @@ object AgentToolSchemas {
             "context" to string("上下文或原消息摘要"),
             "reply" to string("回复草稿内容"),
         )
+        "wechat_open" -> objectSchema()
+        "wework_open" -> objectSchema()
         "remote_project_inspect" -> objectSchema(
             "host" to string("节点名或 IP，可省略"),
             "path" to string("远程项目根目录绝对路径"),

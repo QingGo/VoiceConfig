@@ -308,6 +308,20 @@ object AgentToolMetadataRegistry {
             group = ToolGroup.APP_SKILL,
             risk = ToolRisk.LOW,
         ),
+        "wechat_open" to AgentToolMetadata(
+            category = "通信技能",
+            group = ToolGroup.APP_SKILL,
+            risk = ToolRisk.MEDIUM,
+            mutatesUi = true,
+            requiresAutoVerify = true,
+        ),
+        "wework_open" to AgentToolMetadata(
+            category = "通信技能",
+            group = ToolGroup.APP_SKILL,
+            risk = ToolRisk.MEDIUM,
+            mutatesUi = true,
+            requiresAutoVerify = true,
+        ),
         "file_write" to AgentToolMetadata(
             category = "文件",
             group = ToolGroup.DEBUG,

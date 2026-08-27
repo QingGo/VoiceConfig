@@ -32,6 +32,7 @@
 ## Phase D：微信消息助理
 
 - [x] wechat_draft_reply：安全生成回复草稿（不自动发送）
+- [x] wechat_open / wework_open：直接打开微信/企业微信
 - [ ] 读取未读消息
 - [ ] 人工确认后发送
 
