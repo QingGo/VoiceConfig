@@ -99,6 +99,24 @@ class VoiceConfigMigrationTest {
     }
 
     @Test
+    fun `migration 20 to 21 creates shopping items table`() {
+        val conn = DriverManager.getConnection("jdbc:sqlite::memory:")
+        try {
+            val db = supportDatabase(conn)
+            VoiceConfigDatabase.MIGRATION_20_21.migrate(db)
+            val cols = columns(conn, "shopping_items")
+            assertTrue(cols.containsAll(setOf(
+                "id", "productId", "title", "platform", "price",
+                "originalPrice", "rating", "reviewCount", "sales",
+                "tagsJson", "url", "note", "status",
+                "createdAtEpochMillis", "updatedAtEpochMillis",
+            )))
+        } finally {
+            conn.close()
+        }
+    }
+
+    @Test
     fun `migration 19 to 20 creates remote projects table`() {
         val conn = DriverManager.getConnection("jdbc:sqlite::memory:")
         try {

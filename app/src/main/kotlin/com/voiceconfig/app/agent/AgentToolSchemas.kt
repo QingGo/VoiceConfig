@@ -217,6 +217,18 @@ object AgentToolSchemas {
         "product_compare" -> objectSchema(
             "products" to string("商品 JSON 数组字符串，每项含 title/platform/price/rating/reviewCount 等"),
         )
+        "shopping_save" -> objectSchema(
+            "products" to string("商品 JSON 数组字符串"),
+            "status" to string("WATCH/RECOMMENDED/BOUGHT"),
+            "note" to string("可选备注"),
+        )
+        "shopping_list" -> objectSchema(
+            "status" to string("可选 WATCH/RECOMMENDED/BOUGHT"),
+        )
+        "shopping_update_status" -> objectSchema(
+            "productId" to string("商品 ID"),
+            "status" to string("WATCH/RECOMMENDED/BOUGHT"),
+        )
         "remote_project_inspect" -> objectSchema(
             "host" to string("节点名或 IP，可省略"),
             "path" to string("远程项目根目录绝对路径"),

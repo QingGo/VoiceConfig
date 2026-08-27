@@ -52,6 +52,9 @@ class CoreAgentPlugin @Inject constructor(
     private val homeDevicesTool: HomeDevicesTool,
     private val homeControlTool: HomeControlTool,
     private val productCompareTool: ProductCompareTool,
+    private val shoppingSaveTool: ShoppingSaveTool,
+    private val shoppingListTool: ShoppingListTool,
+    private val shoppingUpdateStatusTool: ShoppingUpdateStatusTool,
 ) : AgentPlugin {
 
     override val id: String = "core-tools"
@@ -99,5 +102,8 @@ class CoreAgentPlugin @Inject constructor(
         homeDevicesTool,
         homeControlTool,
         productCompareTool,
+        shoppingSaveTool,
+        shoppingListTool,
+        shoppingUpdateStatusTool,
     )
 }

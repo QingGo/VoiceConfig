@@ -18,6 +18,7 @@ import com.voiceconfig.data.local.dao.TriggerRuleDao
 import com.voiceconfig.data.local.dao.TemplateDao
 import com.voiceconfig.data.local.dao.RemoteNodeDao
 import com.voiceconfig.data.local.dao.RemoteProjectDao
+import com.voiceconfig.data.local.dao.ShoppingItemDao
 import com.voiceconfig.data.local.dao.TaskEventDao
 import com.voiceconfig.data.local.entity.AgentMessageEntity
 import com.voiceconfig.data.local.entity.AgentRunRecordEntity
@@ -32,6 +33,7 @@ import com.voiceconfig.data.local.entity.TaskEntity
 import com.voiceconfig.data.local.entity.TemplateEntity
 import com.voiceconfig.data.local.entity.RemoteNodeEntity
 import com.voiceconfig.data.local.entity.RemoteProjectEntity
+import com.voiceconfig.data.local.entity.ShoppingItemEntity
 import com.voiceconfig.data.local.entity.TaskEventEntity
 import com.voiceconfig.data.local.entity.TriggerRuleEntity
 
@@ -53,8 +55,9 @@ import com.voiceconfig.data.local.entity.TriggerRuleEntity
         TaskPlanStepEntity::class,
         RemoteNodeEntity::class,
         RemoteProjectEntity::class,
+        ShoppingItemEntity::class,
     ],
-    version = 20,
+    version = 21,
     exportSchema = false,
 )
 abstract class VoiceConfigDatabase : RoomDatabase() {
@@ -72,6 +75,7 @@ abstract class VoiceConfigDatabase : RoomDatabase() {
     abstract fun taskPlanDao(): TaskPlanDao
     abstract fun remoteNodeDao(): RemoteNodeDao
     abstract fun remoteProjectDao(): RemoteProjectDao
+    abstract fun shoppingItemDao(): ShoppingItemDao
 
     companion object {
         val MIGRATION_1_2 = object : Migration(1, 2) {
@@ -388,6 +392,34 @@ abstract class VoiceConfigDatabase : RoomDatabase() {
                 )
                 db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_remote_projects_projectId` ON `remote_projects` (`projectId`)")
                 db.execSQL("CREATE INDEX IF NOT EXISTS `index_remote_projects_rootPath` ON `remote_projects` (`rootPath`)")
+            }
+        }
+
+        val MIGRATION_20_21 = object : Migration(20, 21) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS `shopping_items` (
+                        `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        `productId` TEXT NOT NULL,
+                        `title` TEXT NOT NULL,
+                        `platform` TEXT NOT NULL,
+                        `price` REAL NOT NULL,
+                        `originalPrice` REAL,
+                        `rating` REAL,
+                        `reviewCount` INTEGER,
+                        `sales` INTEGER,
+                        `tagsJson` TEXT NOT NULL,
+                        `url` TEXT NOT NULL DEFAULT '',
+                        `note` TEXT NOT NULL DEFAULT '',
+                        `status` TEXT NOT NULL DEFAULT 'WATCH',
+                        `createdAtEpochMillis` INTEGER NOT NULL,
+                        `updatedAtEpochMillis` INTEGER NOT NULL
+                    )
+                    """.trimIndent(),
+                )
+                db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_shopping_items_productId` ON `shopping_items` (`productId`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_shopping_items_platform` ON `shopping_items` (`platform`)")
             }
         }
 

@@ -38,6 +38,8 @@ class AgentToolsetTest {
         assertEquals(ToolGroup.HOME, AgentToolMetadataRegistry.of("home_control").group)
         assertEquals(ToolGroup.RESEARCH, AgentToolMetadataRegistry.of("web_search").group)
         assertEquals(ToolGroup.RESEARCH, AgentToolMetadataRegistry.of("product_compare").group)
+        assertEquals(ToolGroup.RESEARCH, AgentToolMetadataRegistry.of("shopping_save").group)
+        assertEquals(ToolGroup.RESEARCH, AgentToolMetadataRegistry.of("shopping_list").group)
         assertEquals(ToolGroup.DEBUG, AgentToolMetadataRegistry.of("file_read").group)
         assertEquals(ToolGroup.REMOTE, AgentToolMetadataRegistry.of("remote_project_inspect").group)
         assertEquals(ToolGroup.REMOTE, AgentToolMetadataRegistry.of("remote_project_install").group)
