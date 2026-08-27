@@ -85,33 +85,47 @@ fun SshShellDialog(
                 modifier = Modifier
                     .fillMaxWidth()
                     .verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp),
             ) {
-                OutlinedTextField(value = host, onValueChange = { host = it }, label = { Text("树莓派地址") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
-                OutlinedTextField(value = port, onValueChange = { port = it }, label = { Text("端口") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
-                OutlinedTextField(value = username, onValueChange = { username = it }, label = { Text("用户名") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
-                OutlinedTextField(value = password, onValueChange = { password = it }, label = { Text("密码（可选）") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
-                OutlinedTextField(value = privateKey, onValueChange = { privateKey = it }, label = { Text("私钥（可选）") }, modifier = Modifier.fillMaxWidth(), minLines = 3, maxLines = 6)
-                val detectedKeyType = remember(privateKey) { detectSshKeyType(privateKey) }
-                if (isRsaLikelyIncompatible(detectedKeyType)) {
-                    Text(
-                        text = "检测到 ${detectedKeyType} 私钥；建议生成 Ed25519 或 ECDSA。",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.error,
-                    )
+                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    OutlinedTextField(value = host, onValueChange = { host = it }, label = { Text("地址") }, modifier = Modifier.weight(2f), singleLine = true)
+                    OutlinedTextField(value = port, onValueChange = { port = it }, label = { Text("端口") }, modifier = Modifier.weight(1f), singleLine = true)
                 }
-                TextButton(onClick = { privateKeyPicker.launch(arrayOf("*/*")) }) {
-                    Text("从文件导入私钥")
+                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    OutlinedTextField(value = username, onValueChange = { username = it }, label = { Text("用户名") }, modifier = Modifier.weight(1f), singleLine = true)
+                    OutlinedTextField(value = password, onValueChange = { password = it }, label = { Text("密码") }, modifier = Modifier.weight(1f), singleLine = true)
                 }
-                if (savedKeys.isNotEmpty()) {
-                    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Text("密钥库：", style = MaterialTheme.typography.bodySmall)
-                        savedKeys.take(5).forEach { key ->
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+                ) {
+                    TextButton(onClick = { privateKeyPicker.launch(arrayOf("*/*")) }) {
+                        Text("导入私钥")
+                    }
+                    if (savedKeys.isNotEmpty()) {
+                        Text("密钥库:", style = MaterialTheme.typography.bodySmall)
+                        savedKeys.take(3).forEach { key ->
                             TextButton(onClick = { privateKey = key.privateKey }) {
                                 Text(key.name)
                             }
                         }
                     }
+                }
+                OutlinedTextField(
+                    value = privateKey,
+                    onValueChange = { privateKey = it },
+                    label = { Text("私钥") },
+                    modifier = Modifier.fillMaxWidth(),
+                    minLines = 2,
+                    maxLines = 3,
+                )
+                val detectedKeyType = remember(privateKey) { detectSshKeyType(privateKey) }
+                if (isRsaLikelyIncompatible(detectedKeyType)) {
+                    Text(
+                        text = "旧 RSA/DSA 可能被拒绝，建议 Ed25519/ECDSA。",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error,
+                    )
                 }
                 error?.let {
                     Text(

@@ -6,9 +6,11 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -72,20 +74,12 @@ fun SettingsScreen(
     val uiState by viewModel.uiState.collectAsState()
     val deepSeekApiKey by viewModel.deepSeekApiKey.collectAsState()
     val deepSeekModel by viewModel.deepSeekModel.collectAsState()
-    val deepSeekThinkingEnabled by viewModel.deepSeekThinkingEnabled.collectAsState()
-    val deepSeekReasoningEffort by viewModel.deepSeekReasoningEffort.collectAsState()
-    val agentDeepSeekThinkingEnabled by viewModel.agentDeepSeekThinkingEnabled.collectAsState()
-    val agentDeepSeekReasoningEffort by viewModel.agentDeepSeekReasoningEffort.collectAsState()
     val agentAutoConfirmSensitiveActions by viewModel.agentAutoConfirmSensitiveActions.collectAsState()
     val agentAutoVerifyEnabled by viewModel.agentAutoVerifyEnabled.collectAsState()
     val agentMaxAutoVerifies by viewModel.agentMaxAutoVerifies.collectAsState()
 
     var draftApiKey by remember { mutableStateOf(deepSeekApiKey) }
     var draftModel by remember { mutableStateOf(deepSeekModel) }
-    var draftThinkingEnabled by remember { mutableStateOf(deepSeekThinkingEnabled) }
-    var draftReasoningEffort by remember { mutableStateOf(deepSeekReasoningEffort) }
-    var draftAgentThinkingEnabled by remember { mutableStateOf(agentDeepSeekThinkingEnabled) }
-    var draftAgentReasoningEffort by remember { mutableStateOf(agentDeepSeekReasoningEffort) }
     var draftAgentAutoConfirmSensitiveActions by remember { mutableStateOf(agentAutoConfirmSensitiveActions) }
     var draftAgentAutoVerifyEnabled by remember { mutableStateOf(agentAutoVerifyEnabled) }
     var draftAgentMaxAutoVerifies by remember { mutableStateOf(agentMaxAutoVerifies) }
@@ -176,10 +170,6 @@ fun SettingsScreen(
                     onClick = {
                         viewModel.setDeepSeekApiKey(draftApiKey)
                         viewModel.setDeepSeekModel(draftModel)
-                        viewModel.setDeepSeekThinkingEnabled(draftThinkingEnabled)
-                        viewModel.setDeepSeekReasoningEffort(draftReasoningEffort)
-                        viewModel.setAgentDeepSeekThinkingEnabled(draftAgentThinkingEnabled)
-                        viewModel.setAgentDeepSeekReasoningEffort(draftAgentReasoningEffort)
                         viewModel.setAgentAutoConfirmSensitiveActions(draftAgentAutoConfirmSensitiveActions)
                         viewModel.setAgentAutoVerifyEnabled(draftAgentAutoVerifyEnabled)
                         viewModel.setAgentMaxAutoVerifies(draftAgentMaxAutoVerifies)
@@ -197,7 +187,7 @@ fun SettingsScreen(
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 item {
-                    SettingsSectionCard(title = "模型与密钥") {
+                    SettingsSectionCard(title = "模型与密钥", defaultExpanded = true) {
                         OutlinedTextField(
                             value = draftApiKey,
                             onValueChange = { draftApiKey = it },
@@ -218,35 +208,11 @@ fun SettingsScreen(
                             label = { Text("模型（默认 deepseek-v4-flash-vision-exp）") },
                             singleLine = true,
                         )
-                        SwitchRow(
-                            title = "DeepSeek 思考模式",
-                            subtitle = "默认关闭；开启后更准确但生成更慢",
-                            checked = draftThinkingEnabled,
-                            onCheckedChange = { draftThinkingEnabled = it },
-                        )
-                        if (draftThinkingEnabled) {
-                            ReasoningSelector(
-                                selected = draftReasoningEffort,
-                                onSelect = { draftReasoningEffort = it },
-                            )
-                        }
                     }
                 }
 
                 item {
-                    SettingsSectionCard(title = "智能助手行为") {
-                        SwitchRow(
-                            title = "Agent 推理",
-                            subtitle = "默认开启，强度 max；仅影响 Agent 页面",
-                            checked = draftAgentThinkingEnabled,
-                            onCheckedChange = { draftAgentThinkingEnabled = it },
-                        )
-                        if (draftAgentThinkingEnabled) {
-                            ReasoningSelector(
-                                selected = draftAgentReasoningEffort,
-                                onSelect = { draftAgentReasoningEffort = it },
-                            )
-                        }
+                    SettingsSectionCard(title = "智能助手行为", defaultExpanded = false) {
                         SwitchRow(
                             title = "敏感操作自动执行",
                             subtitle = "开启后 Agent 不再弹出确认，直接执行发送/支付/删除等操作；建议仅测试或信任场景使用",
@@ -281,7 +247,7 @@ fun SettingsScreen(
                 }
 
                 item {
-                    SettingsSectionCard(title = "语音识别") {
+                    SettingsSectionCard(title = "语音识别", defaultExpanded = false) {
                         if (localAsrManager != null) {
                             Text(
                                 text = "推荐：${localAsrManager.recommendedModel().displayName}（性能最佳，需下载）\n默认内置：${localAsrManager.defaultModel().displayName}（安装包小，开箱可用）",
@@ -387,7 +353,7 @@ fun SettingsScreen(
                 }
 
                 item {
-                    SettingsSectionCard(title = "条件触发器") {
+                    SettingsSectionCard(title = "条件触发器", defaultExpanded = false) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             RadioButton(selected = triggerType == "wifi", onClick = { triggerType = "wifi" })
                             Text("Wi-Fi")
@@ -513,69 +479,72 @@ fun SettingsScreen(
                 }
 
                 item {
-                    SettingsSectionCard(title = "远程节点") {
-                        Text(
-                            text = "已登记 ${remoteNodes.size} 个远程节点，支持只读命令、任务队列与 Skill 分发。",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                        TextButton(onClick = { showRemoteNodes = true }) {
-                            Text("管理远程节点")
+                    SettingsSectionCard(title = "远程节点", defaultExpanded = true) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = "已登记 ${remoteNodes.size} 个远程节点",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                )
+                                Text(
+                                    text = "SSH 命令 / 文件 / 终端 / 服务",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                            TextButton(onClick = { showRemoteNodes = true }) {
+                                Text("管理")
+                            }
                         }
-                        TextButton(onClick = {
-                            showSshConsole = true
-                            viewModel.clearSshResult()
-                        }) {
-                            Text("SSH 命令终端")
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            RemoteToolTile("命令终端", ">_", onClick = {
+                                showSshConsole = true
+                                viewModel.clearSshResult()
+                            })
+                            RemoteToolTile("远程文件", "📁", onClick = {
+                                showSshFile = true
+                                viewModel.clearSshFileResult()
+                            })
                         }
-                        TextButton(onClick = {
-                            showSshFile = true
-                            viewModel.clearSshFileResult()
-                        }) {
-                            Text("SSH 远程文件")
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            RemoteToolTile("交互终端", "⌨", onClick = {
+                                showSshShell = true
+                                viewModel.clearSshShellOutput()
+                                viewModel.clearSshShellError()
+                            })
+                            RemoteToolTile("SSH 审计", "📋", onClick = {
+                                showSshAudit = true
+                                viewModel.loadSshAudit()
+                            })
                         }
-                        TextButton(onClick = {
-                            showSshShell = true
-                            viewModel.clearSshShellOutput()
-                            viewModel.clearSshShellError()
-                        }) {
-                            Text("SSH 交互终端")
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            RemoteToolTile("密钥管理", "🔑", onClick = {
+                                showSshKeys = true
+                                viewModel.refreshSshKeys()
+                            })
+                            RemoteToolTile("系统服务", "⚙️", onClick = {
+                                showSshServices = true
+                                viewModel.clearSshServiceResult()
+                            })
                         }
-                        TextButton(onClick = {
-                            showSshAudit = true
-                            viewModel.loadSshAudit()
-                        }) {
-                            Text("查看 SSH 审计")
-                        }
-                        TextButton(onClick = {
-                            showSshKeys = true
-                            viewModel.refreshSshKeys()
-                        }) {
-                            Text("SSH 密钥管理")
-                        }
-                        TextButton(onClick = {
-                            showSshServices = true
-                            viewModel.clearSshServiceResult()
-                        }) {
-                            Text("SSH 系统服务")
-                        }
-                        TextButton(onClick = {
-                            showSshNodeLogs = true
-                            viewModel.clearSshNodeLogResult()
-                        }) {
-                            Text("SSH 节点日志")
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            RemoteToolTile("节点日志", "📜", onClick = {
+                                showSshNodeLogs = true
+                                viewModel.clearSshNodeLogResult()
+                            })
+                            RemoteToolTile("远程节点", "🖥", onClick = { showRemoteNodes = true })
                         }
                     }
                 }
 
                 item {
-                    SettingsSectionCard(title = "权限与系统") {
+                    SettingsSectionCard(title = "权限与系统", defaultExpanded = false) {
                         PermissionCheckSection(modifier = Modifier.fillMaxWidth())
                     }
                 }
 
                 item {
-                    SettingsSectionCard(title = "高级 / 调试") {
+                    SettingsSectionCard(title = "高级 / 调试", defaultExpanded = false) {
                         TextButton(onClick = { showDebugSection = !showDebugSection }) {
                             Text(if (showDebugSection) "收起开发者调试" else "展开开发者调试")
                         }
@@ -819,8 +788,10 @@ fun SettingsScreen(
 @Composable
 private fun SettingsSectionCard(
     title: String,
+    defaultExpanded: Boolean = false,
     content: @Composable () -> Unit,
 ) {
+    var expanded by remember(title) { mutableStateOf(defaultExpanded) }
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
@@ -828,11 +799,65 @@ private fun SettingsSectionCard(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(12.dp),
+                .padding(horizontal = 12.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            Text(text = title, style = MaterialTheme.typography.titleSmall)
-            content()
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { expanded = !expanded },
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.titleSmall,
+                    modifier = Modifier.weight(1f),
+                )
+                Text(
+                    text = if (expanded) "收起 ⌃" else "展开 ⌄",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            if (expanded) {
+                HorizontalDivider()
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    content()
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun RowScope.RemoteToolTile(
+    title: String,
+    icon: String,
+    onClick: () -> Unit,
+) {
+    Card(
+        onClick = onClick,
+        modifier = Modifier.weight(1f),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant,
+        ),
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 8.dp, vertical = 12.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(2.dp),
+        ) {
+            Text(text = icon, style = MaterialTheme.typography.titleMedium)
+            Text(
+                text = title,
+                style = MaterialTheme.typography.labelMedium,
+                maxLines = 1,
+            )
         }
     }
 }
@@ -854,27 +879,5 @@ private fun SwitchRow(
             )
         }
         Switch(checked = checked, onCheckedChange = onCheckedChange)
-    }
-}
-
-@Composable
-private fun ReasoningSelector(
-    selected: String,
-    onSelect: (String) -> Unit,
-) {
-    Text(text = "思考强度", style = MaterialTheme.typography.bodyMedium)
-    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            RadioButton(selected = selected == "low", onClick = { onSelect("low") })
-            Text("低", style = MaterialTheme.typography.bodyMedium)
-            RadioButton(selected = selected == "medium", onClick = { onSelect("medium") })
-            Text("中", style = MaterialTheme.typography.bodyMedium)
-        }
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            RadioButton(selected = selected == "high", onClick = { onSelect("high") })
-            Text("高", style = MaterialTheme.typography.bodyMedium)
-            RadioButton(selected = selected == "max", onClick = { onSelect("max") })
-            Text("最大", style = MaterialTheme.typography.bodyMedium)
-        }
     }
 }
