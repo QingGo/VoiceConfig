@@ -18,6 +18,7 @@ class ToolRegistry {
             ToolGroup.CORE,
             ToolGroup.PHONE,
             ToolGroup.REMOTE,
+            ToolGroup.HOME,
         )
     }
 

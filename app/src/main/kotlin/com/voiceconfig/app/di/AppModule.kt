@@ -300,6 +300,8 @@ object AppModule {
         remoteProjectBuildTool: com.voiceconfig.app.agent.RemoteProjectBuildTool,
         remoteProjectTestTool: com.voiceconfig.app.agent.RemoteProjectTestTool,
         remoteProjectInstallTool: com.voiceconfig.app.agent.RemoteProjectInstallTool,
+        homeDevicesTool: com.voiceconfig.app.agent.HomeDevicesTool,
+        homeControlTool: com.voiceconfig.app.agent.HomeControlTool,
     ): CoreAgentPlugin = CoreAgentPlugin(
         openAppTool = openAppTool,
         findAppTool = findAppTool,
@@ -338,6 +340,8 @@ object AppModule {
         remoteProjectBuildTool = remoteProjectBuildTool,
         remoteProjectTestTool = remoteProjectTestTool,
         remoteProjectInstallTool = remoteProjectInstallTool,
+        homeDevicesTool = homeDevicesTool,
+        homeControlTool = homeControlTool,
     )
 
     @Provides

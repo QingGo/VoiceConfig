@@ -192,6 +192,8 @@ object AgentSkillBuilder {
         "remote_project_build" -> "构建远程项目"
         "remote_project_test" -> "运行远程项目测试"
         "remote_project_install" -> "安装远程项目依赖"
+        "home_devices" -> "读取 Home Assistant 设备列表"
+        "home_control" -> "控制 Home Assistant 设备"
         else -> "执行 $toolName"
     }
 
@@ -221,6 +223,8 @@ object AgentSkillBuilder {
         "remote_project_build" -> "构建命令退出码为0"
         "remote_project_test" -> "测试命令执行完成并返回结果"
         "remote_project_install" -> "依赖安装命令退出码为0"
+        "home_devices" -> "返回设备列表与状态"
+        "home_control" -> "Home Assistant 返回调用成功"
         else -> "$toolName 成功"
     }
 
@@ -250,6 +254,8 @@ object AgentSkillBuilder {
         "remote_project_build" -> "若构建失败，读取 stdErr 并尝试修复后再构建"
         "remote_project_test" -> "若测试失败，输出失败用例并考虑修复循环"
         "remote_project_install" -> "若安装失败，提示检查远程环境/网络"
+        "home_devices" -> "若读取失败，检查 Home Assistant 地址/Token/网络"
+        "home_control" -> "若控制失败，先 home_devices 确认设备状态与 entity_id"
         else -> "若失败，重新读取当前 UI 后再尝试或向用户询问"
     }
 

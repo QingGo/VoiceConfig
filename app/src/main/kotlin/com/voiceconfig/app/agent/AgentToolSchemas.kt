@@ -202,6 +202,18 @@ object AgentToolSchemas {
             "node" to string("节点名称或 nodeId；留空表示第一个可用节点"),
             "command" to string("要执行的只读命令名，例如 uptime/hostname"),
         )
+        "home_devices" -> objectSchema(
+            "filter" to string("可选，按设备名/域名/entity_id 过滤"),
+        )
+        "home_control" -> objectSchema(
+            "domain" to string("设备域：climate/light/cover/media_player/switch"),
+            "service" to string("服务：set_temperature/turn_on/turn_off/open_cover/close_cover/play_media"),
+            "entityId" to string("设备 entity_id，如 climate.living_room"),
+            "data" to JSONObject().apply {
+                put("type", "object")
+                put("description", "服务附加参数，如 temperature/volume_level")
+            },
+        )
         "remote_project_inspect" -> objectSchema(
             "host" to string("节点名或 IP，可省略"),
             "path" to string("远程项目根目录绝对路径"),

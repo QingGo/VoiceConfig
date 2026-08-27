@@ -77,14 +77,20 @@ fun SettingsScreen(
     val agentAutoConfirmSensitiveActions by viewModel.agentAutoConfirmSensitiveActions.collectAsState()
     val agentAutoVerifyEnabled by viewModel.agentAutoVerifyEnabled.collectAsState()
     val agentMaxAutoVerifies by viewModel.agentMaxAutoVerifies.collectAsState()
+    val homeAssistantBaseUrl by viewModel.homeAssistantBaseUrl.collectAsState()
+    val homeAssistantToken by viewModel.homeAssistantToken.collectAsState()
+    val homeAssistantConfigured by viewModel.homeAssistantConfigured.collectAsState()
 
     var draftApiKey by remember { mutableStateOf(deepSeekApiKey) }
     var draftModel by remember { mutableStateOf(deepSeekModel) }
     var draftAgentAutoConfirmSensitiveActions by remember { mutableStateOf(agentAutoConfirmSensitiveActions) }
     var draftAgentAutoVerifyEnabled by remember { mutableStateOf(agentAutoVerifyEnabled) }
     var draftAgentMaxAutoVerifies by remember { mutableStateOf(agentMaxAutoVerifies) }
+    var draftHaBaseUrl by remember { mutableStateOf(homeAssistantBaseUrl) }
+    var draftHaToken by remember { mutableStateOf(homeAssistantToken) }
 
     var showApiKey by remember { mutableStateOf(false) }
+    var showHaToken by remember { mutableStateOf(false) }
     var showDebugSection by remember { mutableStateOf(false) }
     var showRawAi by remember { mutableStateOf(false) }
     var showExperimentalAsr by remember { mutableStateOf(false) }
@@ -173,6 +179,7 @@ fun SettingsScreen(
                         viewModel.setAgentAutoConfirmSensitiveActions(draftAgentAutoConfirmSensitiveActions)
                         viewModel.setAgentAutoVerifyEnabled(draftAgentAutoVerifyEnabled)
                         viewModel.setAgentMaxAutoVerifies(draftAgentMaxAutoVerifies)
+                        viewModel.saveHomeAssistantConfig(draftHaBaseUrl, draftHaToken)
                         onClose()
                     },
                 ) {
@@ -243,6 +250,42 @@ fun SettingsScreen(
                                 Text("+")
                             }
                         }
+                    }
+                }
+
+                item {
+                    SettingsSectionCard(title = "智能家居 / Home Assistant", defaultExpanded = false) {
+                        Text(
+                            text = if (homeAssistantConfigured) "已连接配置" else "未配置",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = if (homeAssistantConfigured) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error,
+                        )
+                        OutlinedTextField(
+                            value = draftHaBaseUrl,
+                            onValueChange = { draftHaBaseUrl = it },
+                            modifier = Modifier.fillMaxWidth(),
+                            label = { Text("Home Assistant Base URL") },
+                            placeholder = { Text("http://192.168.1.100:8123") },
+                            singleLine = true,
+                        )
+                        OutlinedTextField(
+                            value = draftHaToken,
+                            onValueChange = { draftHaToken = it },
+                            modifier = Modifier.fillMaxWidth(),
+                            label = { Text("长期访问令牌 (Long-Lived Access Token)") },
+                            singleLine = true,
+                            visualTransformation = if (showHaToken) VisualTransformation.None else PasswordVisualTransformation(),
+                            trailingIcon = {
+                                TextButton(onClick = { showHaToken = !showHaToken }) {
+                                    Text(if (showHaToken) "隐藏" else "显示")
+                                }
+                            },
+                        )
+                        Text(
+                            text = "配置后 Agent 可通过 home_devices / home_control 控制空调、灯光、窗帘、电视、音乐等 Home Assistant 已接入设备。",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
                     }
                 }
 

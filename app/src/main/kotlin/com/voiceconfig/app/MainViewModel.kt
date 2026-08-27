@@ -46,6 +46,7 @@ import com.voiceconfig.app.ai.DeepSeekNlpParser
 import com.voiceconfig.app.ai.VoiceIntent
 import com.voiceconfig.app.ai.VoiceIntentType
 import com.voiceconfig.app.ai.TtsSpeaker
+import com.voiceconfig.app.home.HomeAssistantConfigStore
 import com.voiceconfig.app.scheduler.TriggerRuleScheduler
 import com.voiceconfig.app.di.UserAliasRegistry
 import com.voiceconfig.data.local.entity.AgentMessageEntity
@@ -133,6 +134,7 @@ class MainViewModel @Inject constructor(
     private val agentTrace: AgentTrace,
     private val taskPlanStore: TaskPlanStore,
     private val ttsSpeaker: TtsSpeaker,
+    private val homeAssistantConfigStore: HomeAssistantConfigStore,
 ) : ViewModel() {
 
     private var skillBackfillStarted = false
@@ -263,6 +265,13 @@ class MainViewModel @Inject constructor(
 
     private val _agentTtsEnabled = MutableStateFlow(apiKeyStore.agentTtsEnabled)
     val agentTtsEnabled: StateFlow<Boolean> = _agentTtsEnabled.asStateFlow()
+
+    private val _homeAssistantBaseUrl = MutableStateFlow(homeAssistantConfigStore.load().baseUrl)
+    val homeAssistantBaseUrl: StateFlow<String> = _homeAssistantBaseUrl.asStateFlow()
+    private val _homeAssistantToken = MutableStateFlow(homeAssistantConfigStore.load().token)
+    val homeAssistantToken: StateFlow<String> = _homeAssistantToken.asStateFlow()
+    private val _homeAssistantConfigured = MutableStateFlow(homeAssistantConfigStore.load().isConfigured)
+    val homeAssistantConfigured: StateFlow<Boolean> = _homeAssistantConfigured.asStateFlow()
 
     val agentSessions: StateFlow<List<AgentSessionEntity>> = agentHistoryRepository.observeSessions()
         .stateIn(
@@ -1058,6 +1067,14 @@ class MainViewModel @Inject constructor(
     fun setAgentTtsEnabled(enabled: Boolean) {
         apiKeyStore.agentTtsEnabled = enabled
         _agentTtsEnabled.value = enabled
+    }
+
+    fun saveHomeAssistantConfig(baseUrl: String, token: String) {
+        val config = com.voiceconfig.app.home.HomeAssistantConfig(baseUrl = baseUrl, token = token)
+        homeAssistantConfigStore.save(config)
+        _homeAssistantBaseUrl.value = config.baseUrl
+        _homeAssistantToken.value = config.token
+        _homeAssistantConfigured.value = config.isConfigured
     }
 
     fun submitAgentDraft() {

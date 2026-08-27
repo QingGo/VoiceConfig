@@ -36,9 +36,9 @@
 
 ## Phase E：智能家居
 
-- [ ] Home Assistant 接入
-- [ ] home_devices / home_control
-- [ ] 语音控制实验
+- [x] Home Assistant 接入：Base URL + 长期访问令牌设置
+- [x] home_devices / home_control Agent 工具
+- [ ] 语音控制实验（依赖语音闭环继续）
 
 ## Phase F：长程研究与购物
 

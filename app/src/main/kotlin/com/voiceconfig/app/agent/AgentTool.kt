@@ -258,6 +258,16 @@ object AgentToolMetadataRegistry {
             requiresAutoVerify = true,
             needsShizuku = false,
         ),
+        "home_devices" to AgentToolMetadata(
+            category = "智能家居",
+            group = ToolGroup.HOME,
+            risk = ToolRisk.READ_ONLY,
+        ),
+        "home_control" to AgentToolMetadata(
+            category = "智能家居",
+            group = ToolGroup.HOME,
+            risk = ToolRisk.MEDIUM,
+        ),
         "file_write" to AgentToolMetadata(
             category = "文件",
             group = ToolGroup.DEBUG,
