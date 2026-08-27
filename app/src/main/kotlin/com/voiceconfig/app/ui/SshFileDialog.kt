@@ -257,7 +257,10 @@ fun SshFileDialog(
                     Button(enabled = canList, onClick = { onList(currentConfig(), path.trim()) }) {
                         Text("列目录")
                     }
-                    Button(enabled = canRead, onClick = { onRead(currentConfig(), path.trim()) }) {
+                    Button(enabled = canRead, onClick = {
+                        editorPath = path.trim()
+                        onRead(currentConfig(), path.trim())
+                    }) {
                         Text("读取")
                     }
                     Button(enabled = canWrite, onClick = { onWrite(currentConfig(), path.trim(), content) }) {
