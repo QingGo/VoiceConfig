@@ -293,6 +293,11 @@ object AgentToolMetadataRegistry {
             group = ToolGroup.APP_SKILL,
             risk = ToolRisk.LOW,
         ),
+        "wechat_draft_reply" to AgentToolMetadata(
+            category = "通信技能",
+            group = ToolGroup.APP_SKILL,
+            risk = ToolRisk.LOW,
+        ),
         "file_write" to AgentToolMetadata(
             category = "文件",
             group = ToolGroup.DEBUG,

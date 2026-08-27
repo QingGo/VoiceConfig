@@ -319,6 +319,7 @@ object AppModule {
         shoppingListTool: com.voiceconfig.app.agent.ShoppingListTool,
         shoppingUpdateStatusTool: com.voiceconfig.app.agent.ShoppingUpdateStatusTool,
         luckinPrepareOrderTool: com.voiceconfig.app.agent.LuckinPrepareOrderTool,
+        wechatDraftReplyTool: com.voiceconfig.app.agent.WechatDraftReplyTool,
     ): CoreAgentPlugin = CoreAgentPlugin(
         openAppTool = openAppTool,
         findAppTool = findAppTool,
@@ -364,6 +365,7 @@ object AppModule {
         shoppingListTool = shoppingListTool,
         shoppingUpdateStatusTool = shoppingUpdateStatusTool,
         luckinPrepareOrderTool = luckinPrepareOrderTool,
+        wechatDraftReplyTool = wechatDraftReplyTool,
     )
 
     @Provides

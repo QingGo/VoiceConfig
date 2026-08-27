@@ -199,6 +199,7 @@ object AgentSkillBuilder {
         "shopping_list" -> "读取购物研究清单"
         "shopping_update_status" -> "更新购物清单状态"
         "luckin_prepare_order" -> "生成瑞幸点单确认清单"
+        "wechat_draft_reply" -> "生成微信回复草稿"
         else -> "执行 $toolName"
     }
 
@@ -235,6 +236,7 @@ object AgentSkillBuilder {
         "shopping_list" -> "返回购物清单与状态"
         "shopping_update_status" -> "清单状态已更新"
         "luckin_prepare_order" -> "返回确认清单，未下单"
+        "wechat_draft_reply" -> "返回回复草稿，未发送"
         else -> "$toolName 成功"
     }
 
@@ -271,6 +273,7 @@ object AgentSkillBuilder {
         "shopping_list" -> "若清单为空，提示先研究并保存商品"
         "shopping_update_status" -> "若找不到商品，用 shopping_list 确认 productId"
         "luckin_prepare_order" -> "若清单不完整，补充门店/饮品/规格后再生成"
+        "wechat_draft_reply" -> "若缺少上下文，向用户确认后再起草"
         else -> "若失败，重新读取当前 UI 后再尝试或向用户询问"
     }
 

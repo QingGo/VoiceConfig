@@ -56,6 +56,7 @@ class CoreAgentPlugin @Inject constructor(
     private val shoppingListTool: ShoppingListTool,
     private val shoppingUpdateStatusTool: ShoppingUpdateStatusTool,
     private val luckinPrepareOrderTool: LuckinPrepareOrderTool,
+    private val wechatDraftReplyTool: WechatDraftReplyTool,
 ) : AgentPlugin {
 
     override val id: String = "core-tools"
@@ -107,5 +108,6 @@ class CoreAgentPlugin @Inject constructor(
         shoppingListTool,
         shoppingUpdateStatusTool,
         luckinPrepareOrderTool,
+        wechatDraftReplyTool,
     )
 }

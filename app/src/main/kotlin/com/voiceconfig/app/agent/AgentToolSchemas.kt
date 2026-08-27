@@ -238,6 +238,11 @@ object AgentToolSchemas {
             "quantity" to integer("数量，默认1"),
             "price" to integer("可选预估单价"),
         )
+        "wechat_draft_reply" -> objectSchema(
+            "receiver" to string("接收人/会话对象"),
+            "context" to string("上下文或原消息摘要"),
+            "reply" to string("回复草稿内容"),
+        )
         "remote_project_inspect" -> objectSchema(
             "host" to string("节点名或 IP，可省略"),
             "path" to string("远程项目根目录绝对路径"),
