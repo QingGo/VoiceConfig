@@ -121,11 +121,14 @@ data class AgentPreflightResult(
  */
 object AgentPreflight {
 
-    private val UI_KEYWORDS = listOf(
-        "打开", "点击", "点一下", "输入", "滑动", "翻页", "返回", "发送", "回复",
-        "微信", "企业微信", "瑞幸", "咖啡", "购物", "下单", "加购", "购买", "支付",
-        "屏幕", "界面", "页面", "App", "应用", "聊天", "消息", "相册", "电话",
-        "短信", "日历", "天气", "地图", "外卖", "点餐", "扫码", "截图",
+    private val UI_CONTROL_KEYWORDS = listOf(
+        "点击", "点一下", "输入", "滑动", "翻页", "返回", "发送", "回复",
+        "聊天", "消息", "屏幕", "界面", "页面", "加购", "下单", "支付",
+        "扫码", "截图", "取消", "确认", "允许",
+    )
+
+    private val OPEN_KEYWORDS = listOf(
+        "打开", "启动", "进入", "开启",
     )
 
     private val SCHEDULE_KEYWORDS = listOf("定时", "每天", "每周", "明天", "提醒", "闹钟", "间隔")
@@ -154,16 +157,27 @@ object AgentPreflight {
             )
         }
 
-        val needsUi = UI_KEYWORDS.any { text.contains(it, ignoreCase = true) }
-        if (needsUi && !snapshot.canOpenAppReliably) {
-            blockers += AgentPreflightIssue(
-                PreflightSeverity.BLOCKER,
-                "NO_UI_CONTROL",
-                "缺少 Shizuku 或无障碍服务，无法可靠打开/操作手机应用",
+        val needsUiControl = UI_CONTROL_KEYWORDS.any { text.contains(it, ignoreCase = true) }
+        val needsOpen = OPEN_KEYWORDS.any { text.contains(it, ignoreCase = true) }
+
+        // 打开 App 可通过普通 Intent 完成，不强制阻断；但缺少 UI 通道时仍提示可能无法验证。
+        if (needsOpen && !snapshot.canOpenAppReliably) {
+            warnings += AgentPreflightIssue(
+                PreflightSeverity.WARNING,
+                "OPEN_APP_MAY_NOT_VERIFY",
+                "缺少 Shizuku/无障碍，打开应用可能无法自动验证前台结果",
             )
         }
 
-        if (needsUi && !snapshot.canSenseScreen) {
+        if (needsUiControl && !snapshot.canOpenAppReliably) {
+            blockers += AgentPreflightIssue(
+                PreflightSeverity.BLOCKER,
+                "NO_UI_CONTROL",
+                "缺少 Shizuku 或无障碍服务，无法可靠操作手机界面",
+            )
+        }
+
+        if (needsUiControl && !snapshot.canSenseScreen) {
             blockers += AgentPreflightIssue(
                 PreflightSeverity.BLOCKER,
                 "NO_SCREEN_SENSING",

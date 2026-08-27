@@ -33,14 +33,18 @@ class AgentPreflightTest {
     }
 
     @Test
-    fun `missing ui control blocks phone tasks but not remote tasks`() {
+    fun `missing ui control blocks interaction tasks but allows simple open and remote tasks`() {
         val snapshot = fullCapability.copy(
             shizukuAvailable = false,
             accessibilityEnabled = false,
         )
-        val phone = AgentPreflight.evaluate(snapshot, "打开企业微信")
-        assertFalse(phone.ready)
-        assertTrue(phone.blockers.any { it.code == "NO_UI_CONTROL" })
+        val open = AgentPreflight.evaluate(snapshot, "打开企业微信")
+        assertTrue(open.ready)
+        assertTrue(open.warnings.any { it.code == "OPEN_APP_MAY_NOT_VERIFY" })
+
+        val interact = AgentPreflight.evaluate(snapshot, "点击发送")
+        assertFalse(interact.ready)
+        assertTrue(interact.blockers.any { it.code == "NO_UI_CONTROL" })
 
         val remote = AgentPreflight.evaluate(snapshot, "在树莓派上创建一个 Web 项目")
         assertTrue(remote.ready)
