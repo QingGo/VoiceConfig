@@ -9,13 +9,21 @@ import javax.inject.Singleton
 /**
  * 生成可用于 JSch 的 SSH 密钥对。
  *
- * 优先支持 Ed25519 / ECDSA，避免旧 RSA SHA-1 算法在现代 OpenSSH 上被拒绝。
+ * 优先使用 Ed25519 / ECDSA；如果设备不支持 Ed25519，自动回退到 ECDSA。
  */
 @Singleton
 class SshKeyManager @Inject constructor(
     private val keyStore: SshKeyStore,
 ) {
     fun generate(type: String, name: String): SshManagedKey? {
+        if (type == "ED25519") {
+            return generateInternal("ED25519", name)
+                ?: generateInternal("ECDSA256", name)
+        }
+        return generateInternal(type, name)
+    }
+
+    private fun generateInternal(type: String, name: String): SshManagedKey? {
         return try {
             val jsch = JSch()
             val keyPair = when (type) {

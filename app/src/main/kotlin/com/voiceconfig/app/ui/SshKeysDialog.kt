@@ -48,7 +48,7 @@ fun SshKeysDialog(
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 Text(
-                    text = "生成现代算法密钥，避免 RSA SHA-1 被 OpenSSH 拒绝。",
+                    text = "生成现代算法密钥。优先 ECDSA；Ed25519 在部分设备上会自动回退到 ECDSA。",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
