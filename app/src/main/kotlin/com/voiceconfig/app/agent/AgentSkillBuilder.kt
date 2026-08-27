@@ -188,6 +188,10 @@ object AgentSkillBuilder {
         "notify" -> "发送通知"
         "web_search" -> "联网搜索"
         "run_shell" -> "执行 Shell 命令"
+        "remote_project_inspect" -> "识别远程项目类型与构建命令"
+        "remote_project_build" -> "构建远程项目"
+        "remote_project_test" -> "运行远程项目测试"
+        "remote_project_install" -> "安装远程项目依赖"
         else -> "执行 $toolName"
     }
 
@@ -213,6 +217,10 @@ object AgentSkillBuilder {
         "notify" -> "通知已发送"
         "web_search" -> "返回搜索结果摘要"
         "run_shell" -> "命令执行成功且输出可验证"
+        "remote_project_inspect" -> "返回 projectType/buildCommand/testCommand/installCommand"
+        "remote_project_build" -> "构建命令退出码为0"
+        "remote_project_test" -> "测试命令执行完成并返回结果"
+        "remote_project_install" -> "依赖安装命令退出码为0"
         else -> "$toolName 成功"
     }
 
@@ -238,6 +246,10 @@ object AgentSkillBuilder {
         "notify" -> "若通知失败，提示用户检查通知权限"
         "web_search" -> "若搜索无结果，更换关键词或提示用户"
         "run_shell" -> "若权限不足，提示需要 Shizuku"
+        "remote_project_inspect" -> "若识别失败，请确认远程路径存在并检查 SSH 连接"
+        "remote_project_build" -> "若构建失败，读取 stdErr 并尝试修复后再构建"
+        "remote_project_test" -> "若测试失败，输出失败用例并考虑修复循环"
+        "remote_project_install" -> "若安装失败，提示检查远程环境/网络"
         else -> "若失败，重新读取当前 UI 后再尝试或向用户询问"
     }
 
