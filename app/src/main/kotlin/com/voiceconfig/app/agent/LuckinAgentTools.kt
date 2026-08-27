@@ -80,3 +80,65 @@ class LuckinOpenTool @Inject constructor(
     override suspend fun execute(args: Map<String, Any?>): ToolResult =
         openAppTool.execute(mapOf("package" to "com.luckincoffee.android"))
 }
+
+enum class LuckinOrderStep {
+    IDLE,
+    STORE_SELECTED,
+    DRINK_SELECTED,
+    IN_CART,
+    CONFIRMED,
+    CANCELLED,
+}
+
+data class LuckinOrderSession(
+    val store: String = "",
+    val drink: String = "",
+    val size: String = "默认",
+    val sugar: String = "默认",
+    val ice: String = "默认",
+    val quantity: Int = 1,
+    val step: LuckinOrderStep = LuckinOrderStep.IDLE,
+    val confirmedAt: Long? = null,
+)
+
+@javax.inject.Singleton
+class LuckinOrderSessionManager @javax.inject.Inject constructor() {
+    private var session: LuckinOrderSession = LuckinOrderSession()
+
+    fun current(): LuckinOrderSession = session
+
+    fun selectStore(store: String): LuckinOrderSession {
+        session = session.copy(store = store, step = LuckinOrderStep.STORE_SELECTED)
+        return session
+    }
+
+    fun selectDrink(drink: String, size: String = "默认", sugar: String = "默认", ice: String = "默认"): LuckinOrderSession {
+        session = session.copy(
+            drink = drink,
+            size = size,
+            sugar = sugar,
+            ice = ice,
+            step = LuckinOrderStep.DRINK_SELECTED,
+        )
+        return session
+    }
+
+    fun addToCart(quantity: Int = 1): LuckinOrderSession {
+        session = session.copy(quantity = quantity.coerceAtLeast(1), step = LuckinOrderStep.IN_CART)
+        return session
+    }
+
+    fun confirm(): LuckinOrderSession {
+        session = session.copy(step = LuckinOrderStep.CONFIRMED, confirmedAt = System.currentTimeMillis())
+        return session
+    }
+
+    fun cancel(): LuckinOrderSession {
+        session = session.copy(step = LuckinOrderStep.CANCELLED)
+        return session
+    }
+
+    fun reset() {
+        session = LuckinOrderSession()
+    }
+}

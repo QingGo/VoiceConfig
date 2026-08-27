@@ -26,7 +26,8 @@
 
 - [x] luckin_prepare_order：生成确认清单（未下单）
 - [x] luckin_open：打开瑞幸 App
-- [ ] 选择门店 / 选饮品 / 加购
+- [x] LuckinOrderSession：门店/饮品/加购/确认状态机
+- [ ] 真实 UI 选品/加购/支付前确认
 - [ ] 支付前强制人工确认与审计
 - [ ] Skill 沉淀
 
