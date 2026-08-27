@@ -61,6 +61,8 @@ import com.voiceconfig.data.local.repository.AiDebugLogRepository
 import com.voiceconfig.data.local.repository.ExecutionLogRepository
 import com.voiceconfig.data.local.repository.RemoteNode
 import com.voiceconfig.data.local.repository.RemoteNodeRepository
+import com.voiceconfig.data.local.repository.RemoteProjectRepository
+import com.voiceconfig.data.local.repository.RemoteProjectRecord
 import com.voiceconfig.data.local.repository.TaskRepository
 import com.voiceconfig.app.remote.RemoteCommandClient
 import com.voiceconfig.app.remote.SshBootstrapClient
@@ -114,6 +116,7 @@ class MainViewModel @Inject constructor(
     private val triggerRuleRepository: TriggerRuleRepository,
     private val triggerRuleScheduler: TriggerRuleScheduler,
     private val remoteNodeRepository: RemoteNodeRepository,
+    private val remoteProjectRepository: RemoteProjectRepository,
     private val remoteCommandClient: RemoteCommandClient,
     private val sshClient: SshClient,
     private val sshBootstrapClient: SshBootstrapClient,
@@ -174,6 +177,13 @@ class MainViewModel @Inject constructor(
         )
 
     val remoteNodes: StateFlow<List<RemoteNode>> = remoteNodeRepository.observeNodes()
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5_000),
+            initialValue = emptyList(),
+        )
+
+    val remoteProjects: StateFlow<List<RemoteProjectRecord>> = remoteProjectRepository.observeProjects()
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5_000),

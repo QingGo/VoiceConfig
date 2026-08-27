@@ -52,6 +52,7 @@ import com.voiceconfig.app.ai.LocalAsrManager
 import com.voiceconfig.data.local.entity.AiDebugLogEntity
 import com.voiceconfig.core.model.TriggerRule
 import com.voiceconfig.app.ui.RemoteNodesDialog
+import com.voiceconfig.app.ui.RemoteProjectsDialog
 import com.voiceconfig.app.ui.SshConsoleDialog
 import com.voiceconfig.app.ui.SshFileDialog
 import com.voiceconfig.app.ui.SshShellDialog
@@ -111,6 +112,7 @@ fun SettingsScreen(
     var triggerTap by remember { mutableStateOf("") }
     var triggerInput by remember { mutableStateOf("") }
     var showRemoteNodes by remember { mutableStateOf(false) }
+    var showRemoteProjects by remember { mutableStateOf(false) }
     var showSshConsole by remember { mutableStateOf(false) }
     var showSshFile by remember { mutableStateOf(false) }
     var showSshShell by remember { mutableStateOf(false) }
@@ -119,6 +121,7 @@ fun SettingsScreen(
     var showSshServices by remember { mutableStateOf(false) }
     var showSshNodeLogs by remember { mutableStateOf(false) }
     val remoteNodes by viewModel.remoteNodes.collectAsState()
+    val remoteProjects by viewModel.remoteProjects.collectAsState()
     val remoteCommandResult by viewModel.remoteCommandResult.collectAsState()
     val sshResult by viewModel.sshResult.collectAsState()
     val sshBootstrapResult by viewModel.sshBootstrapResult.collectAsState()
@@ -576,6 +579,7 @@ fun SettingsScreen(
                                 viewModel.clearSshNodeLogResult()
                             })
                             RemoteToolTile("远程节点", "🖥", onClick = { showRemoteNodes = true })
+                            RemoteToolTile("远程项目", "🚀", onClick = { showRemoteProjects = true })
                         }
                     }
                 }
@@ -666,6 +670,13 @@ fun SettingsScreen(
             commandResult = remoteCommandResult,
             onExecute = viewModel::executeRemoteCommand,
             onClearResult = viewModel::clearRemoteCommandResult,
+        )
+    }
+
+    if (showRemoteProjects) {
+        RemoteProjectsDialog(
+            projects = remoteProjects,
+            onDismiss = { showRemoteProjects = false },
         )
     }
 
