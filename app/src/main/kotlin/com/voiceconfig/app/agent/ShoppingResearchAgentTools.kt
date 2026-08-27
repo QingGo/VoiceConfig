@@ -54,3 +54,31 @@ class ProductCompareTool @Inject constructor() : AgentTool {
         return ProductAnalyzer.parseProducts(json.toString())
     }
 }
+
+@Singleton
+class ProductSearchTool @Inject constructor(
+    private val deepSeekWebSearch: DeepSeekWebSearch,
+) : AgentTool {
+    override val name: String = "product_search"
+    override val description: String =
+        "搜索商品信息（多平台/价格/评价线索）。参数：{\"query\":\"搜索词\"}，返回搜索结果摘要"
+    override val metadata: AgentToolMetadata = AgentToolMetadata(
+        category = "购物研究",
+        group = ToolGroup.RESEARCH,
+        risk = ToolRisk.READ_ONLY,
+    )
+
+    override suspend fun execute(args: Map<String, Any?>): ToolResult {
+        val query = args["query"]?.toString()?.trim()?.ifBlank { null }
+            ?: return ToolResult.failure("缺少参数 query")
+        val result = deepSeekWebSearch.search(query)
+        return if (result.ok) {
+            ToolResult.success(
+                "搜索完成（${result.text.length} 字符）",
+                mapOf("query" to query, "result" to result.text),
+            )
+        } else {
+            ToolResult.failure("搜索失败：${result.error ?: "未知错误"}")
+        }
+    }
+}

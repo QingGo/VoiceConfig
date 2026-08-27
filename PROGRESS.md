@@ -46,7 +46,8 @@
 - [x] 商品结构化模型 ProductInfo
 - [x] product_compare：价格/评分/评价比较与推荐
 - [x] 长程采购清单持久化：shopping_save / shopping_list / shopping_update_status
-- [ ] 多平台真实搜索与数据获取
+- [x] product_search：基于 DeepSeek Web Search 的商品搜索入口
+- [ ] 搜索结果自动结构化提取
 
 ## Phase G：远程开发深化
 

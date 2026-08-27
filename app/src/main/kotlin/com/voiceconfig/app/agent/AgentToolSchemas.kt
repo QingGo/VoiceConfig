@@ -217,6 +217,9 @@ object AgentToolSchemas {
         "product_compare" -> objectSchema(
             "products" to string("商品 JSON 数组字符串，每项含 title/platform/price/rating/reviewCount 等"),
         )
+        "product_search" -> objectSchema(
+            "query" to string("商品搜索关键词，例如：婴儿奶粉 京东 价格"),
+        )
         "shopping_save" -> objectSchema(
             "products" to string("商品 JSON 数组字符串"),
             "status" to string("WATCH/RECOMMENDED/BOUGHT"),

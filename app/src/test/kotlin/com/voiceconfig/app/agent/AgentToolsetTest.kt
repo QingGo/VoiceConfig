@@ -38,6 +38,7 @@ class AgentToolsetTest {
         assertEquals(ToolGroup.HOME, AgentToolMetadataRegistry.of("home_control").group)
         assertEquals(ToolGroup.RESEARCH, AgentToolMetadataRegistry.of("web_search").group)
         assertEquals(ToolGroup.RESEARCH, AgentToolMetadataRegistry.of("product_compare").group)
+        assertEquals(ToolGroup.RESEARCH, AgentToolMetadataRegistry.of("product_search").group)
         assertEquals(ToolGroup.RESEARCH, AgentToolMetadataRegistry.of("shopping_save").group)
         assertEquals(ToolGroup.RESEARCH, AgentToolMetadataRegistry.of("shopping_list").group)
         assertEquals(ToolGroup.APP_SKILL, AgentToolMetadataRegistry.of("luckin_prepare_order").group)

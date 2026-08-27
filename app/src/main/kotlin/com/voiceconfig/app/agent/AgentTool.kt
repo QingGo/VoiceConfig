@@ -273,6 +273,11 @@ object AgentToolMetadataRegistry {
             group = ToolGroup.RESEARCH,
             risk = ToolRisk.READ_ONLY,
         ),
+        "product_search" to AgentToolMetadata(
+            category = "购物研究",
+            group = ToolGroup.RESEARCH,
+            risk = ToolRisk.READ_ONLY,
+        ),
         "shopping_save" to AgentToolMetadata(
             category = "购物研究",
             group = ToolGroup.RESEARCH,
