@@ -49,7 +49,8 @@
 ## Phase G：远程开发深化
 
 - [x] RemoteProject 工具：inspect/build/test/install
-- [ ] RemoteProject 持久化与自动识别工作区
+- [x] RemoteProject 持久化：Room 表 + Repository + inspect 自动保存
+- [ ] 自动识别工作区（多项目聚合界面）
 - [ ] 自动修复循环
 
 ## Phase H：语音闭环

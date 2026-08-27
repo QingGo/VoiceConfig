@@ -17,6 +17,7 @@ import com.voiceconfig.data.local.dao.TaskDao
 import com.voiceconfig.data.local.dao.TriggerRuleDao
 import com.voiceconfig.data.local.dao.TemplateDao
 import com.voiceconfig.data.local.dao.RemoteNodeDao
+import com.voiceconfig.data.local.dao.RemoteProjectDao
 import com.voiceconfig.data.local.dao.TaskEventDao
 import com.voiceconfig.data.local.entity.AgentMessageEntity
 import com.voiceconfig.data.local.entity.AgentRunRecordEntity
@@ -30,6 +31,7 @@ import com.voiceconfig.data.local.entity.ExecutionLogEntity
 import com.voiceconfig.data.local.entity.TaskEntity
 import com.voiceconfig.data.local.entity.TemplateEntity
 import com.voiceconfig.data.local.entity.RemoteNodeEntity
+import com.voiceconfig.data.local.entity.RemoteProjectEntity
 import com.voiceconfig.data.local.entity.TaskEventEntity
 import com.voiceconfig.data.local.entity.TriggerRuleEntity
 
@@ -50,8 +52,9 @@ import com.voiceconfig.data.local.entity.TriggerRuleEntity
         TaskPlanEntity::class,
         TaskPlanStepEntity::class,
         RemoteNodeEntity::class,
+        RemoteProjectEntity::class,
     ],
-    version = 19,
+    version = 20,
     exportSchema = false,
 )
 abstract class VoiceConfigDatabase : RoomDatabase() {
@@ -68,6 +71,7 @@ abstract class VoiceConfigDatabase : RoomDatabase() {
     abstract fun taskEventDao(): TaskEventDao
     abstract fun taskPlanDao(): TaskPlanDao
     abstract fun remoteNodeDao(): RemoteNodeDao
+    abstract fun remoteProjectDao(): RemoteProjectDao
 
     companion object {
         val MIGRATION_1_2 = object : Migration(1, 2) {
@@ -360,6 +364,30 @@ abstract class VoiceConfigDatabase : RoomDatabase() {
                 db.execSQL("ALTER TABLE `agent_run_records` ADD COLUMN `safetyApprovals` INTEGER NOT NULL DEFAULT 0")
                 db.execSQL("ALTER TABLE `agent_run_records` ADD COLUMN `safetyDenials` INTEGER NOT NULL DEFAULT 0")
                 db.execSQL("ALTER TABLE `agent_run_records` ADD COLUMN `safetyBlocks` INTEGER NOT NULL DEFAULT 0")
+            }
+        }
+
+        val MIGRATION_19_20 = object : Migration(19, 20) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS `remote_projects` (
+                        `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        `projectId` TEXT NOT NULL,
+                        `nodeHost` TEXT NOT NULL,
+                        `name` TEXT NOT NULL,
+                        `rootPath` TEXT NOT NULL,
+                        `repoType` TEXT NOT NULL,
+                        `buildCommand` TEXT,
+                        `testCommand` TEXT,
+                        `installCommand` TEXT,
+                        `createdAtEpochMillis` INTEGER NOT NULL,
+                        `updatedAtEpochMillis` INTEGER NOT NULL
+                    )
+                    """.trimIndent(),
+                )
+                db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_remote_projects_projectId` ON `remote_projects` (`projectId`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_remote_projects_rootPath` ON `remote_projects` (`rootPath`)")
             }
         }
 

@@ -1,5 +1,7 @@
 package com.voiceconfig.app.agent
 
+import com.voiceconfig.data.local.repository.RemoteProjectRecord
+import com.voiceconfig.data.local.repository.RemoteProjectRepository
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -74,6 +76,7 @@ object RemoteProjectDetector {
 @Singleton
 class RemoteProjectInspectTool @Inject constructor(
     private val service: RemoteSshAgentService,
+    private val repository: RemoteProjectRepository,
 ) : AgentTool {
     override val name: String = "remote_project_inspect"
     override val description: String =
@@ -98,11 +101,30 @@ class RemoteProjectInspectTool @Inject constructor(
                 mapOf("host" to result.data["host"], "path" to path, "detected" to type),
             )
         }
+        val host = result.data["host"]?.toString() ?: args["host"]?.toString() ?: "default"
+        val projectId = repository.getByPath(path, host)?.projectId
+            ?: "rp_${host}_${path.hashCode()}"
+        val name = path.trimEnd('/').substringAfterLast('/').ifBlank { path }
+        runCatching {
+            repository.save(
+                RemoteProjectRecord(
+                    projectId = projectId,
+                    nodeHost = host,
+                    name = name,
+                    rootPath = path,
+                    repoType = info.type.name,
+                    buildCommand = info.buildCommand,
+                    testCommand = info.testCommand,
+                    installCommand = info.installCommand,
+                ),
+            )
+        }
         return ToolResult.success(
-            "已识别远程项目：${info.type}（$path）",
+            "已识别远程项目：${info.type}（$path），已保存 projectId=$projectId",
             mapOf(
-                "host" to result.data["host"],
+                "host" to host,
                 "path" to path,
+                "projectId" to projectId,
                 "projectType" to info.type.name,
                 "buildCommand" to info.buildCommand,
                 "testCommand" to info.testCommand,
@@ -116,10 +138,11 @@ class RemoteProjectInspectTool @Inject constructor(
 @Singleton
 class RemoteProjectBuildTool @Inject constructor(
     private val service: RemoteSshAgentService,
+    private val repository: RemoteProjectRepository,
 ) : AgentTool {
     override val name: String = "remote_project_build"
     override val description: String =
-        "构建远程项目。参数：{\"host\":\"节点名或IP，可省略\",\"path\":\"/远程项目根目录\",\"command\":\"可选，覆盖自动识别的构建命令\"}"
+        "构建远程项目。参数：{\"host\":\"节点名或IP，可省略\",\"path\":\"/远程项目根目录\",\"projectId\":\"已保存项目ID，可省略\",\"command\":\"可选，覆盖自动识别的构建命令\"}"
     override val metadata: AgentToolMetadata = AgentToolMetadata(
         category = "远程开发",
         group = ToolGroup.REMOTE,
@@ -127,23 +150,23 @@ class RemoteProjectBuildTool @Inject constructor(
     )
 
     override suspend fun execute(args: Map<String, Any?>): ToolResult {
-        val path = (args["path"]?.toString()?.trim().orEmpty())
-            .ifBlank { return ToolResult.failure("缺少参数 path") }
-        val host = args["host"]?.toString()
+        val ctx = resolveProjectContext(repository, service, args)
+            ?: return ToolResult.failure("缺少 path 或 projectId，或项目未保存")
         val explicit = args["command"]?.toString()?.trim()?.ifBlank { null }
-        val command = explicit ?: detectInfo(service, host, path).buildCommand
+        val command = explicit ?: ctx.info.buildCommand
             ?: return ToolResult.failure("无法确定该项目的构建命令，请先 remote_project_inspect 或显式传 command")
-        return service.exec(host, "cd ${shellSingleQuote(path)} && $command")
+        return service.exec(ctx.host, "cd ${shellSingleQuote(ctx.path)} && $command")
     }
 }
 
 @Singleton
 class RemoteProjectTestTool @Inject constructor(
     private val service: RemoteSshAgentService,
+    private val repository: RemoteProjectRepository,
 ) : AgentTool {
     override val name: String = "remote_project_test"
     override val description: String =
-        "运行远程项目测试。参数：{\"host\":\"节点名或IP，可省略\",\"path\":\"/远程项目根目录\",\"command\":\"可选，覆盖自动识别的测试命令\"}"
+        "运行远程项目测试。参数：{\"host\":\"节点名或IP，可省略\",\"path\":\"/远程项目根目录\",\"projectId\":\"已保存项目ID，可省略\",\"command\":\"可选，覆盖自动识别的测试命令\"}"
     override val metadata: AgentToolMetadata = AgentToolMetadata(
         category = "远程开发",
         group = ToolGroup.REMOTE,
@@ -151,23 +174,23 @@ class RemoteProjectTestTool @Inject constructor(
     )
 
     override suspend fun execute(args: Map<String, Any?>): ToolResult {
-        val path = (args["path"]?.toString()?.trim().orEmpty())
-            .ifBlank { return ToolResult.failure("缺少参数 path") }
-        val host = args["host"]?.toString()
+        val ctx = resolveProjectContext(repository, service, args)
+            ?: return ToolResult.failure("缺少 path 或 projectId，或项目未保存")
         val explicit = args["command"]?.toString()?.trim()?.ifBlank { null }
-        val command = explicit ?: detectInfo(service, host, path).testCommand
+        val command = explicit ?: ctx.info.testCommand
             ?: return ToolResult.failure("无法确定该项目的测试命令，请先 remote_project_inspect 或显式传 command")
-        return service.exec(host, "cd ${shellSingleQuote(path)} && $command")
+        return service.exec(ctx.host, "cd ${shellSingleQuote(ctx.path)} && $command")
     }
 }
 
 @Singleton
 class RemoteProjectInstallTool @Inject constructor(
     private val service: RemoteSshAgentService,
+    private val repository: RemoteProjectRepository,
 ) : AgentTool {
     override val name: String = "remote_project_install"
     override val description: String =
-        "安装远程项目依赖（会影响远程环境，默认需人工确认）。参数：{\"host\":\"节点名或IP，可省略\",\"path\":\"/远程项目根目录\",\"command\":\"可选，覆盖自动识别的安装命令\"}"
+        "安装远程项目依赖（会影响远程环境，默认需人工确认）。参数：{\"host\":\"节点名或IP，可省略\",\"path\":\"/远程项目根目录\",\"projectId\":\"已保存项目ID，可省略\",\"command\":\"可选，覆盖自动识别的安装命令\"}"
     override val metadata: AgentToolMetadata = AgentToolMetadata(
         category = "远程开发",
         group = ToolGroup.REMOTE,
@@ -176,13 +199,12 @@ class RemoteProjectInstallTool @Inject constructor(
     )
 
     override suspend fun execute(args: Map<String, Any?>): ToolResult {
-        val path = (args["path"]?.toString()?.trim().orEmpty())
-            .ifBlank { return ToolResult.failure("缺少参数 path") }
-        val host = args["host"]?.toString()
+        val ctx = resolveProjectContext(repository, service, args)
+            ?: return ToolResult.failure("缺少 path 或 projectId，或项目未保存")
         val explicit = args["command"]?.toString()?.trim()?.ifBlank { null }
-        val command = explicit ?: detectInfo(service, host, path).installCommand
+        val command = explicit ?: ctx.info.installCommand
             ?: return ToolResult.failure("无法确定该项目的安装命令，请先 remote_project_inspect 或显式传 command")
-        return service.exec(host, "cd ${shellSingleQuote(path)} && $command")
+        return service.exec(ctx.host, "cd ${shellSingleQuote(ctx.path)} && $command")
     }
 }
 
@@ -215,4 +237,28 @@ private suspend fun detectInfo(
     val result = service.exec(host, probeCommand(path))
     val stdout = result.data["stdout"]?.toString().orEmpty()
     return RemoteProjectDetector.detect(stdout.lines().lastOrNull()?.trim().orEmpty())
+}
+
+private data class ResolvedProject(
+    val host: String?,
+    val path: String,
+    val info: RemoteProjectInfo,
+)
+
+private suspend fun resolveProjectContext(
+    repository: RemoteProjectRepository,
+    service: RemoteSshAgentService,
+    args: Map<String, Any?>,
+): ResolvedProject? {
+    val projectId = args["projectId"]?.toString()?.trim()?.takeIf { it.isNotBlank() }
+    val saved = projectId?.let { repository.getByProjectId(it) }
+    val host = saved?.nodeHost ?: args["host"]?.toString()
+    val path = saved?.rootPath ?: args["path"]?.toString()?.trim().orEmpty()
+    if (path.isBlank()) return null
+    val info = if (saved != null) {
+        RemoteProjectDetector.detect(saved.repoType)
+    } else {
+        detectInfo(service, host, path)
+    }
+    return ResolvedProject(host, path, info)
 }
