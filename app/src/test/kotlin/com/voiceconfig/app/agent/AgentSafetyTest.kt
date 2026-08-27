@@ -73,6 +73,14 @@ class AgentSafetyTest {
     }
 
     @Test
+    fun `home security devices require confirmation`() {
+        assertTrue(safety.requiresConfirmation("home_control", mapOf("domain" to "lock", "service" to "unlock")))
+        assertTrue(safety.requiresConfirmation("home_control", mapOf("domain" to "camera", "service" to "turn_on")))
+        assertFalse(safety.requiresConfirmation("home_control", mapOf("domain" to "climate", "service" to "set_temperature")))
+        assertFalse(safety.requiresConfirmation("home_control", mapOf("domain" to "light", "service" to "turn_on")))
+    }
+
+    @Test
     fun `sensitive metadata tools confirm without keyword hit`() {
         val tool = object : AgentTool {
             override val name: String = "remote_ssh_exec"

@@ -57,7 +57,16 @@ class AgentSafety {
             )
         }
 
-        // 2. 工具元数据明确标记敏感：必须先确认。
+        // 2. 智能家居安全域设备（门锁/摄像头/安防）必须人工确认。
+        if (toolName == "home_control" && isHomeSecurityDomain(args)) {
+            return SafetyDecision(
+                level = SafetyLevel.CONFIRM,
+                requiresConfirmation = true,
+                reason = "智能家居安全域设备需要人工确认",
+            )
+        }
+
+        // 3. 工具元数据明确标记敏感：必须先确认。
         if (metadata.sensitive || metadata.risk == ToolRisk.SENSITIVE || metadata.risk == ToolRisk.HIGH) {
             return SafetyDecision(
                 level = SafetyLevel.CONFIRM,
@@ -129,7 +138,20 @@ class AgentSafety {
         }
     }
 
+    private fun isHomeSecurityDomain(args: Map<String, Any?>): Boolean {
+        val domain = args["domain"]?.toString()?.lowercase().orEmpty()
+        return domain in HOME_SECURITY_DOMAINS
+    }
+
     private companion object {
+        val HOME_SECURITY_DOMAINS = setOf(
+            "lock",
+            "camera",
+            "alarm_control_panel",
+            "siren",
+            "security",
+        )
+
         val CONFIRMABLE_UI_TOOLS = setOf(
             "tap_text", "tap", "input_text", "swipe", "open_app", "open_file",
         )
