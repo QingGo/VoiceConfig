@@ -39,6 +39,19 @@ class ShoppingResearchTest {
     }
 
     @Test
+    fun `parse flexible products from object with products array`() {
+        val json = """
+            {"products":[
+              {"id":"x1","title":"A","platform":"JD","price":10},
+              {"id":"x2","title":"B","platform":"TB","price":9}
+            ]}
+        """.trimIndent()
+        val products = ProductAnalyzer.parseProductsFlexible(json)
+        assertEquals(2, products.size)
+        assertEquals("x2", products[1].id)
+    }
+
+    @Test
     fun `product compare tool rejects empty products`() = runBlocking {
         val tool = ProductCompareTool()
         val result = tool.execute(mapOf("products" to "[]"))

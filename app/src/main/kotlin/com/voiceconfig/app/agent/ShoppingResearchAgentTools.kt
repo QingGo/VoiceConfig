@@ -82,3 +82,32 @@ class ProductSearchTool @Inject constructor(
         }
     }
 }
+
+@Singleton
+class ProductExtractTool @Inject constructor(
+    private val chat: AgentChat,
+) : AgentTool {
+    override val name: String = "product_extract"
+    override val description: String =
+        "从搜索文本中提取结构化商品信息（ProductInfo JSON）。参数：{\"text\":\"搜索/比价原文\"}"
+    override val metadata: AgentToolMetadata = AgentToolMetadata(
+        category = "购物研究",
+        group = ToolGroup.RESEARCH,
+        risk = ToolRisk.READ_ONLY,
+    )
+
+    override suspend fun execute(args: Map<String, Any?>): ToolResult {
+        val text = args["text"]?.toString()?.trim()?.ifBlank { null }
+            ?: return ToolResult.failure("缺少参数 text")
+        val system = "你是一个商品信息提取器。请从用户提供的文本中提取所有商品信息，输出严格 JSON：{\"products\":[{\"id\":\"唯一ID\",\"title\":\"标题\",\"platform\":\"平台\",\"price\":数字,\"originalPrice\":数字或null,\"rating\":数字或null,\"reviewCount\":整数或null,\"sales\":整数或null,\"tags\":[\"标签\"],\"url\":\"\"}]}。不要输出其他内容。"
+        val output = runCatching {
+            chat.complete(system, listOf(AgentMessage("user", text)))
+        }.getOrNull() ?: return ToolResult.failure("结构化提取失败：模型未返回结果")
+        val products = ProductAnalyzer.parseProductsFlexible(output)
+        if (products.isEmpty()) return ToolResult.failure("未能从文本中提取到商品")
+        return ToolResult.success(
+            "已提取 ${products.size} 个商品",
+            mapOf("products" to products, "count" to products.size),
+        )
+    }
+}

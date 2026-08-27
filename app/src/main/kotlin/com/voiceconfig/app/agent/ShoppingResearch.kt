@@ -41,6 +41,16 @@ object ProductAnalyzer {
         )
     }
 
+    fun parseProductsFlexible(json: String): List<ProductInfo> {
+        val trimmed = json.trim()
+        if (trimmed.startsWith("[")) return parseProducts(trimmed)
+        return runCatching {
+            val root = JSONObject(trimmed)
+            val arr = root.optJSONArray("products") ?: return emptyList()
+            parseProducts(arr.toString())
+        }.getOrDefault(emptyList())
+    }
+
     fun parseProducts(json: String): List<ProductInfo> {
         val arr = runCatching { JSONArray(json) }.getOrElse { return emptyList() }
         return buildList {

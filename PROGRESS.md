@@ -47,7 +47,7 @@
 - [x] product_compare：价格/评分/评价比较与推荐
 - [x] 长程采购清单持久化：shopping_save / shopping_list / shopping_update_status
 - [x] product_search：基于 DeepSeek Web Search 的商品搜索入口
-- [ ] 搜索结果自动结构化提取
+- [x] product_extract：从搜索文本提取结构化 ProductInfo
 
 ## Phase G：远程开发深化
 

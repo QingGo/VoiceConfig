@@ -220,6 +220,9 @@ object AgentToolSchemas {
         "product_search" -> objectSchema(
             "query" to string("商品搜索关键词，例如：婴儿奶粉 京东 价格"),
         )
+        "product_extract" -> objectSchema(
+            "text" to string("原始搜索/比价文本"),
+        )
         "shopping_save" -> objectSchema(
             "products" to string("商品 JSON 数组字符串"),
             "status" to string("WATCH/RECOMMENDED/BOUGHT"),
