@@ -58,7 +58,7 @@
 - [x] RemoteProject 持久化：Room 表 + Repository + inspect 自动保存
 - [x] 远程项目工作区界面：设置页可查看已保存项目
 - [x] remote_project_verify：自动构建+测试验证
-- [ ] 自动修复循环（模型读取 stderr 后修复）
+- [x] 自动修复循环：Agent 通过 stderr + remote_ssh_write + verify 闭环
 
 ## Phase H：语音闭环
 
