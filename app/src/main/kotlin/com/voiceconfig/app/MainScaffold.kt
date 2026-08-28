@@ -625,6 +625,16 @@ fun MainScreen(viewModel: MainViewModel) {
                     snackbarHostState.showSnackbar("已清空购物研究")
                 }
             },
+            onExport = {
+                val text = shoppingItems.joinToString("\\n") { item ->
+                    "${item.title} | ${item.platform} | ¥${item.price} | 评分${item.rating ?: "无"} | ${item.status}"
+                }
+                val clipboard = context.getSystemService(ClipboardManager::class.java)
+                clipboard?.setPrimaryClip(ClipData.newPlainText("购物研究清单", text))
+                scope.launch {
+                    snackbarHostState.showSnackbar("已复制购物研究清单")
+                }
+            },
         )
     }
     if (showHomeAssistantPage) {

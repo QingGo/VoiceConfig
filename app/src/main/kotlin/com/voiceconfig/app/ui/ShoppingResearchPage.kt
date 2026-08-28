@@ -48,6 +48,7 @@ fun ShoppingResearchPage(
     onDelete: (String) -> Unit,
     onStartResearch: () -> Unit,
     onClearAll: () -> Unit = {},
+    onExport: () -> Unit = {},
 ) {
     var filter by remember { mutableStateOf<String?>(null) }
     var search by remember { mutableStateOf("") }
@@ -77,6 +78,9 @@ fun ShoppingResearchPage(
                     )
                 }
                 if (items.isNotEmpty()) {
+                    TextButton(onClick = onExport) {
+                        Text("导出")
+                    }
                     TextButton(onClick = { showClearDialog = true }) {
                         Text("清空")
                     }
