@@ -1,8 +1,13 @@
 package com.voiceconfig.app
 
+import android.Manifest
+import android.content.pm.PackageManager
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.platform.LocalContext
 import com.voiceconfig.app.ui.VoiceSectionCard
 
 @Composable
@@ -14,6 +19,14 @@ internal fun VoiceSettingsSection(
     wakeWordEnabled: Boolean,
     onWakeWordEnabledChange: (Boolean) -> Unit,
 ) {
+    val context = LocalContext.current
+    val audioPermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission(),
+    ) { granted ->
+        if (granted) {
+            onWakeWordEnabledChange(true)
+        }
+    }
     VoiceSectionCard(title = "语音", defaultExpanded = false) {
         SwitchRow(
             title = "语音输入后自动发送",
@@ -31,7 +44,18 @@ internal fun VoiceSettingsSection(
             title = "语音唤醒",
             subtitle = "不打开 App 也能说“言控”唤醒；需要麦克风权限",
             checked = wakeWordEnabled,
-            onCheckedChange = onWakeWordEnabledChange,
+            onCheckedChange = { enabled ->
+                if (!enabled) {
+                    onWakeWordEnabledChange(false)
+                } else {
+                    val granted = context.checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
+                    if (granted) {
+                        onWakeWordEnabledChange(true)
+                    } else {
+                        audioPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+                    }
+                }
+            },
         )
         Text(
             text = "唤醒词：言控 / 你好言控",
