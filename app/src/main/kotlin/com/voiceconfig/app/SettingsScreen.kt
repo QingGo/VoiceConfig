@@ -105,9 +105,6 @@ fun SettingsScreen(
 
     var draftApiKey by remember { mutableStateOf(deepSeekApiKey) }
     var draftModel by remember { mutableStateOf(deepSeekModel) }
-    var draftAgentAutoConfirmSensitiveActions by remember { mutableStateOf(agentAutoConfirmSensitiveActions) }
-    var draftAgentAutoVerifyEnabled by remember { mutableStateOf(agentAutoVerifyEnabled) }
-    var draftAgentMaxAutoVerifies by remember { mutableStateOf(agentMaxAutoVerifies) }
     var draftHaBaseUrl by remember { mutableStateOf(homeAssistantBaseUrl) }
     var draftHaToken by remember { mutableStateOf(homeAssistantToken) }
     var showModelEditor by remember { mutableStateOf(false) }
@@ -197,18 +194,8 @@ fun SettingsScreen(
                     style = MaterialTheme.typography.titleLarge,
                     modifier = Modifier.weight(1f),
                 )
-                TextButton(
-                    onClick = {
-                        viewModel.setDeepSeekApiKey(draftApiKey)
-                        viewModel.setDeepSeekModel(draftModel)
-                        viewModel.setAgentAutoConfirmSensitiveActions(draftAgentAutoConfirmSensitiveActions)
-                        viewModel.setAgentAutoVerifyEnabled(draftAgentAutoVerifyEnabled)
-                        viewModel.setAgentMaxAutoVerifies(draftAgentMaxAutoVerifies)
-                        viewModel.saveHomeAssistantConfig(draftHaBaseUrl, draftHaToken)
-                        onClose()
-                    },
-                ) {
-                    Text("保存")
+                TextButton(onClick = onClose) {
+                    Text("完成")
                 }
             }
 
@@ -289,7 +276,10 @@ fun SettingsScreen(
                         if (showModelEditor) {
                             OutlinedTextField(
                                 value = draftApiKey,
-                                onValueChange = { draftApiKey = it },
+                                onValueChange = {
+                                    draftApiKey = it
+                                    viewModel.setDeepSeekApiKey(it)
+                                },
                                 modifier = Modifier.fillMaxWidth(),
                                 label = { Text("DeepSeek API Key") },
                                 singleLine = true,
@@ -302,7 +292,10 @@ fun SettingsScreen(
                             )
                             OutlinedTextField(
                                 value = draftModel,
-                                onValueChange = { draftModel = it },
+                                onValueChange = {
+                                    draftModel = it
+                                    viewModel.setDeepSeekModel(it)
+                                },
                                 modifier = Modifier.fillMaxWidth(),
                                 label = { Text("模型（默认 deepseek-v4-flash-vision-exp）") },
                                 singleLine = true,
@@ -316,14 +309,14 @@ fun SettingsScreen(
                         SwitchRow(
                             title = "敏感操作自动执行",
                             subtitle = "开启后 Agent 不再弹出确认，直接执行发送/支付/删除等操作；建议仅测试或信任场景使用",
-                            checked = draftAgentAutoConfirmSensitiveActions,
-                            onCheckedChange = { draftAgentAutoConfirmSensitiveActions = it },
+                            checked = agentAutoConfirmSensitiveActions,
+                            onCheckedChange = viewModel::setAgentAutoConfirmSensitiveActions,
                         )
                         SwitchRow(
                             title = "自动截屏验证",
                             subtitle = "开启后每次改变界面的工具执行后自动截屏确认",
-                            checked = draftAgentAutoVerifyEnabled,
-                            onCheckedChange = { draftAgentAutoVerifyEnabled = it },
+                            checked = agentAutoVerifyEnabled,
+                            onCheckedChange = viewModel::setAgentAutoVerifyEnabled,
                         )
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text(
@@ -331,15 +324,15 @@ fun SettingsScreen(
                                 style = MaterialTheme.typography.bodyMedium,
                                 modifier = Modifier.weight(1f),
                             )
-                            TextButton(onClick = { draftAgentMaxAutoVerifies = (draftAgentMaxAutoVerifies - 1).coerceAtLeast(0) }) {
+                            TextButton(onClick = { viewModel.setAgentMaxAutoVerifies((agentMaxAutoVerifies - 1).coerceAtLeast(0)) }) {
                                 Text("-")
                             }
                             Text(
-                                text = draftAgentMaxAutoVerifies.toString(),
+                                text = agentMaxAutoVerifies.toString(),
                                 style = MaterialTheme.typography.bodyMedium,
                                 modifier = Modifier.padding(horizontal = 12.dp),
                             )
-                            TextButton(onClick = { draftAgentMaxAutoVerifies = (draftAgentMaxAutoVerifies + 1).coerceAtMost(20) }) {
+                            TextButton(onClick = { viewModel.setAgentMaxAutoVerifies((agentMaxAutoVerifies + 1).coerceAtMost(20)) }) {
                                 Text("+")
                             }
                         }
@@ -355,7 +348,10 @@ fun SettingsScreen(
                         )
                         OutlinedTextField(
                             value = draftHaBaseUrl,
-                            onValueChange = { draftHaBaseUrl = it },
+                            onValueChange = {
+                                draftHaBaseUrl = it
+                                viewModel.saveHomeAssistantConfig(it, draftHaToken)
+                            },
                             modifier = Modifier.fillMaxWidth(),
                             label = { Text("Home Assistant Base URL") },
                             placeholder = { Text("http://192.168.1.100:8123") },
@@ -363,7 +359,10 @@ fun SettingsScreen(
                         )
                         OutlinedTextField(
                             value = draftHaToken,
-                            onValueChange = { draftHaToken = it },
+                            onValueChange = {
+                                draftHaToken = it
+                                viewModel.saveHomeAssistantConfig(draftHaBaseUrl, it)
+                            },
                             modifier = Modifier.fillMaxWidth(),
                             label = { Text("长期访问令牌 (Long-Lived Access Token)") },
                             singleLine = true,

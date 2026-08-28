@@ -91,12 +91,21 @@ fun OnboardingScreen(onFinish: () -> Unit) {
     val current = onboardingSteps[step]
     val isLast = step == onboardingSteps.lastIndex
     val context = LocalContext.current
-    val notificationLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.RequestPermission(),
-    ) {}
     val audioLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission(),
-    ) {}
+    ) { _ ->
+        if (isLast) onFinish() else step++
+    }
+    val notificationLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission(),
+    ) { _ ->
+        val micGranted = context.checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
+        if (!micGranted) {
+            audioLauncher.launch(Manifest.permission.RECORD_AUDIO)
+        } else {
+            if (isLast) onFinish() else step++
+        }
+    }
 
     Column(
         modifier = Modifier
@@ -200,15 +209,20 @@ fun OnboardingScreen(onFinish: () -> Unit) {
         Button(
             onClick = {
                 if (step == 1) {
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                        notificationLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                    val notifGranted = Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
+                        context.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
+                    val micGranted = context.checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
+                    when {
+                        !notifGranted -> notificationLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                        !micGranted -> audioLauncher.launch(Manifest.permission.RECORD_AUDIO)
+                        else -> if (isLast) onFinish() else step++
                     }
-                    audioLauncher.launch(Manifest.permission.RECORD_AUDIO)
-                }
-                if (isLast) {
-                    onFinish()
                 } else {
-                    step++
+                    if (isLast) {
+                        onFinish()
+                    } else {
+                        step++
+                    }
                 }
             },
             modifier = Modifier
