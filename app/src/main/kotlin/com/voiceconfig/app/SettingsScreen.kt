@@ -236,62 +236,24 @@ fun SettingsScreen(
                 }
 
                 item {
-                    SettingsSectionCard(title = "模型与密钥", defaultExpanded = true) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    text = if (deepSeekApiKey.isBlank()) "未配置" else "已配置",
-                                    style = MaterialTheme.typography.bodyLarge,
-                                    color = if (deepSeekApiKey.isBlank()) {
-                                        MaterialTheme.colorScheme.error
-                                    } else {
-                                        MaterialTheme.colorScheme.primary
-                                    },
-                                )
-                                if (deepSeekApiKey.isNotBlank()) {
-                                    Text(
-                                        text = deepSeekModel.ifBlank { "deepseek-v4-flash-vision-exp" },
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    )
-                                }
-                            }
-                            TextButton(onClick = { showModelEditor = !showModelEditor }) {
-                                Text(if (showModelEditor) "收起" else "编辑")
-                            }
-                        }
-                        if (showModelEditor) {
-                            OutlinedTextField(
-                                value = draftApiKey,
-                                onValueChange = {
-                                    draftApiKey = it
-                                    viewModel.setDeepSeekApiKey(it)
-                                },
-                                modifier = Modifier.fillMaxWidth(),
-                                label = { Text("DeepSeek API Key") },
-                                singleLine = true,
-                                visualTransformation = if (showApiKey) VisualTransformation.None else PasswordVisualTransformation(),
-                                trailingIcon = {
-                                    TextButton(onClick = { showApiKey = !showApiKey }) {
-                                        Text(if (showApiKey) "隐藏" else "显示")
-                                    }
-                                },
-                            )
-                            OutlinedTextField(
-                                value = draftModel,
-                                onValueChange = {
-                                    draftModel = it
-                                    viewModel.setDeepSeekModel(it)
-                                },
-                                modifier = Modifier.fillMaxWidth(),
-                                label = { Text("模型（默认 deepseek-v4-flash-vision-exp）") },
-                                singleLine = true,
-                            )
-                        }
-                    }
+                    ModelSettingsSection(
+                        isConfigured = deepSeekApiKey.isNotBlank(),
+                        currentModel = deepSeekModel,
+                        draftApiKey = draftApiKey,
+                        onDraftApiKeyChange = {
+                            draftApiKey = it
+                            viewModel.setDeepSeekApiKey(it)
+                        },
+                        draftModel = draftModel,
+                        onDraftModelChange = {
+                            draftModel = it
+                            viewModel.setDeepSeekModel(it)
+                        },
+                        showEditor = showModelEditor,
+                        onShowEditorChange = { showModelEditor = it },
+                        showKey = showApiKey,
+                        onShowKeyChange = { showApiKey = it },
+                    )
                 }
 
                 item {
