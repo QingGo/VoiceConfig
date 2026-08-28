@@ -260,7 +260,7 @@ fun AgentPage(
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            text = "还差 1 项设置",
+                            text = "大模型未配置",
                             style = MaterialTheme.typography.titleSmall,
                         )
                         Text(
