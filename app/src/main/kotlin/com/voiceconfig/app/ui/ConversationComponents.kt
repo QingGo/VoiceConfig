@@ -276,6 +276,7 @@ internal fun ConversationTab(
     onVoiceInput: () -> Unit = {},
     isListening: Boolean = false,
     onOpenShopping: () -> Unit = {},
+    onClearAllSessions: () -> Unit = {},
     onSend: () -> Unit,
     onStop: () -> Unit,
     onNewSession: () -> Unit = {},
@@ -303,6 +304,7 @@ internal fun ConversationTab(
     var clearTarget by remember { mutableStateOf<AgentSessionEntity?>(null) }
     var showHistory by remember { mutableStateOf(false) }
     var historySearch by remember { mutableStateOf("") }
+    var showClearHistoryDialog by remember { mutableStateOf(false) }
 
     Column(modifier = Modifier.fillMaxSize()) {
         if (selectedSessionId == null) {
@@ -349,6 +351,11 @@ internal fun ConversationTab(
                                 )
                                 Spacer(modifier = Modifier.width(4.dp))
                                 Text("返回")
+                            }
+                            if (sessions.isNotEmpty()) {
+                                TextButton(onClick = { showClearHistoryDialog = true }) {
+                                    Text("清空", color = MaterialTheme.colorScheme.error)
+                                }
                             }
                             Spacer(modifier = Modifier.weight(1f))
                             Text(
@@ -437,6 +444,25 @@ internal fun ConversationTab(
                 isListening = isListening,
             )
         }
+    }
+
+    if (showClearHistoryDialog) {
+        AlertDialog(
+            onDismissRequest = { showClearHistoryDialog = false },
+            title = { Text("清空历史会话") },
+            text = { Text("将删除全部会话、消息、步骤和任务事件，且不可恢复。") },
+            confirmButton = {
+                TextButton(onClick = {
+                    onClearAllSessions()
+                    showClearHistoryDialog = false
+                    showHistory = false
+                    historySearch = ""
+                }) { Text("清空") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showClearHistoryDialog = false }) { Text("取消") }
+            },
+        )
     }
 
     renameTarget?.let { session ->

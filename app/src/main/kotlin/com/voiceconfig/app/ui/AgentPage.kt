@@ -106,6 +106,7 @@ fun AgentPage(
     onVoiceInput: () -> Unit = {},
     isListening: Boolean = false,
     onOpenShopping: () -> Unit = {},
+    onClearAllSessions: () -> Unit = {},
     hasDeepSeekKey: Boolean = true,
     agentVoiceAutoSend: Boolean = false,
     onAgentVoiceAutoSendChange: (Boolean) -> Unit = {},
@@ -410,6 +411,7 @@ fun AgentPage(
             onVoiceInput = onVoiceInput,
             isListening = isListening,
             onOpenShopping = onOpenShopping,
+            onClearAllSessions = onClearAllSessions,
             onSend = {
                 if (input.isNotBlank()) {
                     onSend(input.trim())

@@ -20,4 +20,7 @@ interface AgentStepDao {
 
     @Query("DELETE FROM agent_steps WHERE sessionId = :sessionId")
     suspend fun deleteBySession(sessionId: Long)
+
+    @Query("DELETE FROM agent_steps")
+    suspend fun deleteAll()
 }

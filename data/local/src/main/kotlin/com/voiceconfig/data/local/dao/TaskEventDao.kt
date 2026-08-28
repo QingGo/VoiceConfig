@@ -16,4 +16,7 @@ interface TaskEventDao {
 
     @Insert
     suspend fun insert(event: TaskEventEntity): Long
+
+    @Query("DELETE FROM task_events")
+    suspend fun deleteAll()
 }

@@ -68,6 +68,13 @@ class OfflineAgentHistoryRepository(
         sessionDao.deleteById(sessionId)
     }
 
+    override suspend fun deleteAllSessions() {
+        messageDao.deleteAll()
+        stepDao.deleteAll()
+        taskEventDao.deleteAll()
+        sessionDao.deleteAll()
+    }
+
     override suspend fun clearMessages(sessionId: Long) {
         messageDao.deleteBySession(sessionId)
         val title = sessionDao.getById(sessionId)?.title ?: ""

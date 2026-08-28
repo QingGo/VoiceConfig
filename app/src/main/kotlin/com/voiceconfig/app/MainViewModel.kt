@@ -1068,6 +1068,13 @@ class MainViewModel @Inject constructor(
         }
     }
 
+    fun clearAllAgentSessions() {
+        viewModelScope.launch {
+            agentHistoryRepository.deleteAllSessions()
+            clearSelectedAgentSession()
+        }
+    }
+
     fun clearAgentSession(sessionId: Long) {
         viewModelScope.launch {
             agentHistoryRepository.clearMessages(sessionId)
