@@ -165,8 +165,14 @@ fun HomeAssistantPage(
                             ) {
                                 Column(modifier = Modifier.weight(1f)) {
                                     Text(device.friendlyName, style = MaterialTheme.typography.bodyLarge)
+                                    val currentTemp = device.attributes["current_temperature"] as? Number
                                     Text(
-                                        "${device.domain} · ${device.state}",
+                                        buildString {
+                                            append("${device.domain} · ${device.state}")
+                                            if (currentTemp != null) {
+                                                append(" · 当前 ${currentTemp}°")
+                                            }
+                                        },
                                         style = MaterialTheme.typography.labelSmall,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     )
