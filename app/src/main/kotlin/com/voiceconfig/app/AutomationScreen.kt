@@ -235,6 +235,13 @@ fun MainScreenContent(
         }
         item {
             Text(
+                text = "共 ${tasks.size} 个任务 · ${tasks.count { it.enabled }} 个已启用",
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.primary,
+            )
+        }
+        item {
+            Text(
                 text = "适合简单定时任务；复杂指令 / 工具调用 / 调试请用「智能助手」。",
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
