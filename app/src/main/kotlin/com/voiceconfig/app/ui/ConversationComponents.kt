@@ -86,6 +86,7 @@ private fun HomeHero(
     sessionCount: Int,
     onNewSession: () -> Unit,
     onShowHistory: () -> Unit,
+    onContinueLast: (() -> Unit)? = null,
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -131,6 +132,11 @@ private fun HomeHero(
                     )
                     Spacer(modifier = Modifier.width(4.dp))
                     Text("开始新对话")
+                }
+                if (onContinueLast != null) {
+                    TextButton(onClick = onContinueLast) {
+                        Text("继续上次")
+                    }
                 }
                 TextButton(onClick = onShowHistory) {
                     Text("历史 (${sessionCount})")
@@ -304,6 +310,9 @@ internal fun ConversationTab(
                             sessionCount = sessions.size,
                             onNewSession = onNewSession,
                             onShowHistory = { showHistory = true },
+                            onContinueLast = sessions
+                                .maxByOrNull { it.updatedAtEpochMillis }
+                                ?.let { last -> { onSelectSession(last.id) } },
                         )
                     }
                     item(key = "quick_actions") {
