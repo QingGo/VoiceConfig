@@ -1025,7 +1025,7 @@ class AgentSession @Inject constructor(
         }
 
         val summary = allSteps.joinToString("\n") { step ->
-            val status = if (step.result.ok) "✅" else "❌"
+            val status = if (step.result.ok) "OK" else "FAIL"
             "$status ${step.call.tool}(${step.call.args}) -> ${step.result.message}"
         }
         trace.log(runId, "run_finished", mapOf("ok" to allSteps.all { it.result.ok }, "message" to summary.ifBlank { "达到最大轮数" }, "tool_call_count" to allToolCalls.size, "duration_ms" to (System.currentTimeMillis() - startedAtMs)))

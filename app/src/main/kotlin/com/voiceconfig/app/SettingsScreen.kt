@@ -77,6 +77,7 @@ fun SettingsScreen(
     aiDebugLogs: List<AiDebugLogEntity>,
     triggerRules: List<TriggerRule>,
     onClose: () -> Unit,
+    onOpenShopping: () -> Unit = {},
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -93,6 +94,7 @@ fun SettingsScreen(
     val homeAssistantConfigured by viewModel.homeAssistantConfigured.collectAsState()
     val homeAssistantDevices by viewModel.homeAssistantDevices.collectAsState()
     val homeAssistantTestMessage by viewModel.homeAssistantTestMessage.collectAsState()
+    val homeAssistantControlMessage by viewModel.homeAssistantControlMessage.collectAsState()
     val agentVoiceAutoSend by viewModel.agentVoiceAutoSend.collectAsState()
     val agentTtsEnabled by viewModel.agentTtsEnabled.collectAsState()
     val wakeWordEnabled by viewModel.wakeWordEnabled.collectAsState()
@@ -343,7 +345,10 @@ fun SettingsScreen(
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                         Button(
-                            onClick = { viewModel.testHomeAssistantConnection() },
+                            onClick = {
+                                viewModel.saveHomeAssistantConfig(draftHaBaseUrl, draftHaToken)
+                                viewModel.testHomeAssistantConnection()
+                            },
                             modifier = Modifier.fillMaxWidth(),
                             enabled = draftHaBaseUrl.isNotBlank() && draftHaToken.isNotBlank(),
                         ) {
@@ -360,6 +365,13 @@ fun SettingsScreen(
                                 },
                             )
                         }
+                        homeAssistantControlMessage?.let { message ->
+                            Text(
+                                text = message,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.primary,
+                            )
+                        }
                         homeAssistantDevices?.take(12)?.let { devices ->
                             if (devices.isNotEmpty()) {
                                 HorizontalDivider()
@@ -373,16 +385,44 @@ fun SettingsScreen(
                                         verticalAlignment = Alignment.CenterVertically,
                                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                                     ) {
-                                        Text(
-                                            text = device.friendlyName,
-                                            modifier = Modifier.weight(1f),
-                                            style = MaterialTheme.typography.bodySmall,
+                                        Column(modifier = Modifier.weight(1f)) {
+                                            Text(
+                                                text = device.friendlyName,
+                                                style = MaterialTheme.typography.bodySmall,
+                                            )
+                                            Text(
+                                                text = "${device.domain} · ${device.state}",
+                                                style = MaterialTheme.typography.labelSmall,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            )
+                                        }
+                                        val sensitive = device.domain in setOf(
+                                            "lock", "camera", "alarm_control_panel", "siren",
                                         )
-                                        Text(
-                                            text = device.state,
-                                            style = MaterialTheme.typography.labelSmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        val controllable = device.domain in setOf(
+                                            "light", "switch", "fan", "media_player", "input_boolean",
                                         )
+                                        if (sensitive) {
+                                            Text(
+                                                text = "需确认",
+                                                style = MaterialTheme.typography.labelSmall,
+                                                color = MaterialTheme.colorScheme.error,
+                                            )
+                                        } else if (!controllable) {
+                                            Text(
+                                                text = "仅 Agent",
+                                                style = MaterialTheme.typography.labelSmall,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            )
+                                        } else {
+                                            TextButton(
+                                                onClick = {
+                                                    viewModel.controlHomeAssistant(device.entityId, device.domain)
+                                                },
+                                            ) {
+                                                Text("开关")
+                                            }
+                                        }
                                     }
                                 }
                             }
@@ -651,7 +691,29 @@ fun SettingsScreen(
                 }
 
                 item {
-                    SettingsSectionCard(title = "远程节点", defaultExpanded = false) {
+                    SettingsSectionCard(title = "智能能力", defaultExpanded = false) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text("购物研究清单", style = MaterialTheme.typography.bodyLarge)
+                                Text(
+                                    "价格 / 评分 / 口碑对比与采购状态",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                            TextButton(onClick = onOpenShopping) {
+                                Text("打开")
+                            }
+                        }
+                    }
+                }
+
+                item {
+                    SettingsSectionCard(title = "高级能力 / 远程", defaultExpanded = false) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(

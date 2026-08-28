@@ -350,11 +350,12 @@ private fun FileRow(
     ) {
         Text(
             text = when {
-                file.isDirectory -> "📁"
-                file.isSymlink -> "🔗"
-                else -> "📄"
+                file.isDirectory -> "DIR"
+                file.isSymlink -> "LNK"
+                else -> "FILE"
             },
-            style = MaterialTheme.typography.titleMedium,
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         Column(modifier = Modifier.weight(1f)) {
             Text(

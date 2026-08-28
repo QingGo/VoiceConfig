@@ -1524,10 +1524,10 @@ private fun AgentStepTimeline(steps: List<AgentStepUi>, runDurationMs: Long? = n
 }
 
 private fun stepStatusIcon(status: AgentStepStatus): String = when (status) {
-    AgentStepStatus.RUNNING -> "⏳"
-    AgentStepStatus.SUCCESS -> "✅"
-    AgentStepStatus.FAILED -> "❌"
-    AgentStepStatus.DECLINED -> "⛔"
+    AgentStepStatus.RUNNING -> "[进行中]"
+    AgentStepStatus.SUCCESS -> "[成功]"
+    AgentStepStatus.FAILED -> "[失败]"
+    AgentStepStatus.DECLINED -> "[已拒绝]"
 }
 
 private fun formatDurationMs(ms: Long): String = when {
@@ -1633,7 +1633,7 @@ private fun ToolResultCard(msg: AgentMessageEntity) {
     ) {
         Column(Modifier.padding(10.dp)) {
             Text(
-                text = "${if (ok) "✅" else "❌"} 工具：${msg.toolName ?: "未知"}",
+                text = "${if (ok) "[成功]" else "[失败]"} 工具：${msg.toolName ?: "未知"}",
                 style = MaterialTheme.typography.labelLarge,
             )
             if (msg.durationMs > 0) {

@@ -121,6 +121,7 @@ import com.voiceconfig.app.ui.theme.SuccessGreen
 import com.voiceconfig.app.ui.AgentNavigation
 import com.voiceconfig.app.ui.AgentPage
 import com.voiceconfig.app.ui.OnboardingScreen
+import com.voiceconfig.app.ui.ShoppingResearchPage
 import com.voiceconfig.app.ui.theme.VoiceConfigTheme
 import com.voiceconfig.app.ui.theme.WarningOrange
 import com.voiceconfig.core.model.ActionType
@@ -312,6 +313,8 @@ fun MainScreen(viewModel: MainViewModel) {
     val agentVoiceAutoSend by viewModel.agentVoiceAutoSend.collectAsState()
     val agentTtsEnabled by viewModel.agentTtsEnabled.collectAsState()
     val wakeWordEnabled by viewModel.wakeWordEnabled.collectAsState()
+    val shoppingItems by viewModel.shoppingItems.collectAsState()
+    var showShoppingPage by remember { mutableStateOf(false) }
     var showAgentPage by remember { mutableStateOf(false) }
     var agentInitialTab by remember { mutableIntStateOf(0) }
     var agentTabIndex by remember { mutableIntStateOf(0) }
@@ -835,6 +838,7 @@ fun MainScreen(viewModel: MainViewModel) {
                         onClose = {
                             scope.launch { pagerState.animateScrollToPage(0) }
                         },
+                        onOpenShopping = { showShoppingPage = true },
                     )
                 }
             }
@@ -917,6 +921,23 @@ fun MainScreen(viewModel: MainViewModel) {
         hostState = snackbarHostState,
         modifier = Modifier.align(Alignment.BottomCenter),
     )
+    if (showShoppingPage) {
+        ShoppingResearchPage(
+            items = shoppingItems,
+            onClose = { showShoppingPage = false },
+            onUpdateStatus = viewModel::updateShoppingItemStatus,
+            onDelete = viewModel::deleteShoppingItem,
+            onStartResearch = {
+                showShoppingPage = false
+                viewModel.newAgentSession()
+                viewModel.onAgentInputChange("帮我查母婴用品并比较价格和评价")
+                scope.launch {
+                    pagerState.animateScrollToPage(0)
+                    snackbarHostState.showSnackbar("已进入智能助手，输入研究目标后发送")
+                }
+            },
+        )
+    }
     }
     pendingAgentConfirmation?.let { pending ->
         AlertDialog(

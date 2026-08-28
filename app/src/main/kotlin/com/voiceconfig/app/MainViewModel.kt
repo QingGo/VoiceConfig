@@ -65,6 +65,8 @@ import com.voiceconfig.data.local.repository.RemoteNode
 import com.voiceconfig.data.local.repository.RemoteNodeRepository
 import com.voiceconfig.data.local.repository.RemoteProjectRepository
 import com.voiceconfig.data.local.repository.RemoteProjectRecord
+import com.voiceconfig.data.local.repository.ShoppingItemRecord
+import com.voiceconfig.data.local.repository.ShoppingItemRepository
 import com.voiceconfig.data.local.repository.TaskRepository
 import com.voiceconfig.app.remote.RemoteCommandClient
 import com.voiceconfig.app.remote.SshBootstrapClient
@@ -119,6 +121,7 @@ class MainViewModel @Inject constructor(
     private val triggerRuleScheduler: TriggerRuleScheduler,
     private val remoteNodeRepository: RemoteNodeRepository,
     private val remoteProjectRepository: RemoteProjectRepository,
+    private val shoppingItemRepository: ShoppingItemRepository,
     private val remoteCommandClient: RemoteCommandClient,
     private val sshClient: SshClient,
     private val sshBootstrapClient: SshBootstrapClient,
@@ -173,6 +176,13 @@ class MainViewModel @Inject constructor(
         )
 
     val templates: StateFlow<List<Template>> = templateRepository.observeTemplates()
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5_000),
+            initialValue = emptyList(),
+        )
+
+    val shoppingItems: StateFlow<List<ShoppingItemRecord>> = shoppingItemRepository.observeItems()
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5_000),
@@ -295,6 +305,8 @@ class MainViewModel @Inject constructor(
     val homeAssistantDevices: StateFlow<List<HomeAssistantDevice>?> = _homeAssistantDevices.asStateFlow()
     private val _homeAssistantTestMessage = MutableStateFlow<String?>(null)
     val homeAssistantTestMessage: StateFlow<String?> = _homeAssistantTestMessage.asStateFlow()
+    private val _homeAssistantControlMessage = MutableStateFlow<String?>(null)
+    val homeAssistantControlMessage: StateFlow<String?> = _homeAssistantControlMessage.asStateFlow()
 
     private val _voiceSession = MutableStateFlow(VoiceSession())
     val voiceSession: StateFlow<VoiceSession> = _voiceSession.asStateFlow()
@@ -1118,6 +1130,56 @@ class MainViewModel @Inject constructor(
             } else {
                 _homeAssistantDevices.value = emptyList()
                 _homeAssistantTestMessage.value = result.message
+            }
+        }
+    }
+
+    fun controlHomeAssistant(entityId: String, domain: String) {
+        viewModelScope.launch {
+            val config = homeAssistantConfigStore.load()
+            if (!config.isConfigured) {
+                _homeAssistantControlMessage.value = "请先配置 Home Assistant"
+                return@launch
+            }
+            val supported = setOf("light", "switch", "fan", "media_player", "input_boolean")
+            if (domain !in supported) {
+                _homeAssistantControlMessage.value = "该设备类型暂不支持页面上直接开关，请使用智能助手控制"
+                return@launch
+            }
+            val result = homeAssistantClient.callService(
+                config = config,
+                domain = domain,
+                service = "toggle",
+                entityId = entityId,
+            )
+            _homeAssistantControlMessage.value = if (result.ok) {
+                "已发送控制指令：$entityId"
+            } else {
+                result.message
+            }
+        }
+    }
+
+    fun updateShoppingItemStatus(productId: String, status: String) {
+        viewModelScope.launch {
+            shoppingItemRepository.getByProductId(productId)?.let {
+                shoppingItemRepository.updateStatus(it.id, status)
+            }
+        }
+    }
+
+    fun deleteShoppingItem(productId: String) {
+        viewModelScope.launch {
+            shoppingItemRepository.getByProductId(productId)?.let {
+                shoppingItemRepository.delete(it.id)
+            }
+        }
+    }
+
+    fun clearShoppingItems() {
+        viewModelScope.launch {
+            shoppingItemRepository.getItems().forEach {
+                shoppingItemRepository.delete(it.id)
             }
         }
     }
