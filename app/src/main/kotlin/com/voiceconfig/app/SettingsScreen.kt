@@ -380,6 +380,10 @@ fun SettingsScreen(
                     PermissionSettingsSection()
                 }
 
+                item {
+                    AboutSettingsSection()
+                }
+
                 if (developerMode) {
                 item {
                     SettingsSectionCard(title = "高级 / 调试", defaultExpanded = false) {
