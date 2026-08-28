@@ -81,6 +81,9 @@ fun SettingsScreen(
     val homeAssistantBaseUrl by viewModel.homeAssistantBaseUrl.collectAsState()
     val homeAssistantToken by viewModel.homeAssistantToken.collectAsState()
     val homeAssistantConfigured by viewModel.homeAssistantConfigured.collectAsState()
+    val agentVoiceAutoSend by viewModel.agentVoiceAutoSend.collectAsState()
+    val agentTtsEnabled by viewModel.agentTtsEnabled.collectAsState()
+    val wakeWordEnabled by viewModel.wakeWordEnabled.collectAsState()
 
     var draftApiKey by remember { mutableStateOf(deepSeekApiKey) }
     var draftModel by remember { mutableStateOf(deepSeekModel) }
@@ -197,6 +200,44 @@ fun SettingsScreen(
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 item {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.primaryContainer,
+                        ),
+                    ) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            Text(
+                                text = "我的状态",
+                                style = MaterialTheme.typography.titleMedium,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer,
+                            )
+                            StatusSummaryRow(
+                                label = "AI 模型",
+                                value = if (deepSeekApiKey.isBlank()) "未配置" else "已配置",
+                            )
+                            StatusSummaryRow(
+                                label = "Home Assistant",
+                                value = if (homeAssistantConfigured) "已连接" else "未配置",
+                            )
+                            StatusSummaryRow(
+                                label = "语音唤醒",
+                                value = if (wakeWordEnabled) "已开启" else "未开启",
+                            )
+                            StatusSummaryRow(
+                                label = "远程节点",
+                                value = "已登记 ${remoteNodes.size} 个",
+                            )
+                        }
+                    }
+                }
+
+                item {
                     SettingsSectionCard(title = "模型与密钥", defaultExpanded = true) {
                         OutlinedTextField(
                             value = draftApiKey,
@@ -286,6 +327,34 @@ fun SettingsScreen(
                         )
                         Text(
                             text = "配置后 Agent 可通过 home_devices / home_control 控制空调、灯光、窗帘、电视、音乐等 Home Assistant 已接入设备。",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+
+                item {
+                    SettingsSectionCard(title = "语音", defaultExpanded = false) {
+                        SwitchRow(
+                            title = "语音输入后自动发送",
+                            subtitle = "语音识别完成后直接发送给智能助手，不需要再点发送",
+                            checked = agentVoiceAutoSend,
+                            onCheckedChange = viewModel::setAgentVoiceAutoSend,
+                        )
+                        SwitchRow(
+                            title = "Agent 结果语音播报",
+                            subtitle = "Agent 完成任务后用 TTS 读出结果摘要",
+                            checked = agentTtsEnabled,
+                            onCheckedChange = viewModel::setAgentTtsEnabled,
+                        )
+                        SwitchRow(
+                            title = "语音唤醒",
+                            subtitle = "不打开 App 也能说“言控”唤醒；需要麦克风权限",
+                            checked = wakeWordEnabled,
+                            onCheckedChange = viewModel::setWakeWordEnabled,
+                        )
+                        Text(
+                            text = "唤醒词：言控 / 你好言控",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
@@ -525,7 +594,7 @@ fun SettingsScreen(
                 }
 
                 item {
-                    SettingsSectionCard(title = "远程节点", defaultExpanded = true) {
+                    SettingsSectionCard(title = "远程节点", defaultExpanded = false) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(
@@ -919,6 +988,29 @@ private fun RowScope.RemoteToolTile(
                 maxLines = 1,
             )
         }
+    }
+}
+
+@Composable
+private fun StatusSummaryRow(
+    label: String,
+    value: String,
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween,
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onPrimaryContainer,
+        )
+        Text(
+            text = value,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onPrimaryContainer,
+        )
     }
 }
 

@@ -15,18 +15,19 @@ val WarningOrange = Color(0xFFF57C00)
 val ErrorRed = Color(0xFFB3261E)
 
 private val LightColors = lightColorScheme(
-    primary = Color(0xFF6750A4),
+    primary = Color(0xFF4F46E5),
     onPrimary = Color.White,
-    primaryContainer = Color(0xFFEADDFF),
-    onPrimaryContainer = Color(0xFF21005D),
-    background = Color(0xFFF8F9FA),
-    onBackground = Color(0xFF1C1B1F),
-    surface = Color.White,
-    onSurface = Color(0xFF1C1B1F),
-    surfaceVariant = Color(0xFFF3F0F4),
-    onSurfaceVariant = Color(0xFF49454F),
-    outline = Color(0xFF79747E),
-    error = ErrorRed,
+    primaryContainer = Color(0xFFE0E7FF),
+    onPrimaryContainer = Color(0xFF1E1B2E),
+    secondary = Color(0xFF7C6FDE),
+    background = Color(0xFFFAFAFC),
+    onBackground = Color(0xFF1E1B2E),
+    surface = Color(0xFFFFFFFF),
+    onSurface = Color(0xFF1E1B2E),
+    surfaceVariant = Color(0xFFEFF0F5),
+    onSurfaceVariant = Color(0xFF6B7280),
+    outline = Color(0xFFB9BCC7),
+    error = Color(0xFFDC2626),
 )
 
 private val DarkColors = darkColorScheme(

@@ -50,6 +50,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -59,6 +60,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.List
+import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FloatingActionButton
@@ -73,13 +76,13 @@ import androidx.compose.material3.RadioButton
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Tab
-import androidx.compose.material3.TabRow
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -117,6 +120,7 @@ import com.voiceconfig.app.service.VoiceConfigService
 import com.voiceconfig.app.ui.theme.SuccessGreen
 import com.voiceconfig.app.ui.AgentNavigation
 import com.voiceconfig.app.ui.AgentPage
+import com.voiceconfig.app.ui.OnboardingScreen
 import com.voiceconfig.app.ui.theme.VoiceConfigTheme
 import com.voiceconfig.app.ui.theme.WarningOrange
 import com.voiceconfig.core.model.ActionType
@@ -248,8 +252,17 @@ class MainActivity : ComponentActivity() {
         }
         setContent {
             VoiceConfigTheme {
+                val prefs = LocalContext.current.getSharedPreferences("voiceconfig_ux", Context.MODE_PRIVATE)
+                var onboardingDone by remember { mutableStateOf(prefs.getBoolean("onboarding_done", false)) }
                 Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
-                    MainScreen(viewModel = viewModel)
+                    if (!onboardingDone) {
+                        OnboardingScreen(onFinish = {
+                            prefs.edit().putBoolean("onboarding_done", true).apply()
+                            onboardingDone = true
+                        })
+                    } else {
+                        MainScreen(viewModel = viewModel)
+                    }
                 }
             }
         }
@@ -276,14 +289,8 @@ fun MainScreen(viewModel: MainViewModel) {
     val templates by viewModel.templates.collectAsState()
     val recentLogs by viewModel.recentLogs.collectAsState()
     val deepSeekApiKey by viewModel.deepSeekApiKey.collectAsState()
-    val deepSeekModel by viewModel.deepSeekModel.collectAsState()
-    val deepSeekThinkingEnabled by viewModel.deepSeekThinkingEnabled.collectAsState()
-    val deepSeekReasoningEffort by viewModel.deepSeekReasoningEffort.collectAsState()
     val agentDeepSeekThinkingEnabled by viewModel.agentDeepSeekThinkingEnabled.collectAsState()
     val agentDeepSeekReasoningEffort by viewModel.agentDeepSeekReasoningEffort.collectAsState()
-    val agentAutoConfirmSensitiveActions by viewModel.agentAutoConfirmSensitiveActions.collectAsState()
-    val agentAutoVerifyEnabled by viewModel.agentAutoVerifyEnabled.collectAsState()
-    val agentMaxAutoVerifies by viewModel.agentMaxAutoVerifies.collectAsState()
     val agentSkills by viewModel.agentSkills.collectAsState()
     val pendingAgentConfirmation by viewModel.pendingAgentConfirmation.collectAsState()
     val aiDebugLogs by viewModel.aiDebugLogs.collectAsState()
@@ -305,16 +312,6 @@ fun MainScreen(viewModel: MainViewModel) {
     val agentVoiceAutoSend by viewModel.agentVoiceAutoSend.collectAsState()
     val agentTtsEnabled by viewModel.agentTtsEnabled.collectAsState()
     val wakeWordEnabled by viewModel.wakeWordEnabled.collectAsState()
-    var showAiSettings by remember { mutableStateOf(false) }
-    var draftApiKey by remember { mutableStateOf("") }
-    var draftModel by remember { mutableStateOf("") }
-    var draftThinkingEnabled by remember { mutableStateOf(false) }
-    var draftReasoningEffort by remember { mutableStateOf("low") }
-    var draftAgentThinkingEnabled by remember { mutableStateOf(true) }
-    var draftAgentReasoningEffort by remember { mutableStateOf("medium") }
-    var draftAgentAutoConfirmSensitiveActions by remember { mutableStateOf(false) }
-    var draftAgentAutoVerifyEnabled by remember { mutableStateOf(true) }
-    var draftAgentMaxAutoVerifies by remember { mutableStateOf(4) }
     var showAgentPage by remember { mutableStateOf(false) }
     var agentInitialTab by remember { mutableIntStateOf(0) }
     var agentTabIndex by remember { mutableIntStateOf(0) }
@@ -614,9 +611,9 @@ fun MainScreen(viewModel: MainViewModel) {
         viewModel.submitNaturalLanguageInput()
     }
 
-    val pagerState = rememberPagerState(initialPage = 1) { 2 }
+    val pagerState = rememberPagerState(initialPage = 0) { 3 }
     LaunchedEffect(pagerState.currentPage) {
-        showAgentPage = pagerState.currentPage == 1
+        showAgentPage = pagerState.currentPage == 0
         if (showAgentPage) {
             viewModel.openAgentPage()
         }
@@ -624,25 +621,6 @@ fun MainScreen(viewModel: MainViewModel) {
 
     Box(modifier = Modifier.fillMaxSize()) {
     Column(modifier = Modifier.fillMaxSize()) {
-        TabRow(selectedTabIndex = if (pagerState.currentPage == 1) 0 else 1) {
-            Tab(
-                selected = pagerState.currentPage == 1,
-                onClick = {
-                    agentInitialTab = 0
-                    agentTabIndex = agentInitialTab
-                    agentLogTaskId = null
-                    scope.launch { pagerState.animateScrollToPage(1) }
-                },
-                text = { Text("智能助手") },
-            )
-            Tab(
-                selected = pagerState.currentPage == 0,
-                onClick = {
-                    scope.launch { pagerState.animateScrollToPage(0) }
-                },
-                text = { Text("自动化") },
-            )
-        }
         Box(
             modifier = Modifier
                 .weight(1f)
@@ -653,7 +631,7 @@ fun MainScreen(viewModel: MainViewModel) {
                 modifier = Modifier.fillMaxSize(),
             ) { page ->
                 when (page) {
-                    0 -> MainScreenContent(
+                    1 -> MainScreenContent(
                         uiState = uiState,
                         deepSeekApiKey = deepSeekApiKey,
                         installedAppLabels = installedAppLabels,
@@ -661,32 +639,23 @@ fun MainScreen(viewModel: MainViewModel) {
                         isPreparing = isPreparing,
                         onMicClick = onMicClick,
                         onOpenAiSettings = {
-                            showAiSettings = true
-                            draftApiKey = deepSeekApiKey
-                            draftModel = deepSeekModel
-                            draftThinkingEnabled = deepSeekThinkingEnabled
-                            draftReasoningEffort = deepSeekReasoningEffort
-                            draftAgentThinkingEnabled = agentDeepSeekThinkingEnabled
-                            draftAgentReasoningEffort = agentDeepSeekReasoningEffort
-                            draftAgentAutoConfirmSensitiveActions = agentAutoConfirmSensitiveActions
-                            draftAgentAutoVerifyEnabled = agentAutoVerifyEnabled
-                            draftAgentMaxAutoVerifies = agentMaxAutoVerifies
+                            scope.launch { pagerState.animateScrollToPage(2) }
                         },
                         onOpenAgent = {
                             agentInitialTab = 0
                             agentTabIndex = 0
                             agentLogTaskId = null
-                            scope.launch { pagerState.animateScrollToPage(1) }
+                            scope.launch { pagerState.animateScrollToPage(0) }
                         },
                         onOpenAgentLogs = { task ->
-                            scope.launch { pagerState.animateScrollToPage(0) }
+                            scope.launch { pagerState.animateScrollToPage(1) }
                         },
                         onOpenAgentSession = { sessionId ->
                             viewModel.selectAgentSession(sessionId)
                             agentInitialTab = 0
                             agentTabIndex = 0
                             agentLogTaskId = null
-                            scope.launch { pagerState.animateScrollToPage(1) }
+                            scope.launch { pagerState.animateScrollToPage(0) }
                         },
                         showCreatePanel = showCreatePanel,
                         onCreatePanelChange = { showCreatePanel = it },
@@ -739,7 +708,7 @@ fun MainScreen(viewModel: MainViewModel) {
                         },
                         onTemplateSelected = viewModel::onTemplateSelected,
                     )
-                    else -> AgentPage(
+                    0 -> AgentPage(
                         initialTabIndex = agentInitialTab,
                         tabIndex = agentTabIndex,
                         onTabChange = { agentTabIndex = it },
@@ -777,6 +746,13 @@ fun MainScreen(viewModel: MainViewModel) {
                         reasoningText = agentReasoningText,
                         input = agentDraft,
                         onInputChange = viewModel::onAgentInputChange,
+                        onQuickAction = { actionText ->
+                            viewModel.newAgentSession()
+                            viewModel.onAgentInputChange(actionText)
+                            scope.launch {
+                                snackbarHostState.showSnackbar("已新建会话并填入指令，确认后发送")
+                            }
+                        },
                         hasDeepSeekKey = deepSeekApiKey.isNotBlank(),
                         agentVoiceAutoSend = agentVoiceAutoSend,
                         onAgentVoiceAutoSendChange = viewModel::setAgentVoiceAutoSend,
@@ -842,13 +818,22 @@ fun MainScreen(viewModel: MainViewModel) {
                             }
                         },
                         onOpenTask = { taskId ->
-                            scope.launch { pagerState.animateScrollToPage(0) }
+                            scope.launch { pagerState.animateScrollToPage(1) }
                         },
                         onOpenAutomation = {
-                            scope.launch { pagerState.animateScrollToPage(0) }
+                            scope.launch { pagerState.animateScrollToPage(1) }
                         },
                         onOpenSettings = {
-                            showAiSettings = true
+                            scope.launch { pagerState.animateScrollToPage(2) }
+                        },
+                    )
+                    2 -> SettingsScreen(
+                        viewModel = viewModel,
+                        localAsrManager = localAsrManager,
+                        aiDebugLogs = aiDebugLogs,
+                        triggerRules = triggerRules,
+                        onClose = {
+                            scope.launch { pagerState.animateScrollToPage(0) }
                         },
                     )
                 }
@@ -880,6 +865,51 @@ fun MainScreen(viewModel: MainViewModel) {
                 },
             )
         }
+
+        NavigationBar {
+            NavigationBarItem(
+                selected = pagerState.currentPage == 0,
+                onClick = {
+                    agentInitialTab = 0
+                    agentTabIndex = agentInitialTab
+                    agentLogTaskId = null
+                    scope.launch { pagerState.animateScrollToPage(0) }
+                },
+                icon = {
+                    Icon(
+                        imageVector = Icons.Default.Home,
+                        contentDescription = "首页/对话",
+                    )
+                },
+                label = { Text("首页/对话") },
+            )
+            NavigationBarItem(
+                selected = pagerState.currentPage == 1,
+                onClick = {
+                    scope.launch { pagerState.animateScrollToPage(1) }
+                },
+                icon = {
+                    Icon(
+                        imageVector = Icons.Default.List,
+                        contentDescription = "自动化",
+                    )
+                },
+                label = { Text("自动化") },
+            )
+            NavigationBarItem(
+                selected = pagerState.currentPage == 2,
+                onClick = {
+                    scope.launch { pagerState.animateScrollToPage(2) }
+                },
+                icon = {
+                    Icon(
+                        imageVector = Icons.Default.Settings,
+                        contentDescription = "我的",
+                    )
+                },
+                label = { Text("我的") },
+            )
+        }
     }
     SnackbarHost(
         hostState = snackbarHostState,
@@ -908,16 +938,6 @@ fun MainScreen(viewModel: MainViewModel) {
             },
         )
     }
-    if (showAiSettings) {
-        SettingsScreen(
-            viewModel = viewModel,
-            localAsrManager = localAsrManager,
-            aiDebugLogs = aiDebugLogs,
-            triggerRules = triggerRules,
-            onClose = { showAiSettings = false },
-        )
-    }
-
 
 }
 
@@ -1005,6 +1025,22 @@ fun MainScreenContent(
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+        }
+        item {
+            Button(
+                onClick = { onCreatePanelChange(true) },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(48.dp),
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Add,
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp),
+                )
+                Spacer(modifier = Modifier.width(4.dp))
+                Text("新建任务")
+            }
         }
         if (deepSeekApiKey.isBlank() && !noKeyHintDismissed) {
             item {
@@ -1168,22 +1204,18 @@ fun MainScreenContent(
         }
         if (recentLogs.isNotEmpty()) {
             item {
-                val successCount = recentLogs.count { it.status == ExecutionStatus.SUCCESS }
-                val fallbackCount = recentLogs.count { it.status == ExecutionStatus.FALLBACK }
-                val successRate = successCount * 100 / recentLogs.size
-                val fallbackText = if (fallbackCount > 0) "；降级 $fallbackCount 次" else ""
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        text = "执行记录",
-                        style = MaterialTheme.typography.titleMedium,
-                    )
-                    Text(
-                        text = "近20次成功率 $successRate%（不含降级$fallbackText）",
-                        modifier = Modifier.padding(start = 8.dp),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    Spacer(modifier = Modifier.weight(1f))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "最近执行",
+                            style = MaterialTheme.typography.titleMedium,
+                        )
+                        Text(
+                            text = "按时间查看每次任务的执行结果和失败原因",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
                     TextButton(onClick = { showLogs = !showLogs }) {
                         Text(if (showLogs) "收起" else "展开")
                     }

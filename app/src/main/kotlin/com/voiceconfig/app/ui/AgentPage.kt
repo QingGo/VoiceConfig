@@ -63,7 +63,6 @@ import com.voiceconfig.app.agent.AgentRunState
 import com.voiceconfig.app.agent.AgentSkill
 import com.voiceconfig.app.agent.AgentSkillStatus
 import com.voiceconfig.app.agent.AgentStepUi
-import com.voiceconfig.app.PermissionCheckSection
 import com.voiceconfig.app.agent.TaskPlan
 import com.voiceconfig.app.agent.AgentStepStatus
 import java.time.Instant
@@ -97,6 +96,7 @@ fun AgentPage(
     reasoningText: String,
     input: String,
     onInputChange: (String) -> Unit,
+    onQuickAction: (String) -> Unit = {},
     hasDeepSeekKey: Boolean = true,
     agentVoiceAutoSend: Boolean = false,
     onAgentVoiceAutoSendChange: (Boolean) -> Unit = {},
@@ -164,11 +164,12 @@ fun AgentPage(
             }
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = "智能助手",
+                    text = "言控",
                     style = MaterialTheme.typography.titleLarge,
+                    color = MaterialTheme.colorScheme.primary,
                 )
                 Text(
-                    text = if (selectedSessionId == null) "选择一个会话，或新建对话" else "Agent · 多步操作 / 工具调用",
+                    text = if (selectedSessionId == null) "你的个人生活与工作智能助手" else "Agent · 多步操作 / 工具调用",
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -242,11 +243,38 @@ fun AgentPage(
             }
         }
 
-        PermissionCheckSection(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 12.dp),
-        )
+        if (!hasDeepSeekKey) {
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 12.dp, vertical = 4.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                ),
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(start = 16.dp, end = 8.dp, top = 6.dp, bottom = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "还差 1 项设置",
+                            style = MaterialTheme.typography.titleSmall,
+                        )
+                        Text(
+                            text = "配置大模型后，智能助手才能完成复杂多步任务",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    TextButton(onClick = onOpenSettings) {
+                        Text("去完成")
+                    }
+                }
+            }
+        }
 
         val latestRun = agentRunRecords.firstOrNull()
         val needsAccessibilityHelp = latestRun != null && (
@@ -353,6 +381,7 @@ fun AgentPage(
             onSelectSession = onSelectSession,
             input = input,
             onInputChange = onInputChange,
+            onQuickAction = onQuickAction,
             onSend = {
                 if (input.isNotBlank()) {
                     onSend(input.trim())
@@ -847,6 +876,112 @@ private fun summarizeTraceEvent(event: Map<String, Any?>): String {
 }
 
 @Composable
+private fun HomeQuickActions(
+    onQuickAction: (String) -> Unit,
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = MaterialTheme.shapes.medium,
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface,
+        ),
+        border = androidx.compose.foundation.BorderStroke(
+            1.dp,
+            MaterialTheme.colorScheme.outlineVariant,
+        ),
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text(
+                    text = "快捷任务",
+                    style = MaterialTheme.typography.titleMedium,
+                )
+                Text(
+                    text = "点击后自动新建会话并填入指令，发送前由你确认",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                QuickActionTile(
+                    title = "打开企业微信",
+                    subtitle = "定时 / 自动准备",
+                    modifier = Modifier.weight(1f),
+                    onClick = { onQuickAction("每天早上 8 点打开企业微信") },
+                )
+                QuickActionTile(
+                    title = "点杯瑞幸",
+                    subtitle = "帮我下单",
+                    modifier = Modifier.weight(1f),
+                    onClick = { onQuickAction("帮我点一杯瑞幸咖啡") },
+                )
+            }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                QuickActionTile(
+                    title = "回复微信",
+                    subtitle = "智能起草并发送",
+                    modifier = Modifier.weight(1f),
+                    onClick = { onQuickAction("帮我回复微信里的新消息") },
+                )
+                QuickActionTile(
+                    title = "母婴比价",
+                    subtitle = "研究 / 对比",
+                    modifier = Modifier.weight(1f),
+                    onClick = { onQuickAction("帮我查母婴用品并比较价格和评价") },
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun QuickActionTile(
+    title: String,
+    subtitle: String,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit,
+) {
+    Card(
+        modifier = modifier
+            .clickable(onClick = onClick),
+        shape = MaterialTheme.shapes.medium,
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.primaryContainer,
+        ),
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp, vertical = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(2.dp),
+        ) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.bodyLarge,
+                fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onPrimaryContainer,
+            )
+            Text(
+                text = subtitle,
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onPrimaryContainer,
+            )
+        }
+    }
+}
+
+@Composable
 private fun ConversationTab(
     sessions: List<AgentSessionEntity>,
     messages: List<AgentMessageEntity>,
@@ -859,6 +994,7 @@ private fun ConversationTab(
     onSelectSession: (Long) -> Unit,
     input: String,
     onInputChange: (String) -> Unit,
+    onQuickAction: (String) -> Unit = {},
     onSend: () -> Unit,
     onStop: () -> Unit,
     onNewSession: () -> Unit = {},
@@ -891,6 +1027,9 @@ private fun ConversationTab(
                 contentPadding = PaddingValues(12.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
+                item(key = "quick_actions") {
+                    HomeQuickActions(onQuickAction = onQuickAction)
+                }
                 groupSessionsByDay(sessions).forEach { (day, daySessions) ->
                     item(key = "day_$day") {
                         Text(
@@ -1005,54 +1144,11 @@ private fun ConversationTab(
                         color = MaterialTheme.colorScheme.error,
                     )
                 }
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Text(
-                        "语音识别后自动发送到 Agent",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    Spacer(modifier = Modifier.weight(1f))
-                    androidx.compose.material3.Switch(
-                        checked = agentVoiceAutoSend,
-                        onCheckedChange = onAgentVoiceAutoSendChange,
-                        enabled = hasDeepSeekKey,
-                    )
-                }
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Text(
-                        "Agent 结果语音播报",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    Spacer(modifier = Modifier.weight(1f))
-                    androidx.compose.material3.Switch(
-                        checked = agentTtsEnabled,
-                        onCheckedChange = onAgentTtsEnabledChange,
-                        enabled = hasDeepSeekKey,
-                    )
-                }
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Text(
-                        "语音唤醒（需麦克风权限）",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    Spacer(modifier = Modifier.weight(1f))
-                    androidx.compose.material3.Switch(
-                        checked = wakeWordEnabled,
-                        onCheckedChange = onWakeWordEnabledChange,
-                        enabled = hasDeepSeekKey,
-                    )
-                }
+                Text(
+                    text = "语音相关开关已统一放入「我的 → 语音」",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
