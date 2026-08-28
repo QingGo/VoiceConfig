@@ -25,6 +25,7 @@ fun VoiceCommandBar(
     onVoiceInput: () -> Unit,
     isBusy: Boolean,
     onStop: () -> Unit,
+    isListening: Boolean = false,
     modifier: Modifier = Modifier,
 ) {
     Row(
@@ -40,8 +41,12 @@ fun VoiceCommandBar(
         ) {
             Icon(
                 painter = painterResource(id = R.drawable.ic_mic),
-                contentDescription = "语音输入",
-                tint = MaterialTheme.colorScheme.primary,
+                contentDescription = if (isListening) "正在聆听" else "语音输入",
+                tint = if (isListening) {
+                    MaterialTheme.colorScheme.error
+                } else {
+                    MaterialTheme.colorScheme.primary
+                },
             )
         }
         OutlinedTextField(

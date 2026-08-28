@@ -436,6 +436,7 @@ fun MainScreen(viewModel: MainViewModel) {
                             }
                         },
                         onVoiceInput = onAgentMicClick,
+                        isListening = isListening,
                         hasDeepSeekKey = deepSeekApiKey.isNotBlank(),
                         agentVoiceAutoSend = agentVoiceAutoSend,
                         onAgentVoiceAutoSendChange = viewModel::setAgentVoiceAutoSend,

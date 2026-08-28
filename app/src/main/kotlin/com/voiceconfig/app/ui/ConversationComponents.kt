@@ -246,6 +246,7 @@ internal fun ConversationTab(
     onInputChange: (String) -> Unit,
     onQuickAction: (String) -> Unit = {},
     onVoiceInput: () -> Unit = {},
+    isListening: Boolean = false,
     onSend: () -> Unit,
     onStop: () -> Unit,
     onNewSession: () -> Unit = {},
@@ -382,6 +383,7 @@ internal fun ConversationTab(
                 onVoiceInput = onVoiceInput,
                 isBusy = isAgentBusy,
                 onStop = onStop,
+                isListening = isListening,
             )
         }
     }
