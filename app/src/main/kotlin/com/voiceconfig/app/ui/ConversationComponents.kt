@@ -87,6 +87,7 @@ private fun HomeHero(
     onNewSession: () -> Unit,
     onShowHistory: () -> Unit,
     onContinueLast: (() -> Unit)? = null,
+    onSuggestion: (String) -> Unit = {},
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -111,11 +112,16 @@ private fun HomeHero(
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onPrimaryContainer,
             )
-            Text(
-                text = todaySuggestion(),
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onPrimaryContainer,
-            )
+            TextButton(
+                onClick = { onSuggestion(todaySuggestion()) },
+                contentPadding = androidx.compose.foundation.layout.PaddingValues(0.dp),
+            ) {
+                Text(
+                    text = todaySuggestion(),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer,
+                )
+            }
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -313,6 +319,7 @@ internal fun ConversationTab(
                             onContinueLast = sessions
                                 .maxByOrNull { it.updatedAtEpochMillis }
                                 ?.let { last -> { onSelectSession(last.id) } },
+                            onSuggestion = onQuickAction,
                         )
                     }
                     item(key = "quick_actions") {
