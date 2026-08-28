@@ -619,7 +619,12 @@ fun MainScreen(viewModel: MainViewModel) {
                     snackbarHostState.showSnackbar("已进入智能助手，输入研究目标后发送")
                 }
             },
-            onClearAll = viewModel::clearShoppingItems,
+            onClearAll = {
+                viewModel.clearShoppingItems()
+                scope.launch {
+                    snackbarHostState.showSnackbar("已清空购物研究")
+                }
+            },
         )
     }
     if (showHomeAssistantPage) {
