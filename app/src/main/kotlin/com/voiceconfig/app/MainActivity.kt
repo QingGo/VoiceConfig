@@ -1116,23 +1116,23 @@ fun MainScreenContent(
         }
         if (deepSeekApiKey.isBlank() && !noKeyHintDismissed) {
             item {
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.tertiaryContainer),
-                ) {
-                    Row(
-                        modifier = Modifier.padding(start = 12.dp, end = 4.dp, top = 8.dp, bottom = 8.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Text(
-                            text = "当前未配置大模型，仅支持提醒、定时打开 App、定时通知等简单任务；复杂多步任务请先在设置中配置 DeepSeek API Key。",
-                            modifier = Modifier.weight(1f),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onTertiaryContainer,
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(
+                            color = MaterialTheme.colorScheme.surfaceVariant,
+                            shape = RoundedCornerShape(12.dp),
                         )
-                        TextButton(onClick = { noKeyHintDismissed = true }) {
-                            Text("知道了")
-                        }
+                        .padding(horizontal = 12.dp, vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        text = "大模型未配置 · 简单自动化仍可用",
+                        modifier = Modifier.weight(1f),
+                        style = MaterialTheme.typography.labelMedium,
+                    )
+                    TextButton(onClick = { noKeyHintDismissed = true }) {
+                        Text("知道了")
                     }
                 }
             }
