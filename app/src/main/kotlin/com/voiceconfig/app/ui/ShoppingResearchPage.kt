@@ -24,6 +24,7 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -49,8 +50,11 @@ fun ShoppingResearchPage(
     onClearAll: () -> Unit = {},
 ) {
     var filter by remember { mutableStateOf<String?>(null) }
+    var search by remember { mutableStateOf("") }
     var showClearDialog by remember { mutableStateOf(false) }
-    val filtered = if (filter == null) items else items.filter { it.status == filter }
+    val filtered = items
+        .filter { if (filter == null) true else it.status == filter }
+        .filter { search.isBlank() || it.title.contains(search, ignoreCase = true) || it.platform.contains(search, ignoreCase = true) }
     BackHandler(onBack = onClose)
 
     Surface(modifier = Modifier.fillMaxSize()) {
@@ -106,6 +110,16 @@ fun ShoppingResearchPage(
                     }
                 }
             }
+
+            OutlinedTextField(
+                value = search,
+                onValueChange = { search = it },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 12.dp, vertical = 4.dp),
+                placeholder = { Text("搜索商品或平台") },
+                singleLine = true,
+            )
 
             if (filtered.isEmpty()) {
                 VoiceEmptyState(
