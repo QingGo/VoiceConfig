@@ -1182,46 +1182,14 @@ private fun ConversationTab(
         }
 
         if (showInput) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 8.dp, vertical = 4.dp),
-                verticalArrangement = Arrangement.spacedBy(4.dp),
-            ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    IconButton(
-                        onClick = onVoiceInput,
-                        enabled = !isAgentBusy,
-                    ) {
-                        Icon(
-                            painter = painterResource(id = R.drawable.ic_mic),
-                            contentDescription = "语音输入",
-                            tint = MaterialTheme.colorScheme.primary,
-                        )
-                    }
-                    OutlinedTextField(
-                        value = input,
-                        onValueChange = onInputChange,
-                        modifier = Modifier.weight(1f),
-                        placeholder = { Text("输入指令…") },
-                        singleLine = true,
-                        enabled = !isAgentBusy,
-                    )
-                    if (isAgentBusy) {
-                        Button(onClick = onStop) {
-                            Text("停止")
-                        }
-                    } else {
-                        Button(onClick = onSend, enabled = input.isNotBlank()) {
-                            Text("发送")
-                        }
-                    }
-                }
-            }
+            VoiceCommandBar(
+                input = input,
+                onInputChange = onInputChange,
+                onSend = onSend,
+                onVoiceInput = onVoiceInput,
+                isBusy = isAgentBusy,
+                onStop = onStop,
+            )
         }
     }
 
