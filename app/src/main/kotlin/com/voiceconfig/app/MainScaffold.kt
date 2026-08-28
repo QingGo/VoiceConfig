@@ -16,6 +16,7 @@ import android.speech.RecognizerIntent
 import android.speech.SpeechRecognizer
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -493,7 +494,11 @@ fun MainScreen(viewModel: MainViewModel) {
                 .weight(1f)
                 .fillMaxWidth(),
         ) {
-            when (currentDestination) {
+            AnimatedContent(
+                targetState = currentDestination,
+                transitionSpec = { fadeIn() togetherWith fadeOut() },
+            ) { destination ->
+            when (destination) {
                     AppDestination.Automation -> MainScreenContent(
                         uiState = uiState,
                         deepSeekApiKey = deepSeekApiKey,
@@ -711,6 +716,7 @@ fun MainScreen(viewModel: MainViewModel) {
                         onOpenHomeAssistant = { showHomeAssistantPage = true },
                     )
                 }
+            }
 
             if (currentDestination == AppDestination.Automation) {
                 FloatingMicButton(
