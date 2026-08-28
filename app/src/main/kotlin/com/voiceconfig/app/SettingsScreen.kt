@@ -109,12 +109,9 @@ fun SettingsScreen(
 
     var draftApiKey by remember { mutableStateOf(deepSeekApiKey) }
     var draftModel by remember { mutableStateOf(deepSeekModel) }
-    var draftHaBaseUrl by remember { mutableStateOf(homeAssistantBaseUrl) }
-    var draftHaToken by remember { mutableStateOf(homeAssistantToken) }
     var showModelEditor by remember { mutableStateOf(false) }
 
     var showApiKey by remember { mutableStateOf(false) }
-    var showHaToken by remember { mutableStateOf(false) }
     var showDebugSection by remember { mutableStateOf(false) }
     var showRawAi by remember { mutableStateOf(false) }
     var showExperimentalAsr by remember { mutableStateOf(false) }
@@ -292,134 +289,18 @@ fun SettingsScreen(
                 }
 
                 item {
-                    SettingsSectionCard(title = "智能家居 / Home Assistant", defaultExpanded = false) {
-                        Text(
-                            text = if (homeAssistantConfigured) "已连接配置" else "未配置",
-                            style = MaterialTheme.typography.labelMedium,
-                            color = if (homeAssistantConfigured) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error,
-                        )
-                        OutlinedTextField(
-                            value = draftHaBaseUrl,
-                            onValueChange = {
-                                draftHaBaseUrl = it
-                                viewModel.saveHomeAssistantConfig(it, draftHaToken)
-                            },
-                            modifier = Modifier.fillMaxWidth(),
-                            label = { Text("Home Assistant Base URL") },
-                            placeholder = { Text("http://192.168.1.100:8123") },
-                            singleLine = true,
-                        )
-                        OutlinedTextField(
-                            value = draftHaToken,
-                            onValueChange = {
-                                draftHaToken = it
-                                viewModel.saveHomeAssistantConfig(draftHaBaseUrl, it)
-                            },
-                            modifier = Modifier.fillMaxWidth(),
-                            label = { Text("长期访问令牌 (Long-Lived Access Token)") },
-                            singleLine = true,
-                            visualTransformation = if (showHaToken) VisualTransformation.None else PasswordVisualTransformation(),
-                            trailingIcon = {
-                                TextButton(onClick = { showHaToken = !showHaToken }) {
-                                    Text(if (showHaToken) "隐藏" else "显示")
-                                }
-                            },
-                        )
-                        Text(
-                            text = "配置后 Agent 可通过 home_devices / home_control 控制空调、灯光、窗帘、电视、音乐等 Home Assistant 已接入设备。",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                        Button(
-                            onClick = {
-                                viewModel.saveHomeAssistantConfig(draftHaBaseUrl, draftHaToken)
-                                viewModel.testHomeAssistantConnection()
-                            },
-                            modifier = Modifier.fillMaxWidth(),
-                            enabled = draftHaBaseUrl.isNotBlank() && draftHaToken.isNotBlank(),
-                        ) {
-                            Text("测试连接")
-                        }
-                        TextButton(
-                            onClick = onOpenHomeAssistant,
-                            modifier = Modifier.fillMaxWidth(),
-                        ) {
-                            Text("打开设备面板")
-                        }
-                        homeAssistantTestMessage?.let { message ->
-                            Text(
-                                text = message,
-                                style = MaterialTheme.typography.bodySmall,
-                                color = if (message.startsWith("已连接")) {
-                                    MaterialTheme.colorScheme.primary
-                                } else {
-                                    MaterialTheme.colorScheme.error
-                                },
-                            )
-                        }
-                        homeAssistantControlMessage?.let { message ->
-                            Text(
-                                text = message,
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.primary,
-                            )
-                        }
-                        homeAssistantDevices?.take(12)?.let { devices ->
-                            if (devices.isNotEmpty()) {
-                                HorizontalDivider()
-                                Text(
-                                    text = "设备预览",
-                                    style = MaterialTheme.typography.titleSmall,
-                                )
-                                devices.forEach { device ->
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                    ) {
-                                        Column(modifier = Modifier.weight(1f)) {
-                                            Text(
-                                                text = device.friendlyName,
-                                                style = MaterialTheme.typography.bodySmall,
-                                            )
-                                            Text(
-                                                text = "${device.domain} · ${device.state}",
-                                                style = MaterialTheme.typography.labelSmall,
-                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                            )
-                                        }
-                                        val sensitive = device.domain in setOf(
-                                            "lock", "camera", "alarm_control_panel", "siren",
-                                        )
-                                        val controllable = device.domain in setOf(
-                                            "light", "switch", "fan", "media_player", "input_boolean",
-                                        )
-                                        if (sensitive) {
-                                            Text(
-                                                text = "需确认",
-                                                style = MaterialTheme.typography.labelSmall,
-                                                color = MaterialTheme.colorScheme.error,
-                                            )
-                                        } else if (!controllable) {
-                                            Text(
-                                                text = "仅 Agent",
-                                                style = MaterialTheme.typography.labelSmall,
-                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                            )
-                                        } else {
-                                            TextButton(
-                                                onClick = {
-                                                    viewModel.controlHomeAssistant(device.entityId, device.domain)
-                                                },
-                                            ) {
-                                                Text("开关")
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
+                    HomeAssistantSettingsSection(
+                        configured = homeAssistantConfigured,
+                        baseUrl = homeAssistantBaseUrl,
+                        token = homeAssistantToken,
+                        testMessage = homeAssistantTestMessage,
+                        controlMessage = homeAssistantControlMessage,
+                        devices = homeAssistantDevices ?: emptyList(),
+                        onSaveConfig = viewModel::saveHomeAssistantConfig,
+                        onTest = viewModel::testHomeAssistantConnection,
+                        onOpenPanel = onOpenHomeAssistant,
+                        onControl = viewModel::controlHomeAssistant,
+                    )
                 }
 
                 item {
