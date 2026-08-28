@@ -114,12 +114,7 @@ fun SettingsScreen(
     var showApiKey by remember { mutableStateOf(false) }
     var showDebugSection by remember { mutableStateOf(false) }
     var showRawAi by remember { mutableStateOf(false) }
-    var showExperimentalAsr by remember { mutableStateOf(false) }
 
-    var asrSelectedId by remember { mutableStateOf(localAsrManager?.selectedModel()?.id ?: "") }
-    var asrDownloadingId by remember { mutableStateOf<String?>(null) }
-    var asrDownloadProgress by remember { mutableStateOf(0f) }
-    var asrErrors by remember { mutableStateOf<Map<String, String>>(emptyMap()) }
 
     var showRemoteNodes by remember { mutableStateOf(false) }
     var showRemoteProjects by remember { mutableStateOf(false) }
@@ -291,109 +286,7 @@ fun SettingsScreen(
                 }
 
                 item {
-                    SettingsSectionCard(title = "语音识别", defaultExpanded = false) {
-                        if (localAsrManager != null) {
-                            Text(
-                                text = "推荐：${localAsrManager.recommendedModel().displayName}（性能最佳，需下载）\n默认内置：${localAsrManager.defaultModel().displayName}（安装包小，开箱可用）",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text(text = "模型列表", style = MaterialTheme.typography.titleSmall)
-                                Spacer(modifier = Modifier.weight(1f))
-                                TextButton(onClick = { showExperimentalAsr = !showExperimentalAsr }) {
-                                    Text(if (showExperimentalAsr) "隐藏实验模型" else "显示实验模型")
-                                }
-                            }
-                            localAsrManager.visibleModels(
-                                includeExperimental = showExperimentalAsr,
-                                includeHidden = false,
-                            ).forEach { model ->
-                                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                        RadioButton(
-                                            selected = asrSelectedId == model.id,
-                                            onClick = {
-                                                if (localAsrManager.isDownloaded(model)) {
-                                                    localAsrManager.selectModel(model.id)
-                                                    asrSelectedId = model.id
-                                                    scope.launch { localAsrManager.warmUp() }
-                                                }
-                                            },
-                                        )
-                                        Column(modifier = Modifier.weight(1f)) {
-                                            Text(text = model.displayName, style = MaterialTheme.typography.bodyMedium)
-                                            Text(
-                                                text = "${localAsrManager.modelSizeText(model)} · ${model.description}",
-                                                style = MaterialTheme.typography.bodySmall,
-                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                            )
-                                        }
-                                        if (model.builtin || localAsrManager.isDownloaded(model)) {
-                                            TextButton(
-                                                onClick = {
-                                                    localAsrManager.selectModel(model.id)
-                                                    asrSelectedId = model.id
-                                                    scope.launch { localAsrManager.warmUp() }
-                                                },
-                                                enabled = asrSelectedId != model.id,
-                                            ) {
-                                                Text(if (asrSelectedId == model.id) "使用中" else "使用")
-                                            }
-                                        } else {
-                                            if (asrDownloadingId == model.id) {
-                                                Column(
-                                                    modifier = Modifier.width(110.dp),
-                                                    horizontalAlignment = Alignment.CenterHorizontally,
-                                                    verticalArrangement = Arrangement.spacedBy(2.dp),
-                                                ) {
-                                                    LinearProgressIndicator(
-                                                        progress = { asrDownloadProgress },
-                                                        modifier = Modifier.fillMaxWidth(),
-                                                    )
-                                                    Text(
-                                                        text = "下载中 ${(asrDownloadProgress * 100).toInt()}%",
-                                                        style = MaterialTheme.typography.labelSmall,
-                                                    )
-                                                }
-                                            } else {
-                                                Button(
-                                                    onClick = {
-                                                        scope.launch {
-                                                            asrDownloadingId = model.id
-                                                            asrErrors = asrErrors - model.id
-                                                            runCatching {
-                                                                localAsrManager.downloadModel(model) { progress ->
-                                                                    asrDownloadProgress = progress
-                                                                }
-                                                            }.onFailure { e ->
-                                                                asrErrors = asrErrors + (model.id to (e.message ?: "下载失败"))
-                                                            }
-                                                            asrDownloadingId = null
-                                                            localAsrManager.selectModel(model.id)
-                                                            asrSelectedId = model.id
-                                                            scope.launch { localAsrManager.warmUp() }
-                                                        }
-                                                    },
-                                                ) {
-                                                    Text("下载")
-                                                }
-                                            }
-                                        }
-                                    }
-                                    asrErrors[model.id]?.let { error ->
-                                        if (asrDownloadingId != model.id) {
-                                            Text(
-                                                text = error,
-                                                style = MaterialTheme.typography.bodySmall,
-                                                color = MaterialTheme.colorScheme.error,
-                                            )
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
+                    AsrSettingsSection(localAsrManager = localAsrManager)
                 }
 
                 item {
