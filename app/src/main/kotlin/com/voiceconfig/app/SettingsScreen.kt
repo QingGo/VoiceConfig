@@ -301,39 +301,17 @@ fun SettingsScreen(
                 }
 
                 item {
-                    SettingsSectionCard(title = "智能能力", defaultExpanded = false) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                        ) {
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text("购物研究清单", style = MaterialTheme.typography.bodyLarge)
-                                Text(
-                                    "价格 / 评分 / 口碑对比与采购状态",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                )
-                            }
-                            TextButton(onClick = onOpenShopping) {
-                                Text("打开")
-                            }
-                        }
-                    }
+                    IntelligenceSettingsSection(onOpenShopping = onOpenShopping)
                 }
 
                 item {
-                    SettingsSectionCard(title = "开发者模式", defaultExpanded = false) {
-                        SwitchRow(
-                            title = "显示高级能力",
-                            subtitle = "SSH、远程节点、审计、调试日志仅在需要时开启",
-                            checked = developerMode,
-                            onCheckedChange = { enabled ->
-                                developerMode = enabled
-                                uxPrefs.edit().putBoolean("developer_mode", enabled).apply()
-                            },
-                        )
-                    }
+                    DeveloperModeSettingsSection(
+                        developerMode = developerMode,
+                        onDeveloperModeChange = { enabled ->
+                            developerMode = enabled
+                            uxPrefs.edit().putBoolean("developer_mode", enabled).apply()
+                        },
+                    )
                 }
 
                 if (developerMode) {
@@ -399,9 +377,7 @@ fun SettingsScreen(
                 }
 
                 item {
-                    SettingsSectionCard(title = "权限与系统", defaultExpanded = false) {
-                        PermissionCheckSection(modifier = Modifier.fillMaxWidth())
-                    }
+                    PermissionSettingsSection()
                 }
 
                 if (developerMode) {
