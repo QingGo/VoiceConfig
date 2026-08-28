@@ -48,7 +48,9 @@ import com.voiceconfig.app.ai.DeepSeekNlpParser
 import com.voiceconfig.app.ai.VoiceIntent
 import com.voiceconfig.app.ai.VoiceIntentType
 import com.voiceconfig.app.ai.TtsSpeaker
+import com.voiceconfig.app.home.HomeAssistantClient
 import com.voiceconfig.app.home.HomeAssistantConfigStore
+import com.voiceconfig.app.home.HomeAssistantDevice
 import com.voiceconfig.app.scheduler.TriggerRuleScheduler
 import com.voiceconfig.app.di.UserAliasRegistry
 import com.voiceconfig.data.local.entity.AgentMessageEntity
@@ -140,6 +142,7 @@ class MainViewModel @Inject constructor(
     private val taskPlanStore: TaskPlanStore,
     private val ttsSpeaker: TtsSpeaker,
     private val homeAssistantConfigStore: HomeAssistantConfigStore,
+    private val homeAssistantClient: HomeAssistantClient,
     private val voiceSessionManager: VoiceSessionManager,
 ) : ViewModel() {
 
@@ -288,6 +291,10 @@ class MainViewModel @Inject constructor(
     val homeAssistantToken: StateFlow<String> = _homeAssistantToken.asStateFlow()
     private val _homeAssistantConfigured = MutableStateFlow(homeAssistantConfigStore.load().isConfigured)
     val homeAssistantConfigured: StateFlow<Boolean> = _homeAssistantConfigured.asStateFlow()
+    private val _homeAssistantDevices = MutableStateFlow<List<HomeAssistantDevice>?>(null)
+    val homeAssistantDevices: StateFlow<List<HomeAssistantDevice>?> = _homeAssistantDevices.asStateFlow()
+    private val _homeAssistantTestMessage = MutableStateFlow<String?>(null)
+    val homeAssistantTestMessage: StateFlow<String?> = _homeAssistantTestMessage.asStateFlow()
 
     private val _voiceSession = MutableStateFlow(VoiceSession())
     val voiceSession: StateFlow<VoiceSession> = _voiceSession.asStateFlow()
@@ -1099,6 +1106,20 @@ class MainViewModel @Inject constructor(
         _homeAssistantBaseUrl.value = config.baseUrl
         _homeAssistantToken.value = config.token
         _homeAssistantConfigured.value = config.isConfigured
+    }
+
+    fun testHomeAssistantConnection() {
+        viewModelScope.launch {
+            val config = homeAssistantConfigStore.load()
+            val result = homeAssistantClient.fetchStates(config)
+            if (result.ok) {
+                _homeAssistantDevices.value = result.devices
+                _homeAssistantTestMessage.value = "已连接，读取到 ${result.devices.size} 个设备"
+            } else {
+                _homeAssistantDevices.value = emptyList()
+                _homeAssistantTestMessage.value = result.message
+            }
+        }
     }
 
     fun submitAgentDraft() {

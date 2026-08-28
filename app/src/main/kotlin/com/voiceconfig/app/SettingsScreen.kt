@@ -91,6 +91,8 @@ fun SettingsScreen(
     val homeAssistantBaseUrl by viewModel.homeAssistantBaseUrl.collectAsState()
     val homeAssistantToken by viewModel.homeAssistantToken.collectAsState()
     val homeAssistantConfigured by viewModel.homeAssistantConfigured.collectAsState()
+    val homeAssistantDevices by viewModel.homeAssistantDevices.collectAsState()
+    val homeAssistantTestMessage by viewModel.homeAssistantTestMessage.collectAsState()
     val agentVoiceAutoSend by viewModel.agentVoiceAutoSend.collectAsState()
     val agentTtsEnabled by viewModel.agentTtsEnabled.collectAsState()
     val wakeWordEnabled by viewModel.wakeWordEnabled.collectAsState()
@@ -340,6 +342,51 @@ fun SettingsScreen(
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
+                        Button(
+                            onClick = { viewModel.testHomeAssistantConnection() },
+                            modifier = Modifier.fillMaxWidth(),
+                            enabled = draftHaBaseUrl.isNotBlank() && draftHaToken.isNotBlank(),
+                        ) {
+                            Text("测试连接")
+                        }
+                        homeAssistantTestMessage?.let { message ->
+                            Text(
+                                text = message,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = if (message.startsWith("已连接")) {
+                                    MaterialTheme.colorScheme.primary
+                                } else {
+                                    MaterialTheme.colorScheme.error
+                                },
+                            )
+                        }
+                        homeAssistantDevices?.take(12)?.let { devices ->
+                            if (devices.isNotEmpty()) {
+                                HorizontalDivider()
+                                Text(
+                                    text = "设备预览",
+                                    style = MaterialTheme.typography.titleSmall,
+                                )
+                                devices.forEach { device ->
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                    ) {
+                                        Text(
+                                            text = device.friendlyName,
+                                            modifier = Modifier.weight(1f),
+                                            style = MaterialTheme.typography.bodySmall,
+                                        )
+                                        Text(
+                                            text = device.state,
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        )
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
 
