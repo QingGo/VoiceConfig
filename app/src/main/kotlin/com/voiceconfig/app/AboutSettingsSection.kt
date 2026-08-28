@@ -4,8 +4,12 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import android.content.Context
+import android.content.Intent
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import com.voiceconfig.app.ui.VoiceSectionCard
 
 @Composable
@@ -29,6 +33,22 @@ internal fun AboutSettingsSection() {
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.outline,
             )
+            val context = LocalContext.current
+            TextButton(
+                onClick = {
+                    context.getSharedPreferences("voiceconfig_ux", Context.MODE_PRIVATE)
+                        .edit()
+                        .remove("onboarding_done")
+                        .apply()
+                    val intent = context.packageManager.getLaunchIntentForPackage(context.packageName)
+                    if (intent != null) {
+                        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
+                        context.startActivity(intent)
+                    }
+                },
+            ) {
+                Text("重新观看引导")
+            }
         }
     }
 }
