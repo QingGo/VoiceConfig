@@ -633,6 +633,7 @@ fun MainScreen(viewModel: MainViewModel) {
                 viewModel.testHomeAssistantConnection()
             },
             onControlService = viewModel::controlHomeAssistantService,
+            onRefresh = viewModel::testHomeAssistantConnection,
         )
     }
     }

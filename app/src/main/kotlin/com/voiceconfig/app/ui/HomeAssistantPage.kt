@@ -47,6 +47,7 @@ fun HomeAssistantPage(
     onClose: () -> Unit,
     onSaveAndTest: (String, String) -> Unit,
     onControlService: (String, String, String, Map<String, Any?>) -> Unit,
+    onRefresh: () -> Unit = {},
 ) {
     var draftBaseUrl by remember { mutableStateOf(baseUrl) }
     var draftToken by remember { mutableStateOf(token) }
@@ -111,6 +112,16 @@ fun HomeAssistantPage(
                         enabled = draftBaseUrl.isNotBlank() && draftToken.isNotBlank(),
                     ) {
                         Text("保存并测试连接")
+                    }
+                }
+                if (configured) {
+                    item {
+                        TextButton(
+                            onClick = onRefresh,
+                            modifier = Modifier.fillMaxWidth(),
+                        ) {
+                            Text("刷新设备")
+                        }
                     }
                 }
                 testMessage?.let {
