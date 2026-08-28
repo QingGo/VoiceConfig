@@ -177,14 +177,16 @@ fun AgentPage(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
-            FilledTonalButton(onClick = onNewSession) {
-                Icon(
-                    imageVector = Icons.Default.Add,
-                    contentDescription = null,
-                    modifier = Modifier.size(18.dp),
-                )
-                Spacer(modifier = Modifier.width(4.dp))
-                Text("新建")
+            if (selectedSessionId != null) {
+                FilledTonalButton(onClick = onNewSession) {
+                    Icon(
+                        imageVector = Icons.Default.Add,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp),
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text("新建")
+                }
             }
             Box {
                 IconButton(onClick = { moreMenuExpanded = true }) {
