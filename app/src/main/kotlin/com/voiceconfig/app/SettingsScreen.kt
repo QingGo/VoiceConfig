@@ -62,6 +62,8 @@ import com.voiceconfig.app.ai.LocalAsrManager
 import com.voiceconfig.data.local.entity.AiDebugLogEntity
 import com.voiceconfig.core.model.TriggerRule
 import com.voiceconfig.app.ui.VoiceSectionCard
+import com.voiceconfig.app.ui.VoiceStatusCard
+import com.voiceconfig.app.ui.VoiceStatusItem
 import com.voiceconfig.app.ui.RemoteNodesDialog
 import com.voiceconfig.app.ui.RemoteProjectsDialog
 import com.voiceconfig.app.ui.SshConsoleDialog
@@ -208,43 +210,42 @@ fun SettingsScreen(
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 item {
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.primaryContainer,
-                        ),
-                    ) {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(16.dp),
-                            verticalArrangement = Arrangement.spacedBy(8.dp),
-                        ) {
-                            Text(
-                                text = "我的状态",
-                                style = MaterialTheme.typography.titleMedium,
-                                color = MaterialTheme.colorScheme.onPrimaryContainer,
+                    VoiceStatusCard(
+                        title = "我的状态",
+                        items = buildList {
+                            add(
+                                VoiceStatusItem(
+                                    label = "AI 模型",
+                                    value = if (deepSeekApiKey.isBlank()) "未配置" else "已配置",
+                                    valueColor = if (deepSeekApiKey.isBlank()) {
+                                        MaterialTheme.colorScheme.error
+                                    } else {
+                                        MaterialTheme.colorScheme.primary
+                                    },
+                                ),
                             )
-                            StatusSummaryRow(
-                                label = "AI 模型",
-                                value = if (deepSeekApiKey.isBlank()) "未配置" else "已配置",
+                            add(
+                                VoiceStatusItem(
+                                    label = "Home Assistant",
+                                    value = if (homeAssistantConfigured) "已连接" else "未配置",
+                                ),
                             )
-                            StatusSummaryRow(
-                                label = "Home Assistant",
-                                value = if (homeAssistantConfigured) "已连接" else "未配置",
-                            )
-                            StatusSummaryRow(
-                                label = "语音唤醒",
-                                value = if (wakeWordEnabled) "已开启" else "未开启",
+                            add(
+                                VoiceStatusItem(
+                                    label = "语音唤醒",
+                                    value = if (wakeWordEnabled) "已开启" else "未开启",
+                                ),
                             )
                             if (developerMode) {
-                                StatusSummaryRow(
-                                    label = "远程节点",
-                                    value = "已登记 ${remoteNodes.size} 个",
+                                add(
+                                    VoiceStatusItem(
+                                        label = "远程节点",
+                                        value = "已登记 ${remoteNodes.size} 个",
+                                    ),
                                 )
                             }
-                        }
-                    }
+                        },
+                    )
                 }
 
                 item {
@@ -1152,28 +1153,6 @@ private fun RowScope.RemoteToolTile(
     }
 }
 
-@Composable
-private fun StatusSummaryRow(
-    label: String,
-    value: String,
-) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.SpaceBetween,
-    ) {
-        Text(
-            text = label,
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onPrimaryContainer,
-        )
-        Text(
-            text = value,
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onPrimaryContainer,
-        )
-    }
-}
 
 @Composable
 private fun SwitchRow(
