@@ -437,6 +437,7 @@ fun MainScreen(viewModel: MainViewModel) {
                         },
                         onVoiceInput = onAgentMicClick,
                         isListening = isListening,
+                        onOpenShopping = { showShoppingPage = true },
                         hasDeepSeekKey = deepSeekApiKey.isNotBlank(),
                         agentVoiceAutoSend = agentVoiceAutoSend,
                         onAgentVoiceAutoSendChange = viewModel::setAgentVoiceAutoSend,

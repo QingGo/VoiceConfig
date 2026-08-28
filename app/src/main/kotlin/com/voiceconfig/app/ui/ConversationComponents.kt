@@ -141,8 +141,9 @@ private fun HomeHero(
 }
 
 @Composable
-private fun HomeQuickActions(
+internal fun HomeQuickActions(
     onQuickAction: (String) -> Unit,
+    onOpenShopping: () -> Unit = {},
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -203,7 +204,7 @@ private fun HomeQuickActions(
                     title = "母婴比价",
                     subtitle = "研究 / 对比",
                     modifier = Modifier.weight(1f),
-                    onClick = { onQuickAction("帮我查母婴用品并比较价格和评价") },
+                    onClick = onOpenShopping,
                 )
             }
         }
@@ -262,6 +263,7 @@ internal fun ConversationTab(
     onQuickAction: (String) -> Unit = {},
     onVoiceInput: () -> Unit = {},
     isListening: Boolean = false,
+    onOpenShopping: () -> Unit = {},
     onSend: () -> Unit,
     onStop: () -> Unit,
     onNewSession: () -> Unit = {},
@@ -305,7 +307,10 @@ internal fun ConversationTab(
                         )
                     }
                     item(key = "quick_actions") {
-                        HomeQuickActions(onQuickAction = onQuickAction)
+                        HomeQuickActions(
+                            onQuickAction = onQuickAction,
+                            onOpenShopping = onOpenShopping,
+                        )
                     }
                 }
             } else {
