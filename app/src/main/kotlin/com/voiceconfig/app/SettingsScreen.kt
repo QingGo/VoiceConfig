@@ -61,6 +61,7 @@ import androidx.compose.ui.unit.dp
 import com.voiceconfig.app.ai.LocalAsrManager
 import com.voiceconfig.data.local.entity.AiDebugLogEntity
 import com.voiceconfig.core.model.TriggerRule
+import com.voiceconfig.app.ui.VoiceSectionCard
 import com.voiceconfig.app.ui.RemoteNodesDialog
 import com.voiceconfig.app.ui.RemoteProjectsDialog
 import com.voiceconfig.app.ui.SshConsoleDialog
@@ -1091,51 +1092,11 @@ private fun SettingsSectionCard(
     defaultExpanded: Boolean = false,
     content: @Composable () -> Unit,
 ) {
-    val sectionPrefs = LocalContext.current.getSharedPreferences("settings_sections", android.content.Context.MODE_PRIVATE)
-    var expanded by remember(title) {
-        mutableStateOf(sectionPrefs.getBoolean(title, defaultExpanded))
-    }
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 12.dp, vertical = 8.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable {
-                    expanded = !expanded
-                    sectionPrefs.edit().putBoolean(title, expanded).apply()
-                },
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text(
-                    text = title,
-                    style = MaterialTheme.typography.titleSmall,
-                    modifier = Modifier.weight(1f),
-                )
-                Text(
-                    text = if (expanded) "收起 ⌃" else "展开 ⌄",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-            if (expanded) {
-                HorizontalDivider()
-                Column(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    content()
-                }
-            }
-        }
-    }
+    VoiceSectionCard(
+        title = title,
+        defaultExpanded = defaultExpanded,
+        content = { content() },
+    )
 }
 
 @Composable
