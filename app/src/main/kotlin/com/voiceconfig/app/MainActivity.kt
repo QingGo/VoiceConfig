@@ -773,6 +773,7 @@ fun MainScreen(viewModel: MainViewModel) {
                                 snackbarHostState.showSnackbar("已新建会话并填入指令，确认后发送")
                             }
                         },
+                        onVoiceInput = onAgentMicClick,
                         hasDeepSeekKey = deepSeekApiKey.isNotBlank(),
                         agentVoiceAutoSend = agentVoiceAutoSend,
                         onAgentVoiceAutoSendChange = viewModel::setAgentVoiceAutoSend,
@@ -861,7 +862,7 @@ fun MainScreen(viewModel: MainViewModel) {
                 }
             }
 
-            if (pagerState.currentPage != 2) {
+            if (pagerState.currentPage == 1) {
                 FloatingMicButton(
                     isListening = isListening,
                     isPreparing = isPreparing,

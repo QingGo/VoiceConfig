@@ -49,6 +49,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.voiceconfig.core.model.ExecutionLog
@@ -58,6 +59,7 @@ import com.voiceconfig.core.model.Task
 import com.voiceconfig.data.local.entity.AgentMessageEntity
 import com.voiceconfig.data.local.entity.AgentSessionEntity
 import com.voiceconfig.data.local.entity.TaskEventEntity
+import com.voiceconfig.app.R
 import com.voiceconfig.app.agent.AgentRunRecord
 import com.voiceconfig.app.agent.AgentRunState
 import com.voiceconfig.app.agent.AgentSkill
@@ -97,6 +99,7 @@ fun AgentPage(
     input: String,
     onInputChange: (String) -> Unit,
     onQuickAction: (String) -> Unit = {},
+    onVoiceInput: () -> Unit = {},
     hasDeepSeekKey: Boolean = true,
     agentVoiceAutoSend: Boolean = false,
     onAgentVoiceAutoSendChange: (Boolean) -> Unit = {},
@@ -376,6 +379,7 @@ fun AgentPage(
             input = input,
             onInputChange = onInputChange,
             onQuickAction = onQuickAction,
+            onVoiceInput = onVoiceInput,
             onSend = {
                 if (input.isNotBlank()) {
                     onSend(input.trim())
@@ -1044,6 +1048,7 @@ private fun ConversationTab(
     input: String,
     onInputChange: (String) -> Unit,
     onQuickAction: (String) -> Unit = {},
+    onVoiceInput: () -> Unit = {},
     onSend: () -> Unit,
     onStop: () -> Unit,
     onNewSession: () -> Unit = {},
@@ -1184,6 +1189,16 @@ private fun ConversationTab(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
+                    IconButton(
+                        onClick = onVoiceInput,
+                        enabled = !isAgentBusy,
+                    ) {
+                        Icon(
+                            painter = painterResource(id = R.drawable.ic_mic),
+                            contentDescription = "语音输入",
+                            tint = MaterialTheme.colorScheme.primary,
+                        )
+                    }
                     OutlinedTextField(
                         value = input,
                         onValueChange = onInputChange,
