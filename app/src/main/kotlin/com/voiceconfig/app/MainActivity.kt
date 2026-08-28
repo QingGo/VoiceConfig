@@ -118,6 +118,7 @@ import com.voiceconfig.app.service.AccessibilityKeepAlive
 import com.voiceconfig.app.service.VoiceConfigService
 import com.voiceconfig.app.ui.theme.SuccessGreen
 import com.voiceconfig.app.ui.AgentNavigation
+import com.voiceconfig.app.ui.AppDestination
 import com.voiceconfig.app.ui.AgentPage
 import com.voiceconfig.app.ui.HomeAssistantPage
 import com.voiceconfig.app.ui.OnboardingScreen
@@ -621,9 +622,9 @@ fun MainScreen(viewModel: MainViewModel) {
         viewModel.submitNaturalLanguageInput()
     }
 
-    var currentTab by remember { mutableIntStateOf(0) }
-    LaunchedEffect(currentTab) {
-        showAgentPage = currentTab == 0
+    var currentDestination by remember { mutableStateOf<AppDestination>(AppDestination.Conversation) }
+    LaunchedEffect(currentDestination) {
+        showAgentPage = currentDestination == AppDestination.Conversation
         if (showAgentPage) {
             viewModel.openAgentPage()
         }
@@ -636,8 +637,8 @@ fun MainScreen(viewModel: MainViewModel) {
                 .weight(1f)
                 .fillMaxWidth(),
         ) {
-            when (currentTab) {
-                    1 -> MainScreenContent(
+            when (currentDestination) {
+                    AppDestination.Automation -> MainScreenContent(
                         uiState = uiState,
                         deepSeekApiKey = deepSeekApiKey,
                         installedAppLabels = installedAppLabels,
@@ -645,31 +646,31 @@ fun MainScreen(viewModel: MainViewModel) {
                         isPreparing = isPreparing,
                         onMicClick = onMicClick,
                         onOpenAiSettings = {
-                            currentTab = 2
+                            currentDestination = AppDestination.Profile
                         },
                         onOpenAgent = {
                             agentInitialTab = 0
                             agentTabIndex = 0
                             agentLogTaskId = null
-                            currentTab = 0
+                            currentDestination = AppDestination.Conversation
                         },
                         onCreateByAgent = {
                             viewModel.newAgentSession()
                             viewModel.onAgentInputChange("帮我创建一个自动化任务：")
-                            currentTab = 0
+                            currentDestination = AppDestination.Conversation
                             scope.launch {
                                 snackbarHostState.showSnackbar("已进入对话，输入你的自动化需求")
                             }
                         },
                         onOpenAgentLogs = { task ->
-                            currentTab = 1
+                            currentDestination = AppDestination.Automation
                         },
                         onOpenAgentSession = { sessionId ->
                             viewModel.selectAgentSession(sessionId)
                             agentInitialTab = 0
                             agentTabIndex = 0
                             agentLogTaskId = null
-                            currentTab = 0
+                            currentDestination = AppDestination.Conversation
                         },
                         showCreatePanel = showCreatePanel,
                         onCreatePanelChange = { showCreatePanel = it },
@@ -722,7 +723,7 @@ fun MainScreen(viewModel: MainViewModel) {
                         },
                         onTemplateSelected = viewModel::onTemplateSelected,
                     )
-                    0 -> AgentPage(
+                    AppDestination.Conversation -> AgentPage(
                         initialTabIndex = agentInitialTab,
                         tabIndex = agentTabIndex,
                         onTabChange = { agentTabIndex = it },
@@ -787,7 +788,7 @@ fun MainScreen(viewModel: MainViewModel) {
                         onAgentThinkingEnabledChange = viewModel::setAgentDeepSeekThinkingEnabled,
                         onAgentReasoningEffortChange = viewModel::setAgentDeepSeekReasoningEffort,
                         onBack = {
-                            currentTab = 0
+                            currentDestination = AppDestination.Conversation
                         },
                         onSelectSession = viewModel::selectAgentSession,
                         onSend = viewModel::sendAgentMessage,
@@ -833,29 +834,29 @@ fun MainScreen(viewModel: MainViewModel) {
                             }
                         },
                         onOpenTask = { taskId ->
-                            currentTab = 1
+                            currentDestination = AppDestination.Automation
                         },
                         onOpenAutomation = {
-                            currentTab = 1
+                            currentDestination = AppDestination.Automation
                         },
                         onOpenSettings = {
-                            currentTab = 2
+                            currentDestination = AppDestination.Profile
                         },
                     )
-                    2 -> SettingsScreen(
+                    AppDestination.Profile -> SettingsScreen(
                         viewModel = viewModel,
                         localAsrManager = localAsrManager,
                         aiDebugLogs = aiDebugLogs,
                         triggerRules = triggerRules,
                         onClose = {
-                            currentTab = 0
+                            currentDestination = AppDestination.Conversation
                         },
                         onOpenShopping = { showShoppingPage = true },
                         onOpenHomeAssistant = { showHomeAssistantPage = true },
                     )
                 }
 
-            if (currentTab == 1) {
+            if (currentDestination == AppDestination.Automation) {
                 FloatingMicButton(
                     isListening = isListening,
                     isPreparing = isPreparing,
@@ -886,12 +887,12 @@ fun MainScreen(viewModel: MainViewModel) {
 
         NavigationBar {
             NavigationBarItem(
-                selected = currentTab == 0,
+                selected = currentDestination == AppDestination.Conversation,
                 onClick = {
                     agentInitialTab = 0
                     agentTabIndex = agentInitialTab
                     agentLogTaskId = null
-                    currentTab = 0
+                    currentDestination = AppDestination.Conversation
                 },
                 icon = {
                     Icon(
@@ -902,9 +903,9 @@ fun MainScreen(viewModel: MainViewModel) {
                 label = { Text("首页/对话") },
             )
             NavigationBarItem(
-                selected = currentTab == 1,
+                selected = currentDestination == AppDestination.Automation,
                 onClick = {
-                    currentTab = 1
+                    currentDestination = AppDestination.Automation
                 },
                 icon = {
                     Icon(
@@ -915,9 +916,9 @@ fun MainScreen(viewModel: MainViewModel) {
                 label = { Text("自动化") },
             )
             NavigationBarItem(
-                selected = currentTab == 2,
+                selected = currentDestination == AppDestination.Profile,
                 onClick = {
-                    currentTab = 2
+                    currentDestination = AppDestination.Profile
                 },
                 icon = {
                     Icon(
@@ -944,7 +945,7 @@ fun MainScreen(viewModel: MainViewModel) {
                 viewModel.newAgentSession()
                 viewModel.onAgentInputChange("帮我查母婴用品并比较价格和评价")
                 scope.launch {
-                    currentTab = 0
+                    currentDestination = AppDestination.Conversation
                     snackbarHostState.showSnackbar("已进入智能助手，输入研究目标后发送")
                 }
             },
