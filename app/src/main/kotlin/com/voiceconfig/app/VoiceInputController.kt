@@ -65,7 +65,6 @@ fun rememberVoiceInputController(
     var pendingSpeechConsumer by remember { mutableStateOf<(String) -> Unit>({ viewModel.onInputChange(it) }) }
     var pendingSpeechPartialConsumer by remember { mutableStateOf<(String) -> Unit>({}) }
     var voiceSessionCounter by remember { mutableStateOf(0L) }
-    var pendingVoiceSessionId by remember { mutableStateOf<String?>(null) }
 
     val speechLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.StartActivityForResult(),
@@ -181,7 +180,6 @@ fun rememberVoiceInputController(
             } else {
                 voiceSessionCounter++
                 val voiceSession = "home_voice_$voiceSessionCounter"
-                pendingVoiceSessionId = voiceSession
                 pendingSpeechConsumer = { text ->
                     viewModel.submitVoiceResult(
                         text = text,
@@ -211,7 +209,6 @@ fun rememberVoiceInputController(
             } else {
                 voiceSessionCounter++
                 val voiceSession = "agent_voice_$voiceSessionCounter"
-                pendingVoiceSessionId = voiceSession
                 pendingSpeechConsumer = { text ->
                     viewModel.submitVoiceResult(
                         text = text,
