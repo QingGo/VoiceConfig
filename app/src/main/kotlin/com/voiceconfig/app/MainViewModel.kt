@@ -48,6 +48,7 @@ import com.voiceconfig.app.ai.DeepSeekNlpParser
 import com.voiceconfig.app.ai.VoiceIntent
 import com.voiceconfig.app.ai.VoiceIntentType
 import com.voiceconfig.app.ai.TtsSpeaker
+import com.voiceconfig.app.HomeAssistantFeature
 import com.voiceconfig.app.home.HomeAssistantClient
 import com.voiceconfig.app.home.HomeAssistantConfigStore
 import com.voiceconfig.app.home.HomeAssistantDevice
@@ -144,8 +145,7 @@ class MainViewModel @Inject constructor(
     private val agentTrace: AgentTrace,
     private val taskPlanStore: TaskPlanStore,
     private val ttsSpeaker: TtsSpeaker,
-    private val homeAssistantConfigStore: HomeAssistantConfigStore,
-    private val homeAssistantClient: HomeAssistantClient,
+    private val homeAssistantFeature: HomeAssistantFeature,
     private val voiceSessionManager: VoiceSessionManager,
 ) : ViewModel() {
 
@@ -298,18 +298,12 @@ class MainViewModel @Inject constructor(
     private val _themeMode = MutableStateFlow(apiKeyStore.themeMode)
     val themeMode: StateFlow<String> = _themeMode.asStateFlow()
 
-    private val _homeAssistantBaseUrl = MutableStateFlow(homeAssistantConfigStore.load().baseUrl)
-    val homeAssistantBaseUrl: StateFlow<String> = _homeAssistantBaseUrl.asStateFlow()
-    private val _homeAssistantToken = MutableStateFlow(homeAssistantConfigStore.load().token)
-    val homeAssistantToken: StateFlow<String> = _homeAssistantToken.asStateFlow()
-    private val _homeAssistantConfigured = MutableStateFlow(homeAssistantConfigStore.load().isConfigured)
-    val homeAssistantConfigured: StateFlow<Boolean> = _homeAssistantConfigured.asStateFlow()
-    private val _homeAssistantDevices = MutableStateFlow<List<HomeAssistantDevice>?>(null)
-    val homeAssistantDevices: StateFlow<List<HomeAssistantDevice>?> = _homeAssistantDevices.asStateFlow()
-    private val _homeAssistantTestMessage = MutableStateFlow<String?>(null)
-    val homeAssistantTestMessage: StateFlow<String?> = _homeAssistantTestMessage.asStateFlow()
-    private val _homeAssistantControlMessage = MutableStateFlow<String?>(null)
-    val homeAssistantControlMessage: StateFlow<String?> = _homeAssistantControlMessage.asStateFlow()
+    val homeAssistantBaseUrl: StateFlow<String> = homeAssistantFeature.baseUrl
+    val homeAssistantToken: StateFlow<String> = homeAssistantFeature.token
+    val homeAssistantConfigured: StateFlow<Boolean> = homeAssistantFeature.configured
+    val homeAssistantDevices: StateFlow<List<HomeAssistantDevice>?> = homeAssistantFeature.devices
+    val homeAssistantTestMessage: StateFlow<String?> = homeAssistantFeature.testMessage
+    val homeAssistantControlMessage: StateFlow<String?> = homeAssistantFeature.controlMessage
 
     private val _voiceSession = MutableStateFlow(VoiceSession())
     val voiceSession: StateFlow<VoiceSession> = _voiceSession.asStateFlow()
@@ -1121,29 +1115,19 @@ class MainViewModel @Inject constructor(
     }
 
     fun saveHomeAssistantConfig(baseUrl: String, token: String) {
-        val config = com.voiceconfig.app.home.HomeAssistantConfig(baseUrl = baseUrl, token = token)
-        homeAssistantConfigStore.save(config)
-        _homeAssistantBaseUrl.value = config.baseUrl
-        _homeAssistantToken.value = config.token
-        _homeAssistantConfigured.value = config.isConfigured
+        homeAssistantFeature.saveConfig(baseUrl, token)
     }
 
     fun testHomeAssistantConnection() {
         viewModelScope.launch {
-            val config = homeAssistantConfigStore.load()
-            val result = homeAssistantClient.fetchStates(config)
-            if (result.ok) {
-                _homeAssistantDevices.value = result.devices
-                _homeAssistantTestMessage.value = "已连接，读取到 ${result.devices.size} 个设备"
-            } else {
-                _homeAssistantDevices.value = emptyList()
-                _homeAssistantTestMessage.value = result.message
-            }
+            homeAssistantFeature.testConnection()
         }
     }
 
     fun controlHomeAssistant(entityId: String, domain: String) {
-        controlHomeAssistantService(entityId, domain, "toggle")
+        viewModelScope.launch {
+            homeAssistantFeature.control(entityId, domain)
+        }
     }
 
     fun controlHomeAssistantService(
@@ -1153,23 +1137,7 @@ class MainViewModel @Inject constructor(
         data: Map<String, Any?> = emptyMap(),
     ) {
         viewModelScope.launch {
-            val config = homeAssistantConfigStore.load()
-            if (!config.isConfigured) {
-                _homeAssistantControlMessage.value = "请先配置 Home Assistant"
-                return@launch
-            }
-            val result = homeAssistantClient.callService(
-                config = config,
-                domain = domain,
-                service = service,
-                entityId = entityId,
-                data = data,
-            )
-            _homeAssistantControlMessage.value = if (result.ok) {
-                "已发送控制指令：$entityId"
-            } else {
-                result.message
-            }
+            homeAssistantFeature.controlService(entityId, domain, service, data)
         }
     }
 
