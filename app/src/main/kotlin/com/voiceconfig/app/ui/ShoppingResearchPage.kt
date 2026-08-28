@@ -101,30 +101,13 @@ fun ShoppingResearchPage(
             }
 
             if (filtered.isEmpty()) {
-                Column(
-                    modifier = Modifier
-                        .weight(1f)
-                        .fillMaxWidth()
-                        .padding(24.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center,
-                ) {
-                    Icon(Icons.Default.Info, contentDescription = null, modifier = Modifier.size(48.dp), tint = MaterialTheme.colorScheme.outline)
-                    Spacer(modifier = Modifier.size(12.dp))
-                    Text(
-                        if (items.isEmpty()) "还没有购物研究记录" else "该分类暂无商品",
-                        style = MaterialTheme.typography.titleMedium,
-                    )
-                    Text(
-                        "让智能助手搜索商品、提取价格评分并保存到这里",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(top = 4.dp),
-                    )
-                    Button(onClick = onStartResearch, modifier = Modifier.padding(top = 12.dp)) {
-                        Text("开始一次研究")
-                    }
-                }
+                VoiceEmptyState(
+                    title = if (items.isEmpty()) "还没有购物研究记录" else "该分类暂无商品",
+                    message = "让智能助手搜索商品、提取价格评分并保存到这里",
+                    actionLabel = "开始一次研究",
+                    onAction = onStartResearch,
+                    modifier = Modifier.weight(1f),
+                )
             } else {
                 LazyColumn(
                     modifier = Modifier.weight(1f),

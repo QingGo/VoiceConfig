@@ -144,10 +144,9 @@ fun HomeAssistantPage(
                 }
                 if (devices.isEmpty()) {
                     item {
-                        Text(
-                            "暂无设备，请先保存并测试连接",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        VoiceEmptyState(
+                            title = "暂无设备",
+                            message = "请先保存并测试连接，设备会自动显示在这里",
                         )
                     }
                 } else {
