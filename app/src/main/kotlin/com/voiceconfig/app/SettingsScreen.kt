@@ -15,11 +15,19 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Build
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.List
+import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.Phone
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Button
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
@@ -577,7 +585,7 @@ fun SettingsScreen(
                                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                             ) {
                                 Text(
-                                    text = "${if (rule.enabled) "🟢" else "⚪️"} ${rule.name} · ${rule.condition.type}",
+                                    text = "${if (rule.enabled) "已启用" else "已停用"} · ${rule.name} · ${rule.condition.type}",
                                     modifier = Modifier.weight(1f),
                                     style = MaterialTheme.typography.bodySmall,
                                 )
@@ -612,43 +620,43 @@ fun SettingsScreen(
                             }
                         }
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            RemoteToolTile("命令终端", ">_", onClick = {
+                            RemoteToolTile("命令终端", Icons.Default.Build, onClick = {
                                 showSshConsole = true
                                 viewModel.clearSshResult()
                             })
-                            RemoteToolTile("远程文件", "📁", onClick = {
+                            RemoteToolTile("远程文件", Icons.Default.List, onClick = {
                                 showSshFile = true
                                 viewModel.clearSshFileResult()
                             })
                         }
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            RemoteToolTile("交互终端", "⌨", onClick = {
+                            RemoteToolTile("交互终端", Icons.Default.Edit, onClick = {
                                 showSshShell = true
                                 viewModel.clearSshShellOutput()
                                 viewModel.clearSshShellError()
                             })
-                            RemoteToolTile("SSH 审计", "📋", onClick = {
+                            RemoteToolTile("SSH 审计", Icons.Default.Info, onClick = {
                                 showSshAudit = true
                                 viewModel.loadSshAudit()
                             })
                         }
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            RemoteToolTile("密钥管理", "🔑", onClick = {
+                            RemoteToolTile("密钥管理", Icons.Default.Lock, onClick = {
                                 showSshKeys = true
                                 viewModel.refreshSshKeys()
                             })
-                            RemoteToolTile("系统服务", "⚙️", onClick = {
+                            RemoteToolTile("系统服务", Icons.Default.Settings, onClick = {
                                 showSshServices = true
                                 viewModel.clearSshServiceResult()
                             })
                         }
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            RemoteToolTile("节点日志", "📜", onClick = {
+                            RemoteToolTile("节点日志", Icons.Default.List, onClick = {
                                 showSshNodeLogs = true
                                 viewModel.clearSshNodeLogResult()
                             })
-                            RemoteToolTile("远程节点", "🖥", onClick = { showRemoteNodes = true })
-                            RemoteToolTile("远程项目", "🚀", onClick = { showRemoteProjects = true })
+                            RemoteToolTile("远程节点", Icons.Default.Phone, onClick = { showRemoteNodes = true })
+                            RemoteToolTile("远程项目", Icons.Default.Build, onClick = { showRemoteProjects = true })
                         }
                     }
                 }
@@ -964,7 +972,7 @@ private fun SettingsSectionCard(
 @Composable
 private fun RowScope.RemoteToolTile(
     title: String,
-    icon: String,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
     onClick: () -> Unit,
 ) {
     Card(
@@ -981,7 +989,12 @@ private fun RowScope.RemoteToolTile(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(2.dp),
         ) {
-            Text(text = icon, style = MaterialTheme.typography.titleMedium)
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(24.dp),
+            )
             Text(
                 text = title,
                 style = MaterialTheme.typography.labelMedium,

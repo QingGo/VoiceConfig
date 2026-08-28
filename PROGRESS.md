@@ -78,11 +78,11 @@
 - [x] P1-7 自动化页「+ 新建任务」主按钮
 - [x] P1-8 执行记录去成功率，改为「最近执行 + 可展开」
 - [x] P2-9 品牌色改为深靛蓝 #4F46E5，更新主题
-- [ ] P1-5 图标系统替换 Emoji（待补 Material Symbols 扩展/自绘）
+- [x] P1-5 远程工具图标改用 Material 图标，触发器状态去掉 Emoji；聊天/文件内 Emoji 待后续替换
 - [ ] P2-10 Home Assistant / 购物研究完整页面
 - [ ] P2-11 语音唤醒引导
 - [ ] P2-12 远程高级能力统一设计
-- [ ] Adaptive Icon
+- [x] Adaptive Icon（新增 mipmap-anydpi-v26 + 前景矢量）
 
 ## 已提交代码
 
