@@ -120,6 +120,7 @@ import com.voiceconfig.app.service.VoiceConfigService
 import com.voiceconfig.app.ui.theme.SuccessGreen
 import com.voiceconfig.app.ui.AgentNavigation
 import com.voiceconfig.app.ui.AgentPage
+import com.voiceconfig.app.ui.HomeAssistantPage
 import com.voiceconfig.app.ui.OnboardingScreen
 import com.voiceconfig.app.ui.ShoppingResearchPage
 import com.voiceconfig.app.ui.theme.VoiceConfigTheme
@@ -314,7 +315,14 @@ fun MainScreen(viewModel: MainViewModel) {
     val agentTtsEnabled by viewModel.agentTtsEnabled.collectAsState()
     val wakeWordEnabled by viewModel.wakeWordEnabled.collectAsState()
     val shoppingItems by viewModel.shoppingItems.collectAsState()
+    val homeAssistantBaseUrl by viewModel.homeAssistantBaseUrl.collectAsState()
+    val homeAssistantToken by viewModel.homeAssistantToken.collectAsState()
+    val homeAssistantConfigured by viewModel.homeAssistantConfigured.collectAsState()
+    val homeAssistantDevices by viewModel.homeAssistantDevices.collectAsState()
+    val homeAssistantTestMessage by viewModel.homeAssistantTestMessage.collectAsState()
+    val homeAssistantControlMessage by viewModel.homeAssistantControlMessage.collectAsState()
     var showShoppingPage by remember { mutableStateOf(false) }
+    var showHomeAssistantPage by remember { mutableStateOf(false) }
     var showAgentPage by remember { mutableStateOf(false) }
     var agentInitialTab by remember { mutableIntStateOf(0) }
     var agentTabIndex by remember { mutableIntStateOf(0) }
@@ -839,6 +847,7 @@ fun MainScreen(viewModel: MainViewModel) {
                             scope.launch { pagerState.animateScrollToPage(0) }
                         },
                         onOpenShopping = { showShoppingPage = true },
+                        onOpenHomeAssistant = { showHomeAssistantPage = true },
                     )
                 }
             }
@@ -936,6 +945,22 @@ fun MainScreen(viewModel: MainViewModel) {
                     snackbarHostState.showSnackbar("已进入智能助手，输入研究目标后发送")
                 }
             },
+        )
+    }
+    if (showHomeAssistantPage) {
+        HomeAssistantPage(
+            baseUrl = homeAssistantBaseUrl,
+            token = homeAssistantToken,
+            configured = homeAssistantConfigured,
+            devices = homeAssistantDevices ?: emptyList(),
+            testMessage = homeAssistantTestMessage,
+            controlMessage = homeAssistantControlMessage,
+            onClose = { showHomeAssistantPage = false },
+            onSaveAndTest = { url, tokenValue ->
+                viewModel.saveHomeAssistantConfig(url, tokenValue)
+                viewModel.testHomeAssistantConnection()
+            },
+            onControl = viewModel::controlHomeAssistant,
         )
     }
     }

@@ -78,6 +78,7 @@ fun SettingsScreen(
     triggerRules: List<TriggerRule>,
     onClose: () -> Unit,
     onOpenShopping: () -> Unit = {},
+    onOpenHomeAssistant: () -> Unit = {},
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -353,6 +354,12 @@ fun SettingsScreen(
                             enabled = draftHaBaseUrl.isNotBlank() && draftHaToken.isNotBlank(),
                         ) {
                             Text("测试连接")
+                        }
+                        TextButton(
+                            onClick = onOpenHomeAssistant,
+                            modifier = Modifier.fillMaxWidth(),
+                        ) {
+                            Text("打开设备面板")
                         }
                         homeAssistantTestMessage?.let { message ->
                             Text(
