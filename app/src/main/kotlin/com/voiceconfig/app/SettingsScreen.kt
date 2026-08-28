@@ -103,6 +103,7 @@ fun SettingsScreen(
     val agentVoiceAutoSend by viewModel.agentVoiceAutoSend.collectAsState()
     val agentTtsEnabled by viewModel.agentTtsEnabled.collectAsState()
     val wakeWordEnabled by viewModel.wakeWordEnabled.collectAsState()
+    val themeMode by viewModel.themeMode.collectAsState()
 
     var draftApiKey by remember { mutableStateOf(deepSeekApiKey) }
     var draftModel by remember { mutableStateOf(deepSeekModel) }
@@ -242,6 +243,23 @@ fun SettingsScreen(
                                     value = "已登记 ${remoteNodes.size} 个",
                                 )
                             }
+                        }
+                    }
+                }
+
+                item {
+                    SettingsSectionCard(title = "外观", defaultExpanded = false) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            RadioButton(selected = themeMode == "system", onClick = { viewModel.setThemeMode("system") })
+                            Text("跟随系统")
+                        }
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            RadioButton(selected = themeMode == "light", onClick = { viewModel.setThemeMode("light") })
+                            Text("浅色")
+                        }
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            RadioButton(selected = themeMode == "dark", onClick = { viewModel.setThemeMode("dark") })
+                            Text("深色")
                         }
                     }
                 }

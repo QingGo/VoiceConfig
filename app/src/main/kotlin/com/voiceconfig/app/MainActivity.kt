@@ -253,7 +253,8 @@ class MainActivity : ComponentActivity() {
             }
         }
         setContent {
-            VoiceConfigTheme {
+            val themeMode by viewModel.themeMode.collectAsState()
+            VoiceConfigTheme(themeMode = themeMode) {
                 val prefs = LocalContext.current.getSharedPreferences("voiceconfig_ux", Context.MODE_PRIVATE)
                 var onboardingDone by remember { mutableStateOf(prefs.getBoolean("onboarding_done", false)) }
                 Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {

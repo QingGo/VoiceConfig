@@ -295,6 +295,9 @@ class MainViewModel @Inject constructor(
     private val _wakeWordEnabled = MutableStateFlow(apiKeyStore.wakeWordEnabled)
     val wakeWordEnabled: StateFlow<Boolean> = _wakeWordEnabled.asStateFlow()
 
+    private val _themeMode = MutableStateFlow(apiKeyStore.themeMode)
+    val themeMode: StateFlow<String> = _themeMode.asStateFlow()
+
     private val _homeAssistantBaseUrl = MutableStateFlow(homeAssistantConfigStore.load().baseUrl)
     val homeAssistantBaseUrl: StateFlow<String> = _homeAssistantBaseUrl.asStateFlow()
     private val _homeAssistantToken = MutableStateFlow(homeAssistantConfigStore.load().token)
@@ -1110,6 +1113,11 @@ class MainViewModel @Inject constructor(
     fun setWakeWordEnabled(enabled: Boolean) {
         apiKeyStore.wakeWordEnabled = enabled
         _wakeWordEnabled.value = enabled
+    }
+
+    fun setThemeMode(mode: String) {
+        apiKeyStore.themeMode = mode
+        _themeMode.value = mode
     }
 
     fun saveHomeAssistantConfig(baseUrl: String, token: String) {

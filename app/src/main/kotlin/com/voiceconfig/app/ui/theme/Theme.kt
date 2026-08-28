@@ -54,9 +54,17 @@ private val AppShapes = Shapes(
 )
 
 @Composable
-fun VoiceConfigTheme(content: @Composable () -> Unit) {
+fun VoiceConfigTheme(
+    themeMode: String = "system",
+    content: @Composable () -> Unit,
+) {
+    val darkTheme = when (themeMode) {
+        "dark" -> true
+        "light" -> false
+        else -> isSystemInDarkTheme()
+    }
     MaterialTheme(
-        colorScheme = if (isSystemInDarkTheme()) DarkColors else LightColors,
+        colorScheme = if (darkTheme) DarkColors else LightColors,
         shapes = AppShapes,
         content = content,
     )
