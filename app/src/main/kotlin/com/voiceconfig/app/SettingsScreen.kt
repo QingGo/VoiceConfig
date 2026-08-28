@@ -124,16 +124,6 @@ fun SettingsScreen(
     var asrDownloadProgress by remember { mutableStateOf(0f) }
     var asrErrors by remember { mutableStateOf<Map<String, String>>(emptyMap()) }
 
-    var triggerType by remember { mutableStateOf("wifi") }
-    var triggerName by remember { mutableStateOf("") }
-    var triggerSsid by remember { mutableStateOf("") }
-    var triggerLevel by remember { mutableStateOf(20) }
-    var triggerLat by remember { mutableStateOf("") }
-    var triggerLng by remember { mutableStateOf("") }
-    var triggerRadius by remember { mutableStateOf("100") }
-    var triggerPackage by remember { mutableStateOf("") }
-    var triggerTap by remember { mutableStateOf("") }
-    var triggerInput by remember { mutableStateOf("") }
     var showRemoteNodes by remember { mutableStateOf(false) }
     var showRemoteProjects by remember { mutableStateOf(false) }
     var showSshConsole by remember { mutableStateOf(false) }
@@ -161,22 +151,6 @@ fun SettingsScreen(
     val defaultRemoteHost = remoteNodes.firstOrNull()?.host.orEmpty()
     val savedSshCredential = remember(defaultRemoteHost, showSshFile, showSshConsole, showSshShell) {
         defaultRemoteHost.takeIf { it.isNotBlank() }?.let { viewModel.getSshCredential(it, 22) }
-    }
-
-    val locationPermissionLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.RequestPermission(),
-    ) { granted ->
-        if (granted) {
-            viewModel.addLocationTrigger(
-                triggerName,
-                triggerLat.toDoubleOrNull() ?: 0.0,
-                triggerLng.toDoubleOrNull() ?: 0.0,
-                triggerRadius.toIntOrNull() ?: 100,
-                triggerPackage,
-                triggerTap,
-                triggerInput,
-            )
-        }
     }
 
     Surface(modifier = Modifier.fillMaxSize()) {
@@ -631,129 +605,14 @@ fun SettingsScreen(
                 }
 
                 item {
-                    SettingsSectionCard(title = "条件触发器", defaultExpanded = false) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            RadioButton(selected = triggerType == "wifi", onClick = { triggerType = "wifi" })
-                            Text("Wi-Fi")
-                            RadioButton(selected = triggerType == "battery", onClick = { triggerType = "battery" })
-                            Text("低电量")
-                            RadioButton(selected = triggerType == "location", onClick = { triggerType = "location" })
-                            Text("位置")
-                        }
-                        OutlinedTextField(
-                            value = triggerName,
-                            onValueChange = { triggerName = it },
-                            modifier = Modifier.fillMaxWidth(),
-                            label = { Text("触发器名称（可选）") },
-                            singleLine = true,
-                        )
-                        when (triggerType) {
-                            "wifi" -> OutlinedTextField(
-                                value = triggerSsid,
-                                onValueChange = { triggerSsid = it },
-                                modifier = Modifier.fillMaxWidth(),
-                                label = { Text("Wi-Fi 名称（SSID）") },
-                                singleLine = true,
-                            )
-                            "battery" -> OutlinedTextField(
-                                value = triggerLevel.toString(),
-                                onValueChange = { triggerLevel = it.toIntOrNull() ?: 20 },
-                                modifier = Modifier.fillMaxWidth(),
-                                label = { Text("低电量阈值 %（1-100）") },
-                                singleLine = true,
-                            )
-                            else -> {
-                                OutlinedTextField(
-                                    value = triggerLat,
-                                    onValueChange = { triggerLat = it },
-                                    modifier = Modifier.fillMaxWidth(),
-                                    label = { Text("纬度（如 31.2304）") },
-                                    singleLine = true,
-                                )
-                                OutlinedTextField(
-                                    value = triggerLng,
-                                    onValueChange = { triggerLng = it },
-                                    modifier = Modifier.fillMaxWidth(),
-                                    label = { Text("经度（如 121.4737）") },
-                                    singleLine = true,
-                                )
-                                OutlinedTextField(
-                                    value = triggerRadius,
-                                    onValueChange = { triggerRadius = it },
-                                    modifier = Modifier.fillMaxWidth(),
-                                    label = { Text("半径（米，10-5000）") },
-                                    singleLine = true,
-                                )
-                            }
-                        }
-                        OutlinedTextField(
-                            value = triggerPackage,
-                            onValueChange = { triggerPackage = it },
-                            modifier = Modifier.fillMaxWidth(),
-                            label = { Text("目标包名（如 com.tencent.wework）") },
-                            singleLine = true,
-                        )
-                        OutlinedTextField(
-                            value = triggerTap,
-                            onValueChange = { triggerTap = it },
-                            modifier = Modifier.fillMaxWidth(),
-                            label = { Text("点击坐标（可选，格式 x,y）") },
-                            singleLine = true,
-                        )
-                        OutlinedTextField(
-                            value = triggerInput,
-                            onValueChange = { triggerInput = it },
-                            modifier = Modifier.fillMaxWidth(),
-                            label = { Text("输入文本（可选）") },
-                            singleLine = true,
-                        )
-                        Button(
-                            onClick = {
-                                if (triggerType == "location" &&
-                                    context.checkSelfPermission(android.Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED
-                                ) {
-                                    locationPermissionLauncher.launch(android.Manifest.permission.ACCESS_FINE_LOCATION)
-                                } else {
-                                    when (triggerType) {
-                                        "wifi" -> viewModel.addWifiTrigger(triggerName, triggerSsid, triggerPackage, triggerTap, triggerInput)
-                                        "battery" -> viewModel.addBatteryTrigger(triggerName, triggerLevel, triggerPackage, triggerTap, triggerInput)
-                                        else -> viewModel.addLocationTrigger(
-                                            triggerName,
-                                            triggerLat.toDoubleOrNull() ?: 0.0,
-                                            triggerLng.toDoubleOrNull() ?: 0.0,
-                                            triggerRadius.toIntOrNull() ?: 100,
-                                            triggerPackage,
-                                            triggerTap,
-                                            triggerInput,
-                                        )
-                                    }
-                                }
-                            },
-                            modifier = Modifier.fillMaxWidth(),
-                        ) {
-                            Text("创建触发器")
-                        }
-                        triggerRules.forEach { rule ->
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            ) {
-                                Text(
-                                    text = "${if (rule.enabled) "已启用" else "已停用"} · ${rule.name} · ${rule.condition.type}",
-                                    modifier = Modifier.weight(1f),
-                                    style = MaterialTheme.typography.bodySmall,
-                                )
-                                Switch(
-                                    checked = rule.enabled,
-                                    onCheckedChange = { viewModel.toggleTriggerRule(rule) },
-                                )
-                                TextButton(onClick = { viewModel.deleteTriggerRule(rule) }) {
-                                    Text("删除")
-                                }
-                            }
-                        }
-                    }
+                    TriggerSettingsSection(
+                        rules = triggerRules,
+                        onAddWifi = viewModel::addWifiTrigger,
+                        onAddBattery = viewModel::addBatteryTrigger,
+                        onAddLocation = viewModel::addLocationTrigger,
+                        onToggleRule = viewModel::toggleTriggerRule,
+                        onDeleteRule = viewModel::deleteTriggerRule,
+                    )
                 }
 
                 item {
