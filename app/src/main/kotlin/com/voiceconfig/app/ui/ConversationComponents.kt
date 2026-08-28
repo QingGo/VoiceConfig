@@ -302,6 +302,7 @@ internal fun ConversationTab(
     var deleteTarget by remember { mutableStateOf<AgentSessionEntity?>(null) }
     var clearTarget by remember { mutableStateOf<AgentSessionEntity?>(null) }
     var showHistory by remember { mutableStateOf(false) }
+    var historySearch by remember { mutableStateOf("") }
 
     Column(modifier = Modifier.fillMaxSize()) {
         if (selectedSessionId == null) {
@@ -356,7 +357,21 @@ internal fun ConversationTab(
                             )
                         }
                     }
-                    groupSessionsByDay(sessions).forEach { (day, daySessions) ->
+                    val filteredSessions = if (historySearch.isBlank()) {
+                        sessions
+                    } else {
+                        sessions.filter { it.title.contains(historySearch, ignoreCase = true) }
+                    }
+                    item(key = "history_search") {
+                        OutlinedTextField(
+                            value = historySearch,
+                            onValueChange = { historySearch = it },
+                            modifier = Modifier.fillMaxWidth(),
+                            placeholder = { Text("搜索历史会话") },
+                            singleLine = true,
+                        )
+                    }
+                    groupSessionsByDay(filteredSessions).forEach { (day, daySessions) ->
                         item(key = "day_$day") {
                             Text(
                                 text = day,
@@ -388,10 +403,10 @@ internal fun ConversationTab(
                             )
                         }
                     }
-                    if (sessions.isEmpty()) {
+                    if (filteredSessions.isEmpty()) {
                         item {
                             Text(
-                                text = "还没有历史会话，开始第一次对话吧。",
+                                text = if (sessions.isEmpty()) "还没有历史会话，开始第一次对话吧。" else "没有匹配的历史会话",
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
