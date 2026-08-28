@@ -255,22 +255,16 @@ fun AgentPage(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(start = 16.dp, end = 8.dp, top = 6.dp, bottom = 6.dp),
+                        .padding(horizontal = 12.dp, vertical = 4.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = "大模型未配置",
-                            style = MaterialTheme.typography.titleSmall,
-                        )
-                        Text(
-                            text = "配置大模型后，智能助手才能完成复杂多步任务",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
+                    Text(
+                        text = "大模型未配置",
+                        style = MaterialTheme.typography.labelLarge,
+                        modifier = Modifier.weight(1f),
+                    )
                     TextButton(onClick = onOpenSettings) {
-                        Text("去完成")
+                        Text("去设置")
                     }
                 }
             }
@@ -393,7 +387,7 @@ fun AgentPage(
             onRenameSession = onRenameSession,
             onDeleteSession = onDeleteSession,
             onClearSession = onClearSession,
-            showInput = selectedSessionId != null,
+            showInput = true,
             hasDeepSeekKey = hasDeepSeekKey,
             agentVoiceAutoSend = agentVoiceAutoSend,
             onAgentVoiceAutoSendChange = onAgentVoiceAutoSendChange,
@@ -1139,36 +1133,6 @@ private fun ConversationTab(
                     .padding(horizontal = 8.dp, vertical = 4.dp),
                 verticalArrangement = Arrangement.spacedBy(4.dp),
             ) {
-                if (!hasDeepSeekKey) {
-                    Text(
-                        "未配置 DeepSeek API Key：Agent 无法执行复杂任务。可在“设置 → AI”中配置。",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.error,
-                    )
-                }
-                if (!wakeWordEnabled) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    ) {
-                        Text(
-                            text = "开启语音唤醒后，不打开 App 也能说“言控”唤醒",
-                            modifier = Modifier.weight(1f),
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                        TextButton(onClick = onOpenSettings) {
-                            Text("去开启")
-                        }
-                    }
-                } else {
-                    Text(
-                        text = "语音相关开关已统一放入「我的 → 语音」",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
