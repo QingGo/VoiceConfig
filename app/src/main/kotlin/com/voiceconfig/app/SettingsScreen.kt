@@ -229,20 +229,10 @@ fun SettingsScreen(
                 }
 
                 item {
-                    SettingsSectionCard(title = "外观", defaultExpanded = false) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            RadioButton(selected = themeMode == "system", onClick = { viewModel.setThemeMode("system") })
-                            Text("跟随系统")
-                        }
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            RadioButton(selected = themeMode == "light", onClick = { viewModel.setThemeMode("light") })
-                            Text("浅色")
-                        }
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            RadioButton(selected = themeMode == "dark", onClick = { viewModel.setThemeMode("dark") })
-                            Text("深色")
-                        }
-                    }
+                    AppearanceSettingsSection(
+                        themeMode = themeMode,
+                        onThemeModeChange = viewModel::setThemeMode,
+                    )
                 }
 
                 item {
@@ -471,31 +461,14 @@ fun SettingsScreen(
                 }
 
                 item {
-                    SettingsSectionCard(title = "语音", defaultExpanded = false) {
-                        SwitchRow(
-                            title = "语音输入后自动发送",
-                            subtitle = "语音识别完成后直接发送给智能助手，不需要再点发送",
-                            checked = agentVoiceAutoSend,
-                            onCheckedChange = viewModel::setAgentVoiceAutoSend,
-                        )
-                        SwitchRow(
-                            title = "Agent 结果语音播报",
-                            subtitle = "Agent 完成任务后用 TTS 读出结果摘要",
-                            checked = agentTtsEnabled,
-                            onCheckedChange = viewModel::setAgentTtsEnabled,
-                        )
-                        SwitchRow(
-                            title = "语音唤醒",
-                            subtitle = "不打开 App 也能说“言控”唤醒；需要麦克风权限",
-                            checked = wakeWordEnabled,
-                            onCheckedChange = viewModel::setWakeWordEnabled,
-                        )
-                        Text(
-                            text = "唤醒词：言控 / 你好言控",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
+                    VoiceSettingsSection(
+                        agentVoiceAutoSend = agentVoiceAutoSend,
+                        onAgentVoiceAutoSendChange = viewModel::setAgentVoiceAutoSend,
+                        agentTtsEnabled = agentTtsEnabled,
+                        onAgentTtsEnabledChange = viewModel::setAgentTtsEnabled,
+                        wakeWordEnabled = wakeWordEnabled,
+                        onWakeWordEnabledChange = viewModel::setWakeWordEnabled,
+                    )
                 }
 
                 item {
