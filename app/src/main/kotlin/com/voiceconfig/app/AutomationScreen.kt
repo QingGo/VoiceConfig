@@ -181,6 +181,15 @@ fun MainScreenContent(
     var showSaveTemplate by remember { mutableStateOf(false) }
     var draftTemplateName by remember { mutableStateOf("") }
     var noKeyHintDismissed by remember { mutableStateOf(false) }
+    var taskSearch by remember { mutableStateOf("") }
+    val filteredTasks = if (taskSearch.isBlank()) {
+        tasks
+    } else {
+        tasks.filter { task ->
+            formatTaskTitle(task, installedAppLabels).contains(taskSearch, ignoreCase = true) ||
+                task.rawText.contains(taskSearch, ignoreCase = true)
+        }
+    }
     val sortedTemplates = templates.sortedByDescending { it.usageCount }
     BackHandler(enabled = showCreatePanel) {
         onCreatePanelChange(false)
@@ -363,7 +372,16 @@ fun MainScreenContent(
         item {
             HorizontalDivider()
         }
-        if (tasks.isEmpty()) {
+        item {
+            OutlinedTextField(
+                value = taskSearch,
+                onValueChange = { taskSearch = it },
+                modifier = Modifier.fillMaxWidth(),
+                placeholder = { Text("搜索自动化任务") },
+                singleLine = true,
+            )
+        }
+        if (filteredTasks.isEmpty()) {
             item {
                 Text(text = "我的任务（0）", style = MaterialTheme.typography.titleMedium)
             }
@@ -377,29 +395,30 @@ fun MainScreenContent(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(16.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
                         Text(
-                            text = "还没有创建任务",
+                            text = if (tasks.isEmpty()) "还没有创建任务" else "没有匹配的任务",
                             style = MaterialTheme.typography.titleMedium,
                         )
                         Text(
-                            text = "试试说：“每天上午10点提醒我喝水”",
+                            text = if (tasks.isEmpty()) "试试说：“每天上午10点提醒我喝水”" else "换个关键词试试",
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
-                        Button(onClick = { onCreatePanelChange(true) }) {
-                            Text("立即创建")
+                        if (tasks.isEmpty()) {
+                            Button(onClick = { onCreatePanelChange(true) }) {
+                                Text("立即创建")
+                            }
                         }
                     }
                 }
             }
         } else {
             item {
-                Text(text = "我的任务（${tasks.size}）", style = MaterialTheme.typography.titleMedium)
+                Text(text = "我的任务（${filteredTasks.size}）", style = MaterialTheme.typography.titleMedium)
             }
-            items(tasks, key = { "task_${it.id}" }) { task ->
+            items(filteredTasks, key = { "task_${it.id}" }) { task ->
                 val lastLog = recentLogs
                     .filter { it.taskId == task.id }
                     .maxByOrNull { it.scheduledAtEpochMillis }
