@@ -839,31 +839,33 @@ fun MainScreen(viewModel: MainViewModel) {
                 }
             }
 
-            FloatingMicButton(
-                isListening = isListening,
-                isPreparing = isPreparing,
-                onClick = {
-                    if (showAgentPage) {
-                        onAgentMicClick()
-                    } else {
-                        showCreatePanel = true
-                        onMicClick()
-                    }
-                },
-                modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .padding(
-                        end = 20.dp,
-                        bottom = 180.dp,
-                    )
-                    .offset { IntOffset(micOffsetX.roundToInt(), micOffsetY.roundToInt()) },
-                offsetX = micOffsetX,
-                offsetY = micOffsetY,
-                onOffsetChange = { x, y ->
-                    micOffsetX = x
-                    micOffsetY = y
-                },
-            )
+            if (pagerState.currentPage != 2) {
+                FloatingMicButton(
+                    isListening = isListening,
+                    isPreparing = isPreparing,
+                    onClick = {
+                        if (showAgentPage) {
+                            onAgentMicClick()
+                        } else {
+                            showCreatePanel = true
+                            onMicClick()
+                        }
+                    },
+                    modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .padding(
+                            end = 20.dp,
+                            bottom = 180.dp,
+                        )
+                        .offset { IntOffset(micOffsetX.roundToInt(), micOffsetY.roundToInt()) },
+                    offsetX = micOffsetX,
+                    offsetY = micOffsetY,
+                    onOffsetChange = { x, y ->
+                        micOffsetX = x
+                        micOffsetY = y
+                    },
+                )
+            }
         }
 
         NavigationBar {
