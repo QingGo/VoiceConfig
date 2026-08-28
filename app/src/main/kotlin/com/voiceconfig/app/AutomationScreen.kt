@@ -400,9 +400,13 @@ fun MainScreenContent(
                 Text(text = "我的任务（${tasks.size}）", style = MaterialTheme.typography.titleMedium)
             }
             items(tasks, key = { "task_${it.id}" }) { task ->
+                val lastLog = recentLogs
+                    .filter { it.taskId == task.id }
+                    .maxByOrNull { it.scheduledAtEpochMillis }
                 TaskRow(
                     task = task,
                     installedAppLabels = installedAppLabels,
+                    lastLog = lastLog,
                     onToggle = { onToggleTask(task) },
                     onDelete = { onDeleteTask(task) },
                     onCopy = { onCopyTask(task) },
@@ -604,6 +608,7 @@ fun MainScreenContent(
 private fun TaskRow(
     task: Task,
     installedAppLabels: Map<String, String>,
+    lastLog: ExecutionLog? = null,
     onToggle: () -> Unit,
     onDelete: () -> Unit,
     onCopy: () -> Unit,
@@ -645,6 +650,26 @@ private fun TaskRow(
                         text = "下次执行：${formatLogTime(nextRun)}",
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.primary,
+                    )
+                }
+                lastLog?.let { log ->
+                    val statusText = when (log.status) {
+                        ExecutionStatus.SUCCESS -> "成功"
+                        ExecutionStatus.FALLBACK -> "降级完成"
+                        ExecutionStatus.FAILED -> "失败"
+                        ExecutionStatus.SCHEDULED -> "已计划"
+                        ExecutionStatus.EXECUTING -> "执行中"
+                        ExecutionStatus.SKIPPED -> "已跳过"
+                        ExecutionStatus.WAITING_HUMAN -> "等待确认"
+                    }
+                    Text(
+                        text = "上次：${statusText} · ${formatLogTime(log.scheduledAtEpochMillis)}",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = if (log.status == ExecutionStatus.SUCCESS || log.status == ExecutionStatus.FALLBACK) {
+                            MaterialTheme.colorScheme.primary
+                        } else {
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                        },
                     )
                 }
             }
