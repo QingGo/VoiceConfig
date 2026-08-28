@@ -1,5 +1,10 @@
 package com.voiceconfig.app.ui
 
+import android.Manifest
+import android.content.pm.PackageManager
+import android.os.Build
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -26,6 +31,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -84,6 +90,13 @@ fun OnboardingScreen(onFinish: () -> Unit) {
     var step by remember { mutableIntStateOf(0) }
     val current = onboardingSteps[step]
     val isLast = step == onboardingSteps.lastIndex
+    val context = LocalContext.current
+    val notificationLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission(),
+    ) {}
+    val audioLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission(),
+    ) {}
 
     Column(
         modifier = Modifier
@@ -186,6 +199,12 @@ fun OnboardingScreen(onFinish: () -> Unit) {
 
         Button(
             onClick = {
+                if (step == 1) {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                        notificationLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                    }
+                    audioLauncher.launch(Manifest.permission.RECORD_AUDIO)
+                }
                 if (isLast) {
                     onFinish()
                 } else {
