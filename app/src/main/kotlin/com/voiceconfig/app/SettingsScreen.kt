@@ -316,63 +316,57 @@ fun SettingsScreen(
 
                 if (developerMode) {
                 item {
-                    SettingsSectionCard(title = "高级能力 / 远程", defaultExpanded = false) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    text = "已登记 ${remoteNodes.size} 个远程节点",
-                                    style = MaterialTheme.typography.bodyMedium,
-                                )
-                                Text(
-                                    text = "SSH 命令 / 文件 / 终端 / 服务",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                )
+                    AdvancedSettingsSection(
+                        remoteNodesCount = remoteNodes.size,
+                        onOpenRemoteNodes = { showRemoteNodes = true },
+                        onOpenSshConsole = {
+                            showSshConsole = true
+                            viewModel.clearSshResult()
+                        },
+                        onOpenSshFile = {
+                            showSshFile = true
+                            viewModel.clearSshFileResult()
+                        },
+                        onOpenSshShell = {
+                            showSshShell = true
+                            viewModel.clearSshShellOutput()
+                            viewModel.clearSshShellError()
+                        },
+                        onOpenSshAudit = {
+                            showSshAudit = true
+                            viewModel.loadSshAudit()
+                        },
+                        onOpenSshKeys = {
+                            showSshKeys = true
+                            viewModel.refreshSshKeys()
+                        },
+                        onOpenSshServices = {
+                            showSshServices = true
+                            viewModel.clearSshServiceResult()
+                        },
+                        onOpenSshNodeLogs = {
+                            showSshNodeLogs = true
+                            viewModel.clearSshNodeLogResult()
+                        },
+                        onOpenRemoteProjects = { showRemoteProjects = true },
+                        aiDebugLogsSize = aiDebugLogs.size,
+                        lastAiError = uiState.lastAiError,
+                        lastAiParseError = uiState.lastAiParseError,
+                        lastAiRawResponse = uiState.lastAiRawResponse,
+                        onCopyDebugReport = {
+                            val report = viewModel.buildAiDebugLogReport(aiDebugLogs)
+                            val clipboard = context.getSystemService(ClipboardManager::class.java)
+                            clipboard?.setPrimaryClip(ClipData.newPlainText("AI错误日志", report))
+                        },
+                        onShareDebugReport = {
+                            val report = viewModel.buildAiDebugLogReport(aiDebugLogs)
+                            val sendIntent = Intent(Intent.ACTION_SEND).apply {
+                                type = "text/plain"
+                                putExtra(Intent.EXTRA_TEXT, report)
                             }
-                            TextButton(onClick = { showRemoteNodes = true }) {
-                                Text("管理")
-                            }
-                        }
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            RemoteToolTile("命令终端", Icons.Default.Build, onClick = {
-                                showSshConsole = true
-                                viewModel.clearSshResult()
-                            })
-                            RemoteToolTile("远程文件", Icons.Default.List, onClick = {
-                                showSshFile = true
-                                viewModel.clearSshFileResult()
-                            })
-                        }
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            RemoteToolTile("交互终端", Icons.Default.Edit, onClick = {
-                                showSshShell = true
-                                viewModel.clearSshShellOutput()
-                                viewModel.clearSshShellError()
-                            })
-                            RemoteToolTile("SSH 审计", Icons.Default.Info, onClick = {
-                                showSshAudit = true
-                                viewModel.loadSshAudit()
-                            })
-                        }
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            RemoteToolTile("密钥管理", Icons.Default.Lock, onClick = {
-                                showSshKeys = true
-                                viewModel.refreshSshKeys()
-                            })
-                            RemoteToolTile("系统服务", Icons.Default.Settings, onClick = {
-                                showSshServices = true
-                                viewModel.clearSshServiceResult()
-                            })
-                        }
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            RemoteToolTile("节点日志", Icons.Default.List, onClick = {
-                                showSshNodeLogs = true
-                                viewModel.clearSshNodeLogResult()
-                            })
-                            RemoteToolTile("远程节点", Icons.Default.Phone, onClick = { showRemoteNodes = true })
-                            RemoteToolTile("远程项目", Icons.Default.Build, onClick = { showRemoteProjects = true })
-                        }
-                    }
+                            context.startActivity(Intent.createChooser(sendIntent, "导出 AI 错误日志"))
+                        },
+                    )
                 }
                 }
 
@@ -384,76 +378,8 @@ fun SettingsScreen(
                     AboutSettingsSection()
                 }
 
-                if (developerMode) {
-                item {
-                    SettingsSectionCard(title = "高级 / 调试", defaultExpanded = false) {
-                        TextButton(onClick = { showDebugSection = !showDebugSection }) {
-                            Text(if (showDebugSection) "收起开发者调试" else "展开开发者调试")
-                        }
-                        if (showDebugSection) {
-                            SelectionContainer {
-                                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                                    uiState.lastAiError?.let { error ->
-                                        Text(
-                                            text = "最近 AI 错误：$error",
-                                            style = MaterialTheme.typography.bodySmall,
-                                            color = MaterialTheme.colorScheme.error,
-                                        )
-                                    }
-                                    uiState.lastAiParseError?.let { parseError ->
-                                        Text(
-                                            text = "JSON 解析错误：$parseError",
-                                            style = MaterialTheme.typography.bodySmall,
-                                            color = MaterialTheme.colorScheme.error,
-                                        )
-                                    }
-                                    uiState.lastAiRawResponse?.let { raw ->
-                                        if (showRawAi) {
-                                            Text(
-                                                text = raw,
-                                                style = MaterialTheme.typography.bodySmall,
-                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                            )
-                                        }
-                                    }
-                                }
-                            }
-                            uiState.lastAiRawResponse?.let {
-                                TextButton(onClick = { showRawAi = !showRawAi }) {
-                                    Text(if (showRawAi) "隐藏原始返回" else "查看原始返回")
-                                }
-                            }
-                            Text(
-                                text = "AI 错误日志（${aiDebugLogs.size} 条）",
-                                style = MaterialTheme.typography.titleSmall,
-                            )
-                            TextButton(
-                                onClick = {
-                                    val report = viewModel.buildAiDebugLogReport(aiDebugLogs)
-                                    val clipboard = context.getSystemService(ClipboardManager::class.java)
-                                    clipboard?.setPrimaryClip(ClipData.newPlainText("AI错误日志", report))
-                                },
-                            ) {
-                                Text("复制为 GitHub Issue 文本")
-                            }
-                            TextButton(
-                                onClick = {
-                                    val report = viewModel.buildAiDebugLogReport(aiDebugLogs)
-                                    val sendIntent = Intent(Intent.ACTION_SEND).apply {
-                                        type = "text/plain"
-                                        putExtra(Intent.EXTRA_TEXT, report)
-                                    }
-                                    context.startActivity(Intent.createChooser(sendIntent, "导出 AI 错误日志"))
-                                },
-                            ) {
-                                Text("分享错误日志")
-                            }
-                        }
-                    }
-                }
             }
         }
-    }
     }
     if (showRemoteNodes) {
         RemoteNodesDialog(
