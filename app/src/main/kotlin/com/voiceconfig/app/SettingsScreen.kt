@@ -254,38 +254,14 @@ fun SettingsScreen(
                 }
 
                 item {
-                    SettingsSectionCard(title = "智能助手行为", defaultExpanded = false) {
-                        SwitchRow(
-                            title = "敏感操作自动执行",
-                            subtitle = "开启后 Agent 不再弹出确认，直接执行发送/支付/删除等操作；建议仅测试或信任场景使用",
-                            checked = agentAutoConfirmSensitiveActions,
-                            onCheckedChange = viewModel::setAgentAutoConfirmSensitiveActions,
-                        )
-                        SwitchRow(
-                            title = "自动截屏验证",
-                            subtitle = "开启后每次改变界面的工具执行后自动截屏确认",
-                            checked = agentAutoVerifyEnabled,
-                            onCheckedChange = viewModel::setAgentAutoVerifyEnabled,
-                        )
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(
-                                text = "每次最多自动验证次数",
-                                style = MaterialTheme.typography.bodyMedium,
-                                modifier = Modifier.weight(1f),
-                            )
-                            TextButton(onClick = { viewModel.setAgentMaxAutoVerifies((agentMaxAutoVerifies - 1).coerceAtLeast(0)) }) {
-                                Text("-")
-                            }
-                            Text(
-                                text = agentMaxAutoVerifies.toString(),
-                                style = MaterialTheme.typography.bodyMedium,
-                                modifier = Modifier.padding(horizontal = 12.dp),
-                            )
-                            TextButton(onClick = { viewModel.setAgentMaxAutoVerifies((agentMaxAutoVerifies + 1).coerceAtMost(20)) }) {
-                                Text("+")
-                            }
-                        }
-                    }
+                    AgentBehaviorSettingsSection(
+                        autoConfirm = agentAutoConfirmSensitiveActions,
+                        onAutoConfirmChange = viewModel::setAgentAutoConfirmSensitiveActions,
+                        autoVerify = agentAutoVerifyEnabled,
+                        onAutoVerifyChange = viewModel::setAgentAutoVerifyEnabled,
+                        maxAutoVerifies = agentMaxAutoVerifies,
+                        onMaxAutoVerifiesChange = viewModel::setAgentMaxAutoVerifies,
+                    )
                 }
 
                 item {
