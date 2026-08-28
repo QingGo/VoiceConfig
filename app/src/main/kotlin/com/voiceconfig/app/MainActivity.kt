@@ -970,7 +970,7 @@ fun MainScreen(viewModel: MainViewModel) {
                 viewModel.saveHomeAssistantConfig(url, tokenValue)
                 viewModel.testHomeAssistantConnection()
             },
-            onControl = viewModel::controlHomeAssistant,
+            onControlService = viewModel::controlHomeAssistantService,
         )
     }
     }

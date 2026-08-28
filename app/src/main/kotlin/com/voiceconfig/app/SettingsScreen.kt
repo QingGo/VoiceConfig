@@ -248,10 +248,12 @@ fun SettingsScreen(
                                 label = "语音唤醒",
                                 value = if (wakeWordEnabled) "已开启" else "未开启",
                             )
-                            StatusSummaryRow(
-                                label = "远程节点",
-                                value = "已登记 ${remoteNodes.size} 个",
-                            )
+                            if (developerMode) {
+                                StatusSummaryRow(
+                                    label = "远程节点",
+                                    value = "已登记 ${remoteNodes.size} 个",
+                                )
+                            }
                         }
                     }
                 }

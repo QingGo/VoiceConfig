@@ -188,6 +188,7 @@ fun AgentPage(
                     Text("新建")
                 }
             }
+            if (selectedSessionId != null) {
             Box {
                 IconButton(onClick = { moreMenuExpanded = true }) {
                     Icon(
@@ -245,6 +246,7 @@ fun AgentPage(
                         )
                     }
                 }
+            }
             }
         }
 

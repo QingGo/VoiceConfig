@@ -46,7 +46,7 @@ fun HomeAssistantPage(
     controlMessage: String?,
     onClose: () -> Unit,
     onSaveAndTest: (String, String) -> Unit,
-    onControl: (String, String) -> Unit,
+    onControlService: (String, String, String, Map<String, Any?>) -> Unit,
 ) {
     var draftBaseUrl by remember { mutableStateOf(baseUrl) }
     var draftToken by remember { mutableStateOf(token) }
@@ -180,16 +180,34 @@ fun HomeAssistantPage(
                                         style = MaterialTheme.typography.labelSmall,
                                         color = MaterialTheme.colorScheme.error,
                                     )
-                                } else if (!controllable) {
+                                } else if (device.domain == "climate") {
+                                    TextButton(
+                                        onClick = {
+                                            onControlService(device.entityId, device.domain, "set_hvac_mode", mapOf("hvac_mode" to "auto"))
+                                        },
+                                    ) { Text("自动") }
+                                    TextButton(
+                                        onClick = {
+                                            onControlService(device.entityId, device.domain, "set_hvac_mode", mapOf("hvac_mode" to "off"))
+                                        },
+                                    ) { Text("关闭") }
+                                } else if (device.domain == "cover") {
+                                    TextButton(
+                                        onClick = { onControlService(device.entityId, device.domain, "open_cover", emptyMap()) },
+                                    ) { Text("打开") }
+                                    TextButton(
+                                        onClick = { onControlService(device.entityId, device.domain, "close_cover", emptyMap()) },
+                                    ) { Text("关闭") }
+                                } else if (controllable) {
+                                    TextButton(onClick = { onControlService(device.entityId, device.domain, "toggle", emptyMap()) }) {
+                                        Text("开关")
+                                    }
+                                } else {
                                     Text(
                                         "仅 Agent",
                                         style = MaterialTheme.typography.labelSmall,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     )
-                                } else {
-                                    TextButton(onClick = { onControl(device.entityId, device.domain) }) {
-                                        Text("开关")
-                                    }
                                 }
                             }
                         }

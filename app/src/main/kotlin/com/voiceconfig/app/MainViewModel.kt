@@ -1135,22 +1135,27 @@ class MainViewModel @Inject constructor(
     }
 
     fun controlHomeAssistant(entityId: String, domain: String) {
+        controlHomeAssistantService(entityId, domain, "toggle")
+    }
+
+    fun controlHomeAssistantService(
+        entityId: String,
+        domain: String,
+        service: String,
+        data: Map<String, Any?> = emptyMap(),
+    ) {
         viewModelScope.launch {
             val config = homeAssistantConfigStore.load()
             if (!config.isConfigured) {
                 _homeAssistantControlMessage.value = "请先配置 Home Assistant"
                 return@launch
             }
-            val supported = setOf("light", "switch", "fan", "media_player", "input_boolean")
-            if (domain !in supported) {
-                _homeAssistantControlMessage.value = "该设备类型暂不支持页面上直接开关，请使用智能助手控制"
-                return@launch
-            }
             val result = homeAssistantClient.callService(
                 config = config,
                 domain = domain,
-                service = "toggle",
+                service = service,
                 entityId = entityId,
+                data = data,
             )
             _homeAssistantControlMessage.value = if (result.ok) {
                 "已发送控制指令：$entityId"
