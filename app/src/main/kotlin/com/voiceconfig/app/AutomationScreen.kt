@@ -870,3 +870,50 @@ private fun TemplatesOverlay(
         }
     }
 }
+
+@Preview(showBackground = true)
+@Composable
+fun MainScreenContentPreview() {
+    VoiceConfigTheme {
+        MainScreenContent(
+            uiState = MainUiState(
+                input = "每天上午10点提醒我喝水",
+                parsedDraft = TaskDraft(
+                    rawText = "每天上午10点提醒我喝水",
+                    schedule = null,
+                    actionType = ActionType.OPEN_APP,
+                    targetPackage = null,
+                ),
+                parseMessage = "解析成功，请确认任务",
+            ),
+            installedAppLabels = emptyMap(),
+            tasks = emptyList(),
+            templates = emptyList(),
+            recentLogs = emptyList(),
+            onInputChange = {},
+            isListening = false,
+            isPreparing = false,
+            onMicClick = {},
+            onOpenAiSettings = {},
+            onOpenAgent = {},
+            onOpenAgentLogs = {},
+            showCreatePanel = false,
+            onCreatePanelChange = {},
+            onManualPackageChange = {},
+            onManualDeepLinkChange = {},
+            onParse = {},
+            onConfirmCreate = {},
+            onClearResult = {},
+            onToggleTask = {},
+            onDeleteTask = {},
+            onCopyTask = {},
+            onRunNow = {},
+            onSummarizeLogs = {},
+            onSaveTemplate = { _ -> },
+            onDeleteTemplate = {},
+            onExportTemplates = {},
+            onImportTemplates = {},
+            onTemplateSelected = {},
+        )
+    }
+}
