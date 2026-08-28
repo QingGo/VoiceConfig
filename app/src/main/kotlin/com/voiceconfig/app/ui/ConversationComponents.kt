@@ -69,7 +69,17 @@ import com.voiceconfig.app.agent.TaskPlan
 import com.voiceconfig.app.agent.AgentStepStatus
 import java.time.Instant
 import java.time.LocalDate
+import java.time.LocalTime
 import java.time.ZoneId
+
+private fun todaySuggestion(): String {
+    return when (LocalTime.now().hour) {
+        in 5..10 -> "早上好，试试：每天早上 8 点自动打开企业微信"
+        in 11..13 -> "中午好，试试：帮我点一杯瑞幸咖啡"
+        in 14..17 -> "下午好，试试：帮我整理一下今天的任务"
+        else -> "晚上好，试试：提醒我明天早上 8 点打开企业微信"
+    }
+}
 
 @Composable
 private fun HomeHero(
@@ -98,6 +108,11 @@ private fun HomeHero(
             Text(
                 text = "直接说，或者输入一句话。复杂任务我会自己拆解、执行并确认。",
                 style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onPrimaryContainer,
+            )
+            Text(
+                text = todaySuggestion(),
+                style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onPrimaryContainer,
             )
             Row(
