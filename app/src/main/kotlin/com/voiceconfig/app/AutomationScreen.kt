@@ -466,7 +466,7 @@ fun MainScreenContent(
             }
         } else {
             item {
-                Text(text = "执行记录", style = MaterialTheme.typography.titleMedium)
+                Text(text = "最近执行", style = MaterialTheme.typography.titleMedium)
             }
             item {
                 Card(
@@ -474,12 +474,19 @@ fun MainScreenContent(
                     border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                 ) {
-                    Text(
-                        text = "暂无执行记录，创建并执行任务后会显示在这里",
+                    Column(
                         modifier = Modifier.padding(16.dp),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        Text(
+                            text = "暂无执行记录，创建并执行任务后会显示在这里",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        Button(onClick = onCreateByAgent) {
+                            Text("让言控创建")
+                        }
+                    }
                 }
             }
         }
