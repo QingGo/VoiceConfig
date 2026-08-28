@@ -212,6 +212,12 @@ fun SettingsScreen(
                 item {
                     VoiceStatusCard(
                         title = "我的状态",
+                        onItemClick = { item ->
+                            when (item.label) {
+                                "AI 模型" -> showModelEditor = true
+                                "Home Assistant" -> onOpenHomeAssistant()
+                            }
+                        },
                         items = buildList {
                             add(
                                 VoiceStatusItem(

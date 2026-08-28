@@ -1,5 +1,6 @@
 package com.voiceconfig.app.ui
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -26,6 +27,7 @@ fun VoiceStatusCard(
     title: String,
     items: List<VoiceStatusItem>,
     modifier: Modifier = Modifier,
+    onItemClick: (VoiceStatusItem) -> Unit = {},
 ) {
     Card(
         modifier = modifier.fillMaxWidth(),
@@ -46,7 +48,9 @@ fun VoiceStatusCard(
             )
             items.forEach { item ->
                 Row(
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { onItemClick(item) },
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween,
                 ) {
