@@ -36,8 +36,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.pager.HorizontalPager
-import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -623,9 +621,9 @@ fun MainScreen(viewModel: MainViewModel) {
         viewModel.submitNaturalLanguageInput()
     }
 
-    val pagerState = rememberPagerState(initialPage = 0) { 3 }
-    LaunchedEffect(pagerState.currentPage) {
-        showAgentPage = pagerState.currentPage == 0
+    var currentTab by remember { mutableIntStateOf(0) }
+    LaunchedEffect(currentTab) {
+        showAgentPage = currentTab == 0
         if (showAgentPage) {
             viewModel.openAgentPage()
         }
@@ -638,11 +636,7 @@ fun MainScreen(viewModel: MainViewModel) {
                 .weight(1f)
                 .fillMaxWidth(),
         ) {
-            HorizontalPager(
-                state = pagerState,
-                modifier = Modifier.fillMaxSize(),
-            ) { page ->
-                when (page) {
+            when (currentTab) {
                     1 -> MainScreenContent(
                         uiState = uiState,
                         deepSeekApiKey = deepSeekApiKey,
@@ -651,31 +645,31 @@ fun MainScreen(viewModel: MainViewModel) {
                         isPreparing = isPreparing,
                         onMicClick = onMicClick,
                         onOpenAiSettings = {
-                            scope.launch { pagerState.animateScrollToPage(2) }
+                            currentTab = 2
                         },
                         onOpenAgent = {
                             agentInitialTab = 0
                             agentTabIndex = 0
                             agentLogTaskId = null
-                            scope.launch { pagerState.animateScrollToPage(0) }
+                            currentTab = 0
                         },
                         onCreateByAgent = {
                             viewModel.newAgentSession()
                             viewModel.onAgentInputChange("帮我创建一个自动化任务：")
+                            currentTab = 0
                             scope.launch {
-                                pagerState.animateScrollToPage(0)
                                 snackbarHostState.showSnackbar("已进入对话，输入你的自动化需求")
                             }
                         },
                         onOpenAgentLogs = { task ->
-                            scope.launch { pagerState.animateScrollToPage(1) }
+                            currentTab = 1
                         },
                         onOpenAgentSession = { sessionId ->
                             viewModel.selectAgentSession(sessionId)
                             agentInitialTab = 0
                             agentTabIndex = 0
                             agentLogTaskId = null
-                            scope.launch { pagerState.animateScrollToPage(0) }
+                            currentTab = 0
                         },
                         showCreatePanel = showCreatePanel,
                         onCreatePanelChange = { showCreatePanel = it },
@@ -793,7 +787,7 @@ fun MainScreen(viewModel: MainViewModel) {
                         onAgentThinkingEnabledChange = viewModel::setAgentDeepSeekThinkingEnabled,
                         onAgentReasoningEffortChange = viewModel::setAgentDeepSeekReasoningEffort,
                         onBack = {
-                            scope.launch { pagerState.animateScrollToPage(0) }
+                            currentTab = 0
                         },
                         onSelectSession = viewModel::selectAgentSession,
                         onSend = viewModel::sendAgentMessage,
@@ -839,13 +833,13 @@ fun MainScreen(viewModel: MainViewModel) {
                             }
                         },
                         onOpenTask = { taskId ->
-                            scope.launch { pagerState.animateScrollToPage(1) }
+                            currentTab = 1
                         },
                         onOpenAutomation = {
-                            scope.launch { pagerState.animateScrollToPage(1) }
+                            currentTab = 1
                         },
                         onOpenSettings = {
-                            scope.launch { pagerState.animateScrollToPage(2) }
+                            currentTab = 2
                         },
                     )
                     2 -> SettingsScreen(
@@ -854,15 +848,14 @@ fun MainScreen(viewModel: MainViewModel) {
                         aiDebugLogs = aiDebugLogs,
                         triggerRules = triggerRules,
                         onClose = {
-                            scope.launch { pagerState.animateScrollToPage(0) }
+                            currentTab = 0
                         },
                         onOpenShopping = { showShoppingPage = true },
                         onOpenHomeAssistant = { showHomeAssistantPage = true },
                     )
                 }
-            }
 
-            if (pagerState.currentPage == 1) {
+            if (currentTab == 1) {
                 FloatingMicButton(
                     isListening = isListening,
                     isPreparing = isPreparing,
@@ -893,12 +886,12 @@ fun MainScreen(viewModel: MainViewModel) {
 
         NavigationBar {
             NavigationBarItem(
-                selected = pagerState.currentPage == 0,
+                selected = currentTab == 0,
                 onClick = {
                     agentInitialTab = 0
                     agentTabIndex = agentInitialTab
                     agentLogTaskId = null
-                    scope.launch { pagerState.animateScrollToPage(0) }
+                    currentTab = 0
                 },
                 icon = {
                     Icon(
@@ -909,9 +902,9 @@ fun MainScreen(viewModel: MainViewModel) {
                 label = { Text("首页/对话") },
             )
             NavigationBarItem(
-                selected = pagerState.currentPage == 1,
+                selected = currentTab == 1,
                 onClick = {
-                    scope.launch { pagerState.animateScrollToPage(1) }
+                    currentTab = 1
                 },
                 icon = {
                     Icon(
@@ -922,9 +915,9 @@ fun MainScreen(viewModel: MainViewModel) {
                 label = { Text("自动化") },
             )
             NavigationBarItem(
-                selected = pagerState.currentPage == 2,
+                selected = currentTab == 2,
                 onClick = {
-                    scope.launch { pagerState.animateScrollToPage(2) }
+                    currentTab = 2
                 },
                 icon = {
                     Icon(
@@ -951,7 +944,7 @@ fun MainScreen(viewModel: MainViewModel) {
                 viewModel.newAgentSession()
                 viewModel.onAgentInputChange("帮我查母婴用品并比较价格和评价")
                 scope.launch {
-                    pagerState.animateScrollToPage(0)
+                    currentTab = 0
                     snackbarHostState.showSnackbar("已进入智能助手，输入研究目标后发送")
                 }
             },
