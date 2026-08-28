@@ -181,6 +181,42 @@ fun HomeAssistantPage(
                                         color = MaterialTheme.colorScheme.error,
                                     )
                                 } else if (device.domain == "climate") {
+                                    var temp by remember(device.entityId) {
+                                        mutableStateOf(
+                                            (device.attributes["temperature"] as? Number)?.toFloat() ?: 24f,
+                                        )
+                                    }
+                                    Row(
+                                        horizontalArrangement = Arrangement.spacedBy(2.dp),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                    ) {
+                                        TextButton(
+                                            onClick = {
+                                                temp = (temp - 1f).coerceAtLeast(16f)
+                                                onControlService(
+                                                    device.entityId,
+                                                    device.domain,
+                                                    "set_temperature",
+                                                    mapOf("temperature" to temp),
+                                                )
+                                            },
+                                        ) { Text("-1°") }
+                                        Text(
+                                            "${temp.toInt()}°",
+                                            style = MaterialTheme.typography.bodyMedium,
+                                        )
+                                        TextButton(
+                                            onClick = {
+                                                temp = (temp + 1f).coerceAtMost(30f)
+                                                onControlService(
+                                                    device.entityId,
+                                                    device.domain,
+                                                    "set_temperature",
+                                                    mapOf("temperature" to temp),
+                                                )
+                                            },
+                                        ) { Text("+1°") }
+                                    }
                                     TextButton(
                                         onClick = {
                                             onControlService(device.entityId, device.domain, "set_hvac_mode", mapOf("hvac_mode" to "auto"))
@@ -198,6 +234,13 @@ fun HomeAssistantPage(
                                     TextButton(
                                         onClick = { onControlService(device.entityId, device.domain, "close_cover", emptyMap()) },
                                     ) { Text("关闭") }
+                                } else if (device.domain == "media_player") {
+                                    TextButton(
+                                        onClick = { onControlService(device.entityId, device.domain, "media_play_pause", emptyMap()) },
+                                    ) { Text("播放/暂停") }
+                                    TextButton(
+                                        onClick = { onControlService(device.entityId, device.domain, "media_next_track", emptyMap()) },
+                                    ) { Text("下一首") }
                                 } else if (controllable) {
                                     TextButton(onClick = { onControlService(device.entityId, device.domain, "toggle", emptyMap()) }) {
                                         Text("开关")
