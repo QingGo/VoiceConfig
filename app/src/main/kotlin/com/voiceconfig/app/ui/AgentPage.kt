@@ -401,6 +401,7 @@ fun AgentPage(
             onAgentTtsEnabledChange = onAgentTtsEnabledChange,
             wakeWordEnabled = wakeWordEnabled,
             onWakeWordEnabledChange = onWakeWordEnabledChange,
+            onOpenSettings = onOpenSettings,
         )
     }
 
@@ -1013,6 +1014,7 @@ private fun ConversationTab(
     onRejectSkill: (String) -> Unit = {},
     onDeleteSkill: (String) -> Unit = {},
     onOpenTask: (Long) -> Unit = {},
+    onOpenSettings: () -> Unit = {},
 ) {
     var menuFor by remember { mutableStateOf<Long?>(null) }
     var renameTarget by remember { mutableStateOf<AgentSessionEntity?>(null) }
@@ -1144,11 +1146,29 @@ private fun ConversationTab(
                         color = MaterialTheme.colorScheme.error,
                     )
                 }
-                Text(
-                    text = "语音相关开关已统一放入「我的 → 语音」",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+                if (!wakeWordEnabled) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        Text(
+                            text = "开启语音唤醒后，不打开 App 也能说“言控”唤醒",
+                            modifier = Modifier.weight(1f),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        TextButton(onClick = onOpenSettings) {
+                            Text("去开启")
+                        }
+                    }
+                } else {
+                    Text(
+                        text = "语音相关开关已统一放入「我的 → 语音」",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
