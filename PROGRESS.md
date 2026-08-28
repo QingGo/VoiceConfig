@@ -85,7 +85,7 @@
 - [x] 语音/ASR 逻辑抽出为 VoiceInputController
 - [x] 新增 VoiceStatusCard 并统一我的状态面板
 - [x] AgentPage 对话组件拆分为 ConversationComponents.kt（AgentPage 降至 ~880 行）
-- [x] SettingsScreen 触发条件/外观/语音/模型/HA 拆分为独立 section（SettingsScreen 降至 ~800 行）
+- [x] SettingsScreen 主要配置区拆分为独立 section（SettingsScreen 降至 ~669 行）
 - [x] P0-1 首页/会话页信息层级重构：快捷任务、最近会话、轻量状态卡
 - [x] P0-2 首次启动 Onboarding（4 步，可跳过）
 - [x] P0-4 底部导航：首页/对话 / 自动化 / 我的
