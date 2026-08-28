@@ -46,8 +46,10 @@ fun ShoppingResearchPage(
     onUpdateStatus: (String, String) -> Unit,
     onDelete: (String) -> Unit,
     onStartResearch: () -> Unit,
+    onClearAll: () -> Unit = {},
 ) {
     var filter by remember { mutableStateOf<String?>(null) }
+    var showClearDialog by remember { mutableStateOf(false) }
     val filtered = if (filter == null) items else items.filter { it.status == filter }
     BackHandler(onBack = onClose)
 
@@ -69,6 +71,11 @@ fun ShoppingResearchPage(
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
+                }
+                if (items.isNotEmpty()) {
+                    TextButton(onClick = { showClearDialog = true }) {
+                        Text("清空")
+                    }
                 }
                 TextButton(onClick = onStartResearch) {
                     Icon(Icons.Default.PlayArrow, contentDescription = null, modifier = Modifier.size(18.dp))
@@ -121,11 +128,28 @@ fun ShoppingResearchPage(
             }
         }
     }
+
+    if (showClearDialog) {
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { showClearDialog = false },
+            title = { Text("清空购物研究") },
+            text = { Text("将删除全部购物研究记录，且不可恢复。确定继续吗？") },
+            confirmButton = {
+                TextButton(onClick = {
+                    onClearAll()
+                    showClearDialog = false
+                }) { Text("清空") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showClearDialog = false }) { Text("取消") }
+            },
+        )
+    }
+
 }
 
 @Composable
-private fun ShoppingItemCard(
-    item: ShoppingItemRecord,
+private fun ShoppingItemCard(    item: ShoppingItemRecord,
     onUpdateStatus: (String, String) -> Unit,
     onDelete: (String) -> Unit,
 ) {
