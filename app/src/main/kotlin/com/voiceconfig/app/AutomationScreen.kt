@@ -182,14 +182,20 @@ fun MainScreenContent(
     var draftTemplateName by remember { mutableStateOf("") }
     var noKeyHintDismissed by remember { mutableStateOf(false) }
     var taskSearch by remember { mutableStateOf("") }
-    val filteredTasks = if (taskSearch.isBlank()) {
-        tasks
-    } else {
-        tasks.filter { task ->
-            formatTaskTitle(task, installedAppLabels).contains(taskSearch, ignoreCase = true) ||
+    var taskStatusFilter by remember { mutableStateOf<String?>(null) }
+    val filteredTasks = tasks
+        .filter { task ->
+            when (taskStatusFilter) {
+                "enabled" -> task.enabled
+                "disabled" -> !task.enabled
+                else -> true
+            }
+        }
+        .filter { task ->
+            taskSearch.isBlank() ||
+                formatTaskTitle(task, installedAppLabels).contains(taskSearch, ignoreCase = true) ||
                 task.rawText.contains(taskSearch, ignoreCase = true)
         }
-    }
     val sortedTemplates = templates.sortedByDescending { it.usageCount }
     BackHandler(enabled = showCreatePanel) {
         onCreatePanelChange(false)
@@ -380,6 +386,33 @@ fun MainScreenContent(
                 placeholder = { Text("搜索自动化任务") },
                 singleLine = true,
             )
+        }
+        item {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                listOf(
+                    null to "全部",
+                    "enabled" to "已启用",
+                    "disabled" to "已停用",
+                ).forEach { (value, label) ->
+                    val selected = taskStatusFilter == value
+                    if (selected) {
+                        Button(
+                            onClick = { taskStatusFilter = value },
+                            modifier = Modifier.weight(1f),
+                            contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 6.dp, vertical = 6.dp),
+                        ) { Text(label) }
+                    } else {
+                        TextButton(
+                            onClick = { taskStatusFilter = value },
+                            modifier = Modifier.weight(1f),
+                        ) { Text(label, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+                    }
+                }
+            }
         }
         if (filteredTasks.isEmpty()) {
             item {
