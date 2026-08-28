@@ -81,7 +81,8 @@
 - [x] 导航从 HorizontalPager 改为简单 state-based Tab，降低架构复杂度
 - [x] 自动化页面从 MainActivity 拆分为独立 AutomationScreen.kt
 - [x] 顶级导航改为 sealed AppDestination（Conversation/Automation/Profile）
-- [x] MainScreen/MainScaffold 从 MainActivity 拆出，MainActivity 降至 ~330 行
+- [x] MainScreen/MainScaffold 从 MainActivity 拆出，MainActivity 降至 ~286 行
+- [x] 语音/ASR 逻辑抽出为 VoiceInputController
 - [x] P0-1 首页/会话页信息层级重构：快捷任务、最近会话、轻量状态卡
 - [x] P0-2 首次启动 Onboarding（4 步，可跳过）
 - [x] P0-4 底部导航：首页/对话 / 自动化 / 我的
