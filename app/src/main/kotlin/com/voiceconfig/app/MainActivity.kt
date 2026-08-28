@@ -61,6 +61,7 @@ import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.List
 import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -658,6 +659,14 @@ fun MainScreen(viewModel: MainViewModel) {
                             agentLogTaskId = null
                             scope.launch { pagerState.animateScrollToPage(0) }
                         },
+                        onCreateByAgent = {
+                            viewModel.newAgentSession()
+                            viewModel.onAgentInputChange("帮我创建一个自动化任务：")
+                            scope.launch {
+                                pagerState.animateScrollToPage(0)
+                                snackbarHostState.showSnackbar("已进入对话，输入你的自动化需求")
+                            }
+                        },
                         onOpenAgentLogs = { task ->
                             scope.launch { pagerState.animateScrollToPage(1) }
                         },
@@ -1004,6 +1013,7 @@ fun MainScreenContent(
     onMicClick: () -> Unit,
     onOpenAiSettings: () -> Unit,
     onOpenAgent: () -> Unit,
+    onCreateByAgent: () -> Unit = {},
     onOpenAgentLogs: (Task) -> Unit,
     onOpenAgentSession: (Long) -> Unit = {},
     showCreatePanel: Boolean,
@@ -1075,19 +1085,32 @@ fun MainScreenContent(
             )
         }
         item {
-            Button(
-                onClick = { onCreatePanelChange(true) },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(48.dp),
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                Icon(
-                    imageVector = Icons.Default.Add,
-                    contentDescription = null,
-                    modifier = Modifier.size(18.dp),
-                )
-                Spacer(modifier = Modifier.width(4.dp))
-                Text("新建任务")
+                Button(
+                    onClick = onCreateByAgent,
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(48.dp),
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.PlayArrow,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp),
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text("让言控创建")
+                }
+                OutlinedButton(
+                    onClick = { onCreatePanelChange(true) },
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(48.dp),
+                ) {
+                    Text("手动创建")
+                }
             }
         }
         if (deepSeekApiKey.isBlank() && !noKeyHintDismissed) {

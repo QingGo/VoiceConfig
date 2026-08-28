@@ -871,6 +871,60 @@ private fun summarizeTraceEvent(event: Map<String, Any?>): String {
 }
 
 @Composable
+private fun HomeHero(
+    sessionCount: Int,
+    onNewSession: () -> Unit,
+    onShowHistory: () -> Unit,
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = MaterialTheme.shapes.extraLarge,
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.primaryContainer,
+        ),
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(20.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            Text(
+                text = "今天想让我做什么？",
+                style = MaterialTheme.typography.headlineSmall,
+                color = MaterialTheme.colorScheme.onPrimaryContainer,
+            )
+            Text(
+                text = "直接说，或者输入一句话。复杂任务我会自己拆解、执行并确认。",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onPrimaryContainer,
+            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Button(
+                    onClick = onNewSession,
+                    modifier = Modifier.weight(1f),
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Add,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp),
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text("开始新对话")
+                }
+                TextButton(onClick = onShowHistory) {
+                    Text("历史 (${sessionCount})")
+                }
+            }
+        }
+    }
+}
+
+@Composable
 private fun HomeQuickActions(
     onQuickAction: (String) -> Unit,
 ) {
@@ -1015,103 +1069,95 @@ private fun ConversationTab(
     var renameText by remember { mutableStateOf("") }
     var deleteTarget by remember { mutableStateOf<AgentSessionEntity?>(null) }
     var clearTarget by remember { mutableStateOf<AgentSessionEntity?>(null) }
+    var showHistory by remember { mutableStateOf(false) }
 
     Column(modifier = Modifier.fillMaxSize()) {
         if (selectedSessionId == null) {
-            LazyColumn(
-                modifier = Modifier.weight(1f),
-                contentPadding = PaddingValues(12.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                item(key = "quick_actions") {
-                    HomeQuickActions(onQuickAction = onQuickAction)
-                }
-                groupSessionsByDay(sessions).forEach { (day, daySessions) ->
-                    item(key = "day_$day") {
-                        Text(
-                            text = day,
-                            style = MaterialTheme.typography.labelLarge,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.padding(top = 4.dp, bottom = 2.dp),
+            if (!showHistory) {
+                LazyColumn(
+                    modifier = Modifier.weight(1f),
+                    contentPadding = PaddingValues(12.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    item(key = "hero") {
+                        HomeHero(
+                            sessionCount = sessions.size,
+                            onNewSession = onNewSession,
+                            onShowHistory = { showHistory = true },
                         )
                     }
-                    items(daySessions, key = { it.id }) { session ->
-                        SessionCard(
-                            session = session,
-                            menuExpanded = menuFor == session.id,
-                            onMenuToggle = { menuFor = if (menuFor == session.id) null else session.id },
-                            onMenuDismiss = { menuFor = null },
-                            onClick = { onSelectSession(session.id) },
-                            onRename = {
-                                menuFor = null
-                                renameTarget = session
-                                renameText = session.title
-                            },
-                            onClear = {
-                                menuFor = null
-                                clearTarget = session
-                            },
-                            onDelete = {
-                                menuFor = null
-                                deleteTarget = session
-                            },
-                        )
+                    item(key = "quick_actions") {
+                        HomeQuickActions(onQuickAction = onQuickAction)
                     }
                 }
-                if (sessions.isEmpty()) {
-                    item {
-                        Column(
-                            verticalArrangement = Arrangement.spacedBy(8.dp),
+            } else {
+                LazyColumn(
+                    modifier = Modifier.weight(1f),
+                    contentPadding = PaddingValues(12.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    item(key = "history_header") {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
                         ) {
-                            if (!hasDeepSeekKey) {
-                                Text(
-                                    "尚未配置 DeepSeek API Key，Agent 复杂任务暂不可用；可先使用简单自动化。",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.error,
-                                )
-                            }
-                            Text(
-                                "还没有会话，点击“新建”开始。创建后会在会话列表中保留历史。",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                            Text(
-                                "试试这些：",
-                                style = MaterialTheme.typography.labelMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                            Row(
-                                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                            ) {
-                                listOf("打开设置", "创建喝水提醒", "打开微信").forEach { suggestion ->
-                                    FilledTonalButton(
-                                        onClick = { onInputChange(suggestion) },
-                                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
-                                    ) {
-                                        Text(suggestion, style = MaterialTheme.typography.labelMedium)
-                                    }
-                                }
-                            }
-                            Button(onClick = onNewSession) {
+                            TextButton(onClick = { showHistory = false }) {
                                 Icon(
-                                    imageVector = Icons.Default.Add,
-                                    contentDescription = null,
+                                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                    contentDescription = "返回",
                                     modifier = Modifier.size(18.dp),
                                 )
                                 Spacer(modifier = Modifier.width(4.dp))
-                                Text("新建会话")
+                                Text("返回")
                             }
+                            Spacer(modifier = Modifier.weight(1f))
+                            Text(
+                                text = "历史会话",
+                                style = MaterialTheme.typography.titleMedium,
+                            )
                         }
                     }
-                }
-                item {
-                    Text(
-                        "智能助手适合多步骤、跨应用、需要工具调用的复杂指令；简单定时任务请在「自动化」中创建。",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(top = 8.dp),
-                    )
+                    groupSessionsByDay(sessions).forEach { (day, daySessions) ->
+                        item(key = "day_$day") {
+                            Text(
+                                text = day,
+                                style = MaterialTheme.typography.labelLarge,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(top = 4.dp, bottom = 2.dp),
+                            )
+                        }
+                        items(daySessions, key = { it.id }) { session ->
+                            SessionCard(
+                                session = session,
+                                menuExpanded = menuFor == session.id,
+                                onMenuToggle = { menuFor = if (menuFor == session.id) null else session.id },
+                                onMenuDismiss = { menuFor = null },
+                                onClick = { onSelectSession(session.id) },
+                                onRename = {
+                                    menuFor = null
+                                    renameTarget = session
+                                    renameText = session.title
+                                },
+                                onClear = {
+                                    menuFor = null
+                                    clearTarget = session
+                                },
+                                onDelete = {
+                                    menuFor = null
+                                    deleteTarget = session
+                                },
+                            )
+                        }
+                    }
+                    if (sessions.isEmpty()) {
+                        item {
+                            Text(
+                                text = "还没有历史会话，开始第一次对话吧。",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
                 }
             }
         } else {

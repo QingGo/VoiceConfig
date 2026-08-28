@@ -1,6 +1,7 @@
 package com.voiceconfig.app
 
 import android.content.ClipData
+import android.content.Context
 import android.content.ClipboardManager
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -82,6 +83,8 @@ fun SettingsScreen(
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+    val uxPrefs = context.getSharedPreferences("voiceconfig_ux", Context.MODE_PRIVATE)
+    var developerMode by remember { mutableStateOf(uxPrefs.getBoolean("developer_mode", false)) }
     BackHandler(onBack = onClose)
 
     val uiState by viewModel.uiState.collectAsState()
@@ -107,6 +110,7 @@ fun SettingsScreen(
     var draftAgentMaxAutoVerifies by remember { mutableStateOf(agentMaxAutoVerifies) }
     var draftHaBaseUrl by remember { mutableStateOf(homeAssistantBaseUrl) }
     var draftHaToken by remember { mutableStateOf(homeAssistantToken) }
+    var showModelEditor by remember { mutableStateOf(false) }
 
     var showApiKey by remember { mutableStateOf(false) }
     var showHaToken by remember { mutableStateOf(false) }
@@ -254,26 +258,54 @@ fun SettingsScreen(
 
                 item {
                     SettingsSectionCard(title = "模型与密钥", defaultExpanded = true) {
-                        OutlinedTextField(
-                            value = draftApiKey,
-                            onValueChange = { draftApiKey = it },
+                        Row(
                             modifier = Modifier.fillMaxWidth(),
-                            label = { Text("DeepSeek API Key") },
-                            singleLine = true,
-                            visualTransformation = if (showApiKey) VisualTransformation.None else PasswordVisualTransformation(),
-                            trailingIcon = {
-                                TextButton(onClick = { showApiKey = !showApiKey }) {
-                                    Text(if (showApiKey) "隐藏" else "显示")
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = if (deepSeekApiKey.isBlank()) "未配置" else "已配置",
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    color = if (deepSeekApiKey.isBlank()) {
+                                        MaterialTheme.colorScheme.error
+                                    } else {
+                                        MaterialTheme.colorScheme.primary
+                                    },
+                                )
+                                if (deepSeekApiKey.isNotBlank()) {
+                                    Text(
+                                        text = deepSeekModel.ifBlank { "deepseek-v4-flash-vision-exp" },
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
                                 }
-                            },
-                        )
-                        OutlinedTextField(
-                            value = draftModel,
-                            onValueChange = { draftModel = it },
-                            modifier = Modifier.fillMaxWidth(),
-                            label = { Text("模型（默认 deepseek-v4-flash-vision-exp）") },
-                            singleLine = true,
-                        )
+                            }
+                            TextButton(onClick = { showModelEditor = !showModelEditor }) {
+                                Text(if (showModelEditor) "收起" else "编辑")
+                            }
+                        }
+                        if (showModelEditor) {
+                            OutlinedTextField(
+                                value = draftApiKey,
+                                onValueChange = { draftApiKey = it },
+                                modifier = Modifier.fillMaxWidth(),
+                                label = { Text("DeepSeek API Key") },
+                                singleLine = true,
+                                visualTransformation = if (showApiKey) VisualTransformation.None else PasswordVisualTransformation(),
+                                trailingIcon = {
+                                    TextButton(onClick = { showApiKey = !showApiKey }) {
+                                        Text(if (showApiKey) "隐藏" else "显示")
+                                    }
+                                },
+                            )
+                            OutlinedTextField(
+                                value = draftModel,
+                                onValueChange = { draftModel = it },
+                                modifier = Modifier.fillMaxWidth(),
+                                label = { Text("模型（默认 deepseek-v4-flash-vision-exp）") },
+                                singleLine = true,
+                            )
+                        }
                     }
                 }
 
@@ -720,6 +752,21 @@ fun SettingsScreen(
                 }
 
                 item {
+                    SettingsSectionCard(title = "开发者模式", defaultExpanded = false) {
+                        SwitchRow(
+                            title = "显示高级能力",
+                            subtitle = "SSH、远程节点、审计、调试日志仅在需要时开启",
+                            checked = developerMode,
+                            onCheckedChange = { enabled ->
+                                developerMode = enabled
+                                uxPrefs.edit().putBoolean("developer_mode", enabled).apply()
+                            },
+                        )
+                    }
+                }
+
+                if (developerMode) {
+                item {
                     SettingsSectionCard(title = "高级能力 / 远程", defaultExpanded = false) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Column(modifier = Modifier.weight(1f)) {
@@ -778,6 +825,7 @@ fun SettingsScreen(
                         }
                     }
                 }
+                }
 
                 item {
                     SettingsSectionCard(title = "权限与系统", defaultExpanded = false) {
@@ -785,6 +833,7 @@ fun SettingsScreen(
                     }
                 }
 
+                if (developerMode) {
                 item {
                     SettingsSectionCard(title = "高级 / 调试", defaultExpanded = false) {
                         TextButton(onClick = { showDebugSection = !showDebugSection }) {
@@ -853,6 +902,7 @@ fun SettingsScreen(
                 }
             }
         }
+    }
     }
     if (showRemoteNodes) {
         RemoteNodesDialog(
