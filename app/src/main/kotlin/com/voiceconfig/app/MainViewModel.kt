@@ -62,6 +62,7 @@ import com.voiceconfig.data.local.entity.TaskEventEntity
 import com.voiceconfig.data.local.repository.AgentHistoryRepository
 import com.voiceconfig.data.local.repository.AiDebugLogRepository
 import com.voiceconfig.data.local.repository.ExecutionLogRepository
+import com.voiceconfig.app.RemoteNodeFeature
 import com.voiceconfig.data.local.repository.RemoteNode
 import com.voiceconfig.data.local.repository.RemoteNodeRepository
 import com.voiceconfig.data.local.repository.RemoteProjectRepository
@@ -120,10 +121,8 @@ class MainViewModel @Inject constructor(
     private val templateRepository: TemplateRepository,
     private val triggerRuleRepository: TriggerRuleRepository,
     private val triggerRuleScheduler: TriggerRuleScheduler,
-    private val remoteNodeRepository: RemoteNodeRepository,
-    private val remoteProjectRepository: RemoteProjectRepository,
+    private val remoteNodeFeature: RemoteNodeFeature,
     private val shoppingFeature: ShoppingFeature,
-    private val remoteCommandClient: RemoteCommandClient,
     private val sshClient: SshClient,
     private val sshBootstrapClient: SshBootstrapClient,
     private val sshCredentialStore: SshCredentialStore,
@@ -189,22 +188,21 @@ class MainViewModel @Inject constructor(
             initialValue = emptyList(),
         )
 
-    val remoteNodes: StateFlow<List<RemoteNode>> = remoteNodeRepository.observeNodes()
+    val remoteNodes: StateFlow<List<RemoteNode>> = remoteNodeFeature.nodes
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5_000),
             initialValue = emptyList(),
         )
 
-    val remoteProjects: StateFlow<List<RemoteProjectRecord>> = remoteProjectRepository.observeProjects()
+    val remoteProjects: StateFlow<List<RemoteProjectRecord>> = remoteNodeFeature.projects
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5_000),
             initialValue = emptyList(),
         )
 
-    private val _remoteCommandResult = MutableStateFlow<RemoteCommandResult?>(null)
-    val remoteCommandResult: StateFlow<RemoteCommandResult?> = _remoteCommandResult.asStateFlow()
+    val remoteCommandResult: StateFlow<RemoteCommandResult?> = remoteNodeFeature.commandResult
 
     private val _sshResult = MutableStateFlow<SshExecResult?>(null)
     val sshResult: StateFlow<SshExecResult?> = _sshResult.asStateFlow()
@@ -1557,66 +1555,33 @@ class MainViewModel @Inject constructor(
         agentSkillStore.importSkill(json, source)
 
     fun saveRemoteNode(node: RemoteNode) {
-        viewModelScope.launch {
-            runCatching { remoteNodeRepository.saveNode(node) }
-        }
+        viewModelScope.launch { remoteNodeFeature.saveNode(node) }
     }
 
     fun deleteRemoteNode(id: Long) {
-        viewModelScope.launch {
-            runCatching { remoteNodeRepository.deleteNode(id) }
-        }
+        viewModelScope.launch { remoteNodeFeature.deleteNode(id) }
     }
 
     fun setRemoteNodeEnabled(id: Long, enabled: Boolean) {
-        viewModelScope.launch {
-            runCatching { remoteNodeRepository.setEnabled(id, enabled) }
-        }
+        viewModelScope.launch { remoteNodeFeature.setEnabled(id, enabled) }
     }
 
     fun setRemoteNodePaused(id: Long, paused: Boolean) {
-        viewModelScope.launch {
-            runCatching { remoteNodeRepository.setPaused(id, paused) }
-        }
+        viewModelScope.launch { remoteNodeFeature.setPaused(id, paused) }
     }
 
-    suspend fun getRemoteNode(id: Long): RemoteNode? = remoteNodeRepository.getNode(id)
+    suspend fun getRemoteNode(id: Long): RemoteNode? = remoteNodeFeature.getNode(id)
 
     suspend fun refreshRemoteNode(id: Long) {
-        val node = remoteNodeRepository.getNode(id) ?: return
-        runCatching {
-            val monitor = com.voiceconfig.app.remote.RemoteMonitorClient(remoteNodeRepository)
-            val snapshot = monitor.snapshot(node.name)
-            remoteNodeRepository.markSeen(
-                id = id,
-                status = "online",
-                error = null,
-            )
-            @Suppress("UNUSED_EXPRESSION")
-            snapshot
-        }
+        remoteNodeFeature.refreshNode(id)
     }
 
     fun executeRemoteCommand(node: RemoteNode, command: String) {
-        viewModelScope.launch {
-            _remoteCommandResult.value = null
-            _remoteCommandResult.value = runCatching {
-                remoteCommandClient.execute(node.name, command)
-            }.getOrElse { e ->
-                RemoteCommandResult(
-                    ok = false,
-                    command = command,
-                    stdout = "",
-                    stderr = "",
-                    exitCode = null,
-                    error = e.message ?: "执行失败",
-                )
-            }
-        }
+        viewModelScope.launch { remoteNodeFeature.executeCommand(node, command) }
     }
 
     fun clearRemoteCommandResult() {
-        _remoteCommandResult.value = null
+        remoteNodeFeature.clearCommandResult()
     }
 
     fun getSshCredential(host: String, port: Int = 22): StoredSshCredential? =
@@ -1748,7 +1713,7 @@ class MainViewModel @Inject constructor(
     private suspend fun runSshInstallDirect(config: SshConfig, bindMode: String) {
         val result = sshBootstrapClient.install(config, bindMode)
         if (result.ok && result.token != null) {
-            remoteNodeRepository.saveNode(
+            remoteNodeFeature.saveNode(
                 RemoteNode(
                     nodeId = result.nodeId ?: ("node_ssh_" + System.currentTimeMillis()),
                     name = config.host,
