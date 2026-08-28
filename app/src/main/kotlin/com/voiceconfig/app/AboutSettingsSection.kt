@@ -1,6 +1,8 @@
 package com.voiceconfig.app
 
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material3.MaterialTheme
@@ -15,9 +17,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import com.voiceconfig.app.ui.VoiceSectionCard
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 internal fun AboutSettingsSection() {
     VoiceSectionCard(title = "关于", defaultExpanded = false) {
+        val context = LocalContext.current
         Column(
             modifier = Modifier.fillMaxWidth(),
         ) {
@@ -25,13 +29,20 @@ internal fun AboutSettingsSection() {
                 text = "言控",
                 style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.combinedClickable(
+                    onClick = {},
+                    onLongClick = {
+                        val prefs = context.getSharedPreferences("voiceconfig_ux", Context.MODE_PRIVATE)
+                        val current = prefs.getBoolean("developer_mode", false)
+                        prefs.edit().putBoolean("developer_mode", !current).apply()
+                    },
+                ),
             )
             Text(
                 text = "你的一句话，我帮你完成。",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-            val context = LocalContext.current
             Text(
                 text = "版本 ${BuildConfig.VERSION_NAME}",
                 style = MaterialTheme.typography.labelSmall,
