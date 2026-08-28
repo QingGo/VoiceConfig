@@ -66,8 +66,8 @@ import com.voiceconfig.data.local.repository.RemoteNode
 import com.voiceconfig.data.local.repository.RemoteNodeRepository
 import com.voiceconfig.data.local.repository.RemoteProjectRepository
 import com.voiceconfig.data.local.repository.RemoteProjectRecord
+import com.voiceconfig.app.ShoppingFeature
 import com.voiceconfig.data.local.repository.ShoppingItemRecord
-import com.voiceconfig.data.local.repository.ShoppingItemRepository
 import com.voiceconfig.data.local.repository.TaskRepository
 import com.voiceconfig.app.remote.RemoteCommandClient
 import com.voiceconfig.app.remote.SshBootstrapClient
@@ -122,7 +122,7 @@ class MainViewModel @Inject constructor(
     private val triggerRuleScheduler: TriggerRuleScheduler,
     private val remoteNodeRepository: RemoteNodeRepository,
     private val remoteProjectRepository: RemoteProjectRepository,
-    private val shoppingItemRepository: ShoppingItemRepository,
+    private val shoppingFeature: ShoppingFeature,
     private val remoteCommandClient: RemoteCommandClient,
     private val sshClient: SshClient,
     private val sshBootstrapClient: SshBootstrapClient,
@@ -182,7 +182,7 @@ class MainViewModel @Inject constructor(
             initialValue = emptyList(),
         )
 
-    val shoppingItems: StateFlow<List<ShoppingItemRecord>> = shoppingItemRepository.observeItems()
+    val shoppingItems: StateFlow<List<ShoppingItemRecord>> = shoppingFeature.items
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5_000),
@@ -1143,25 +1143,19 @@ class MainViewModel @Inject constructor(
 
     fun updateShoppingItemStatus(productId: String, status: String) {
         viewModelScope.launch {
-            shoppingItemRepository.getByProductId(productId)?.let {
-                shoppingItemRepository.updateStatus(it.id, status)
-            }
+            shoppingFeature.updateStatus(productId, status)
         }
     }
 
     fun deleteShoppingItem(productId: String) {
         viewModelScope.launch {
-            shoppingItemRepository.getByProductId(productId)?.let {
-                shoppingItemRepository.delete(it.id)
-            }
+            shoppingFeature.delete(productId)
         }
     }
 
     fun clearShoppingItems() {
         viewModelScope.launch {
-            shoppingItemRepository.getItems().forEach {
-                shoppingItemRepository.delete(it.id)
-            }
+            shoppingFeature.clear()
         }
     }
 
