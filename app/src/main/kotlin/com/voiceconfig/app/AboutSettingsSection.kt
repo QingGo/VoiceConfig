@@ -25,7 +25,7 @@ internal fun AboutSettingsSection() {
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Text(
-                text = "版本 0.1.1",
+                text = "版本 ${BuildConfig.VERSION_NAME}",
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.outline,
             )
