@@ -1,10 +1,13 @@
 package com.voiceconfig.app
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import android.content.ClipData
+import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
 import androidx.compose.runtime.Composable
@@ -28,12 +31,18 @@ internal fun AboutSettingsSection() {
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+            val context = LocalContext.current
             Text(
                 text = "版本 ${BuildConfig.VERSION_NAME}",
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.outline,
+                modifier = Modifier.clickable {
+                    val clipboard = context.getSystemService(ClipboardManager::class.java)
+                    clipboard?.setPrimaryClip(
+                        ClipData.newPlainText("言控版本", "言控 ${BuildConfig.VERSION_NAME}"),
+                    )
+                },
             )
-            val context = LocalContext.current
             TextButton(
                 onClick = {
                     context.getSharedPreferences("voiceconfig_ux", Context.MODE_PRIVATE)
