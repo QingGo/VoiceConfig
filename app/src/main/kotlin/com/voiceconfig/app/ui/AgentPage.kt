@@ -52,6 +52,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.voiceconfig.core.model.ExecutionLog
@@ -180,6 +182,9 @@ fun AgentPage(
                     Box(
                         modifier = Modifier
                             .size(8.dp)
+                            .semantics {
+                                contentDescription = if (hasDeepSeekKey) "智能助手已就绪" else "智能助手未配置"
+                            }
                             .background(
                                 color = if (hasDeepSeekKey) {
                                     MaterialTheme.colorScheme.primary
