@@ -88,7 +88,7 @@ import com.voiceconfig.app.remote.StoredSshCredential
 import com.voiceconfig.app.remote.SshConfig
 import com.voiceconfig.app.remote.SshExecResult
 import com.voiceconfig.app.remote.RemoteCommandResult
-import com.voiceconfig.data.local.repository.TemplateRepository
+import com.voiceconfig.app.TemplateFeature
 import com.voiceconfig.data.local.repository.TriggerRuleRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import org.json.JSONArray
@@ -118,7 +118,7 @@ class MainViewModel @Inject constructor(
     private val taskRepository: TaskRepository,
     private val taskScheduler: TaskScheduler,
     private val nextRunCalculator: NextRunCalculator,
-    private val templateRepository: TemplateRepository,
+    private val templateFeature: TemplateFeature,
     private val triggerRuleRepository: TriggerRuleRepository,
     private val triggerRuleScheduler: TriggerRuleScheduler,
     private val remoteNodeFeature: RemoteNodeFeature,
@@ -174,7 +174,7 @@ class MainViewModel @Inject constructor(
             initialValue = emptyList(),
         )
 
-    val templates: StateFlow<List<Template>> = templateRepository.observeTemplates()
+    val templates: StateFlow<List<Template>> = templateFeature.templates
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5_000),
@@ -1415,7 +1415,7 @@ class MainViewModel @Inject constructor(
         val trimmedConfig = configJson.trim()
         if (trimmedConfig.isBlank()) return
         viewModelScope.launch {
-            templateRepository.add(
+            templateFeature.add(
                 Template(
                     name = trimmedName,
                     description = description.trim(),
@@ -1435,7 +1435,7 @@ class MainViewModel @Inject constructor(
         }
         val finalName = name.trim().ifBlank { rawText.take(12) }
         viewModelScope.launch {
-            templateRepository.add(
+            templateFeature.add(
                 Template(
                     name = finalName,
                     description = "自定义模板",
@@ -1449,7 +1449,7 @@ class MainViewModel @Inject constructor(
 
     fun deleteTemplate(template: Template) {
         viewModelScope.launch {
-            templateRepository.delete(template.id)
+            templateFeature.delete(template.id)
         }
     }
 
@@ -1464,7 +1464,7 @@ class MainViewModel @Inject constructor(
             )
         }
         viewModelScope.launch {
-            templateRepository.incrementUsage(template.id)
+            templateFeature.incrementUsage(template.id)
         }
     }
 
@@ -2167,8 +2167,8 @@ class MainViewModel @Inject constructor(
             ?.takeIf { it.isNotBlank() }
 
     private suspend fun seedTemplatesIfEmpty() {
-        if (templateRepository.observeTemplates().first().isNotEmpty()) return
-        defaultTemplates().forEach { templateRepository.add(it) }
+        if (templateFeature.templates.first().isNotEmpty()) return
+        defaultTemplates().forEach { templateFeature.add(it) }
     }
 
     private fun defaultTemplates(): List<Template> = listOf(
