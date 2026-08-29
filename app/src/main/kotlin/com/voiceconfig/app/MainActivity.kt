@@ -153,6 +153,7 @@ class MainActivity : ComponentActivity() {
 
     private val viewModel: MainViewModel by viewModels()
     private val profileViewModel: ProfileViewModel by viewModels()
+    private val agentViewModel: AgentViewModel by viewModels()
 
     private val debugAgentReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
@@ -176,12 +177,12 @@ class MainActivity : ComponentActivity() {
             val planId = intent?.getStringExtra("planId")?.takeIf { it.isNotBlank() }
             when (action) {
                 "resume" -> {
-                    if (planId != null) viewModel.resumeTaskPlan(planId) else viewModel.resumeLastTask()
+                    if (planId != null) agentViewModel.resumeTaskPlan(planId) else agentViewModel.resumeLastTask()
                 }
                 "cancel" -> {
-                    if (planId != null) viewModel.cancelTaskPlan(planId) else viewModel.cancelUnfinishedTaskPlans()
+                    if (planId != null) agentViewModel.cancelTaskPlan(planId) else agentViewModel.cancelUnfinishedTaskPlans()
                 }
-                "cancelAll" -> viewModel.cancelUnfinishedTaskPlans()
+                "cancelAll" -> agentViewModel.cancelUnfinishedTaskPlans()
             }
         }
     }

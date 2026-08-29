@@ -151,6 +151,7 @@ fun MainScreen(viewModel: MainViewModel) {
     val sshViewModel: SshViewModel = hiltViewModel()
     val profileViewModel: ProfileViewModel = hiltViewModel()
     val automationViewModel: AutomationViewModel = hiltViewModel()
+    val agentViewModel: AgentViewModel = hiltViewModel()
     val uiState by automationViewModel.uiState.collectAsState()
     val tasks by automationViewModel.tasks.collectAsState()
     val templates by automationViewModel.templates.collectAsState()
@@ -158,24 +159,24 @@ fun MainScreen(viewModel: MainViewModel) {
     val deepSeekApiKey by profileViewModel.deepSeekApiKey.collectAsState()
     val agentDeepSeekThinkingEnabled by profileViewModel.agentDeepSeekThinkingEnabled.collectAsState()
     val agentDeepSeekReasoningEffort by profileViewModel.agentDeepSeekReasoningEffort.collectAsState()
-    val agentSkills by viewModel.agentSkills.collectAsState()
-    val pendingAgentConfirmation by viewModel.pendingAgentConfirmation.collectAsState()
+    val agentSkills by agentViewModel.agentSkills.collectAsState()
+    val pendingAgentConfirmation by agentViewModel.pendingAgentConfirmation.collectAsState()
     val aiDebugLogs by profileViewModel.aiDebugLogs.collectAsState()
     val triggerRules by automationViewModel.triggerRules.collectAsState()
-    val agentSessions by viewModel.agentSessions.collectAsState()
-    val agentRunRecords by viewModel.agentRunRecords.collectAsState()
-    val agentRunDetail by viewModel.agentRunDetail.collectAsState()
-    val agentMessages by viewModel.agentMessages.collectAsState()
-    val agentSteps by viewModel.agentSteps.collectAsState()
-    val canResumeTask by viewModel.canResumeTask.collectAsState()
-    val activeTaskPlans by viewModel.activeTaskPlans.collectAsState()
-    val lastAgentRunDurationMs by viewModel.lastAgentRunDurationMs.collectAsState()
-    val taskEvents by viewModel.taskEvents.collectAsState()
-    val selectedAgentSessionId by viewModel.selectedAgentSessionId.collectAsState()
-    val isAgentBusy by viewModel.isAgentBusy.collectAsState()
-    val agentStreamText by viewModel.agentStreamText.collectAsState()
-    val agentReasoningText by viewModel.agentReasoningText.collectAsState()
-    val agentDraft by viewModel.agentDraft.collectAsState()
+    val agentSessions by agentViewModel.agentSessions.collectAsState()
+    val agentRunRecords by agentViewModel.agentRunRecords.collectAsState()
+    val agentRunDetail by agentViewModel.agentRunDetail.collectAsState()
+    val agentMessages by agentViewModel.agentMessages.collectAsState()
+    val agentSteps by agentViewModel.agentSteps.collectAsState()
+    val canResumeTask by agentViewModel.canResumeTask.collectAsState()
+    val activeTaskPlans by agentViewModel.activeTaskPlans.collectAsState()
+    val lastAgentRunDurationMs by agentViewModel.lastAgentRunDurationMs.collectAsState()
+    val taskEvents by agentViewModel.taskEvents.collectAsState()
+    val selectedAgentSessionId by agentViewModel.selectedAgentSessionId.collectAsState()
+    val isAgentBusy by agentViewModel.isAgentBusy.collectAsState()
+    val agentStreamText by agentViewModel.agentStreamText.collectAsState()
+    val agentReasoningText by agentViewModel.agentReasoningText.collectAsState()
+    val agentDraft by agentViewModel.agentDraft.collectAsState()
     val agentVoiceAutoSend by profileViewModel.agentVoiceAutoSend.collectAsState()
     val agentTtsEnabled by profileViewModel.agentTtsEnabled.collectAsState()
     val wakeWordEnabled by profileViewModel.wakeWordEnabled.collectAsState()
@@ -221,13 +222,13 @@ fun MainScreen(viewModel: MainViewModel) {
         val command = debugCommand ?: return@LaunchedEffect
         if (command.text.isNotBlank()) {
             if (command.newSession) {
-                viewModel.clearSelectedAgentSession()
+                agentViewModel.clearSelectedAgentSession()
                 agentTabIndex = AgentNavigation.TAB_CONVERSATION
             }
-            viewModel.onAgentInputChange(command.text)
+            agentViewModel.onAgentInputChange(command.text)
             if (command.send) {
-                viewModel.sendAgentMessage(command.text.trim())
-                viewModel.clearAgentDraft()
+                agentViewModel.sendAgentMessage(command.text.trim())
+                agentViewModel.clearAgentDraft()
             }
         }
         AgentTestBridge.clear()
@@ -307,11 +308,12 @@ fun MainScreen(viewModel: MainViewModel) {
 
     LaunchedEffect(Unit) {
         viewModel.automationViewModel = automationViewModel
+        viewModel.agentViewModel = agentViewModel
     }
 
     LaunchedEffect(currentRoute) {
         if (currentRoute == AppRoutes.CONVERSATION) {
-            viewModel.openAgentPage()
+            agentViewModel.openAgentPage()
         }
     }
 
@@ -343,8 +345,8 @@ fun MainScreen(viewModel: MainViewModel) {
                             navigateTop(AppRoutes.CONVERSATION)
                         },
                         onCreateByAgent = {
-                            viewModel.newAgentSession()
-                            viewModel.onAgentInputChange("帮我创建一个自动化任务：")
+                            agentViewModel.newAgentSession()
+                            agentViewModel.onAgentInputChange("帮我创建一个自动化任务：")
                             navigateTop(AppRoutes.CONVERSATION)
                             scope.launch {
                                 snackbarHostState.showSnackbar("已进入对话，输入你的自动化需求")
@@ -354,7 +356,7 @@ fun MainScreen(viewModel: MainViewModel) {
                             navigateTop(AppRoutes.AUTOMATION)
                         },
                         onOpenAgentSession = { sessionId ->
-                            viewModel.selectAgentSession(sessionId)
+                            agentViewModel.selectAgentSession(sessionId)
                             agentInitialTab = 0
                             agentTabIndex = 0
                             agentLogTaskId = null
@@ -425,7 +427,7 @@ fun MainScreen(viewModel: MainViewModel) {
                         agentSkills = agentSkills,
                         agentRunRecords = agentRunRecords,
                         agentRunDetail = agentRunDetail,
-                        onSelectRun = viewModel::loadAgentRunDetail,
+                        onSelectRun = agentViewModel::loadAgentRunDetail,
                         onEnableAccessibility = {
                             scope.launch {
                                 val ok = withContext(Dispatchers.IO) {
@@ -453,8 +455,8 @@ fun MainScreen(viewModel: MainViewModel) {
                         input = agentDraft,
                         onInputChange = viewModel::onAgentInputChange,
                         onQuickAction = { actionText ->
-                            viewModel.newAgentSession()
-                            viewModel.onAgentInputChange(actionText)
+                            agentViewModel.newAgentSession()
+                            agentViewModel.onAgentInputChange(actionText)
                             scope.launch {
                                 snackbarHostState.showSnackbar("已新建会话并填入指令，确认后发送")
                             }
@@ -462,7 +464,7 @@ fun MainScreen(viewModel: MainViewModel) {
                         onVoiceInput = onAgentMicClick,
                         isListening = isListening,
                         onOpenShopping = { navController.navigate(AppRoutes.SHOPPING) },
-                        onClearAllSessions = viewModel::clearAllAgentSessions,
+                        onClearAllSessions = agentViewModel::clearAllAgentSessions,
                         hasDeepSeekKey = deepSeekApiKey.isNotBlank(),
                         agentVoiceAutoSend = agentVoiceAutoSend,
                         onAgentVoiceAutoSendChange = profileViewModel::setAgentVoiceAutoSend,
@@ -473,10 +475,10 @@ fun MainScreen(viewModel: MainViewModel) {
                         initialLogTaskId = agentLogTaskId,
                         canResumeTask = canResumeTask,
                         activeTaskPlans = activeTaskPlans,
-                        onResumeTask = viewModel::resumeLastTask,
-                        onResumeTaskPlan = viewModel::resumeTaskPlan,
-                        onCancelResumeTask = viewModel::cancelUnfinishedTaskPlans,
-                        onCancelTaskPlan = viewModel::cancelTaskPlan,
+                        onResumeTask = agentViewModel::resumeLastTask,
+                        onResumeTaskPlan = agentViewModel::resumeTaskPlan,
+                        onCancelResumeTask = agentViewModel::cancelUnfinishedTaskPlans,
+                        onCancelTaskPlan = agentViewModel::cancelTaskPlan,
                         agentThinkingEnabled = agentDeepSeekThinkingEnabled,
                         agentReasoningEffort = agentDeepSeekReasoningEffort,
                         onAgentThinkingEnabledChange = profileViewModel::setAgentDeepSeekThinkingEnabled,
@@ -485,27 +487,27 @@ fun MainScreen(viewModel: MainViewModel) {
                         onBack = {
                             (context as? android.app.Activity)?.finish()
                         },
-                        onSelectSession = viewModel::selectAgentSession,
-                        onSend = viewModel::sendAgentMessage,
+                        onSelectSession = agentViewModel::selectAgentSession,
+                        onSend = agentViewModel::sendAgentMessage,
                         onNewSession = {
-                            viewModel.clearAgentDraft()
-                            viewModel.newAgentSession()
+                            agentViewModel.clearAgentDraft()
+                            agentViewModel.newAgentSession()
                         },
                         onShowSessions = {
-                            viewModel.clearAgentDraft()
-                            viewModel.clearSelectedAgentSession()
+                            agentViewModel.clearAgentDraft()
+                            agentViewModel.clearSelectedAgentSession()
                         },
-                        onStop = viewModel::stopAgent,
-                        onRenameSession = viewModel::renameAgentSession,
-                        onDeleteSession = viewModel::deleteAgentSession,
-                        onClearSession = viewModel::clearAgentSession,
-                        onApproveSkill = viewModel::approveAgentSkill,
-                        onRejectSkill = viewModel::rejectAgentSkill,
-                        onDeleteSkill = viewModel::deleteAgentSkill,
-                        onToggleSkillEnabled = viewModel::setAgentSkillEnabled,
-                        onRedactSkill = viewModel::redactAgentSkill,
+                        onStop = agentViewModel::stopAgent,
+                        onRenameSession = agentViewModel::renameAgentSession,
+                        onDeleteSession = agentViewModel::deleteAgentSession,
+                        onClearSession = agentViewModel::clearAgentSession,
+                        onApproveSkill = agentViewModel::approveAgentSkill,
+                        onRejectSkill = agentViewModel::rejectAgentSkill,
+                        onDeleteSkill = agentViewModel::deleteAgentSkill,
+                        onToggleSkillEnabled = agentViewModel::setAgentSkillEnabled,
+                        onRedactSkill = agentViewModel::redactAgentSkill,
                         onExportAllSkills = {
-                            val text = viewModel.exportAllAgentSkills()
+                            val text = agentViewModel.exportAllAgentSkills()
                             val clipboard = context.getSystemService(ClipboardManager::class.java)
                             clipboard?.setPrimaryClip(ClipData.newPlainText("VoiceConfig Skills", text))
                             scope.launch { snackbarHostState.showSnackbar("已复制全部技能到剪贴板") }
@@ -520,7 +522,7 @@ fun MainScreen(viewModel: MainViewModel) {
                             if (text.isNullOrBlank()) {
                                 scope.launch { snackbarHostState.showSnackbar("剪贴板为空") }
                             } else {
-                                val skill = viewModel.importAgentSkill(text, "Clipboard")
+                                val skill = agentViewModel.importAgentSkill(text, "Clipboard")
                                 scope.launch {
                                     snackbarHostState.showSnackbar(
                                         if (skill != null) "已导入待审核技能：${skill.name}" else "导入失败：剪贴板不是有效的技能 JSON",
@@ -565,8 +567,8 @@ fun MainScreen(viewModel: MainViewModel) {
                         onDelete = viewModel::deleteShoppingItem,
                         onStartResearch = {
                             navController.popBackStack()
-                            viewModel.newAgentSession()
-                            viewModel.onAgentInputChange("帮我查母婴用品并比较价格和评价")
+                            agentViewModel.newAgentSession()
+                            agentViewModel.onAgentInputChange("帮我查母婴用品并比较价格和评价")
                             scope.launch {
                                 navigateTop(AppRoutes.CONVERSATION)
                                 snackbarHostState.showSnackbar("已进入智能助手，输入研究目标后发送")
@@ -695,7 +697,7 @@ fun MainScreen(viewModel: MainViewModel) {
     }
     pendingAgentConfirmation?.let { pending ->
         AlertDialog(
-            onDismissRequest = { viewModel.resolveAgentConfirmation(false) },
+            onDismissRequest = { agentViewModel.resolveAgentConfirmation(false) },
             title = { Text("敏感操作确认") },
             text = {
                 Text(
@@ -704,12 +706,12 @@ fun MainScreen(viewModel: MainViewModel) {
                 )
             },
             confirmButton = {
-                TextButton(onClick = { viewModel.resolveAgentConfirmation(true) }) {
+                TextButton(onClick = { agentViewModel.resolveAgentConfirmation(true) }) {
                     Text("允许")
                 }
             },
             dismissButton = {
-                TextButton(onClick = { viewModel.resolveAgentConfirmation(false) }) {
+                TextButton(onClick = { agentViewModel.resolveAgentConfirmation(false) }) {
                     Text("拒绝")
                 }
             },
