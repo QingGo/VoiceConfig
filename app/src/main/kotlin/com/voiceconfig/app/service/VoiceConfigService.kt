@@ -398,6 +398,8 @@ class VoiceConfigService : Service() {
     private fun setOverlayListening(listening: Boolean) {
         mainHandler.post {
             val view = overlayView as? TextView ?: return@post
+            val params = overlayParams ?: return@post
+            val wm = overlayWindowManager ?: return@post
             if (listening) {
                 view.text = "听"
                 view.textSize = 16f
@@ -405,6 +407,8 @@ class VoiceConfigService : Service() {
                     shape = GradientDrawable.OVAL
                     setColor(0xCCE53935.toInt())
                 }
+                params.width = 120
+                params.height = 56
             } else {
                 view.text = "言"
                 view.textSize = 20f
@@ -412,7 +416,10 @@ class VoiceConfigService : Service() {
                     shape = GradientDrawable.OVAL
                     setColor(0xCC4F46E5.toInt())
                 }
+                params.width = 56
+                params.height = 56
             }
+            runCatching { wm.updateViewLayout(view, params) }
         }
     }
 
