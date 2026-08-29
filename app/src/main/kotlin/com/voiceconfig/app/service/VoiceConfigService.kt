@@ -237,6 +237,15 @@ class VoiceConfigService : Service() {
         var initialX = 0
         var initialY = 0
         var moved = false
+        var longPressTriggered = false
+        val openAppRunnable = Runnable {
+            longPressTriggered = true
+            val intent = Intent(this@VoiceConfigService, MainActivity::class.java).apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                putExtra("global_ball", true)
+            }
+            runCatching { startActivity(intent) }
+        }
         text.setOnTouchListener { _, event ->
             when (event.actionMasked) {
                 MotionEvent.ACTION_DOWN -> {
@@ -245,19 +254,25 @@ class VoiceConfigService : Service() {
                     initialX = params.x
                     initialY = params.y
                     moved = false
+                    longPressTriggered = false
+                    mainHandler.postDelayed(openAppRunnable, 600)
                 }
                 MotionEvent.ACTION_MOVE -> {
                     val dx = (event.rawX - downX).toInt()
                     val dy = (event.rawY - downY).toInt()
-                    if (kotlin.math.abs(dx) > 8 || kotlin.math.abs(dy) > 8) moved = true
+                    if (kotlin.math.abs(dx) > 8 || kotlin.math.abs(dy) > 8) {
+                        moved = true
+                        mainHandler.removeCallbacks(openAppRunnable)
+                    }
                     params.x = initialX + dx
                     params.y = initialY + dy
                     runCatching { wm.updateViewLayout(text, params) }
                 }
                 MotionEvent.ACTION_UP -> {
-                    if (!moved) {
+                    mainHandler.removeCallbacks(openAppRunnable)
+                    if (!moved && !longPressTriggered) {
                         startGlobalVoice()
-                    } else {
+                    } else if (moved) {
                         prefs.edit().putInt("x", params.x).putInt("y", params.y).apply()
                     }
                 }
