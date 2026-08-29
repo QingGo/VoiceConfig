@@ -206,6 +206,18 @@ class AgentAccessibilityService : AccessibilityService() {
         return runCatching { dispatchGesture(gesture, null, null) }.getOrDefault(false)
     }
 
+    private fun clickByResourceId(resourceId: String): Boolean {
+        val root = activeRoot ?: return false
+        val nodes = root.findAccessibilityNodeInfosByViewId(resourceId)
+        val node = nodes?.firstOrNull() ?: return false
+        if (node.performAction(AccessibilityNodeInfo.ACTION_CLICK)) return true
+        val rect = android.graphics.Rect()
+        node.getBoundsInScreen(rect)
+        val cx = (rect.left + rect.right) / 2
+        val cy = (rect.top + rect.bottom) / 2
+        return gestureTap(cx, cy)
+    }
+
     companion object {
         private const val TAG = "AgentAccessibilityService"
         @Volatile
@@ -223,6 +235,8 @@ class AgentAccessibilityService : AccessibilityService() {
         fun pressBack(): Boolean? = instance?.performGlobalAction(AccessibilityService.GLOBAL_ACTION_BACK)
 
         fun pressHome(): Boolean? = instance?.performGlobalAction(AccessibilityService.GLOBAL_ACTION_HOME)
+
+        fun clickResourceId(resourceId: String): Boolean? = instance?.clickByResourceId(resourceId)
 
         fun currentSnapshot(): String? = instance?.snapshotText()
 

@@ -169,6 +169,21 @@ class DismissPopupsTool @Inject constructor(
             }
         }
 
+        // 优先直接按资源 id 点击已知关闭 X（如确认订单页一键换购浮层）。
+        for (resourceId in listOf(
+            "com.lucky.luckyclient:id/close_iv",
+            "com.lucky.luckyclient:id/close",
+            "android:id/close",
+            "android:id/close_iv",
+        )) {
+            if (AgentAccessibilityService.clickResourceId(resourceId) == true) {
+                return ToolResult.success(
+                    "已通过无障碍服务点击关闭浮层（$resourceId）",
+                    mapOf("source" to "accessibility_resource", "resourceId" to resourceId),
+                )
+            }
+        }
+
         // 优先识别 X/关闭图标（如确认订单页一键换购浮层的 close_iv）。
         val nodes = AgentAccessibilityService.currentNodes()
         val closeNode = nodes.firstOrNull { node ->
