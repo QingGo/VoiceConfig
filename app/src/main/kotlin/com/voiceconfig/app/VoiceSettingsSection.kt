@@ -11,7 +11,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.platform.LocalContext
-import com.voiceconfig.app.service.VoiceConfigService
+import com.voiceconfig.app.service.VoiceKeepAliveService
 import com.voiceconfig.app.ui.VoiceSectionCard
 
 @Composable
@@ -70,11 +70,11 @@ internal fun VoiceSettingsSection(
             onCheckedChange = { enabled ->
                 if (!enabled) {
                     onOverlayBallEnabledChange(false)
-                    VoiceConfigService.start(context, VoiceConfigService.ACTION_HIDE_GLOBAL_BALL)
+                    VoiceKeepAliveService.start(context, VoiceKeepAliveService.ACTION_HIDE_GLOBAL_BALL)
                 } else {
                     if (Settings.canDrawOverlays(context)) {
                         onOverlayBallEnabledChange(true)
-                        VoiceConfigService.start(context, VoiceConfigService.ACTION_HIDE_GLOBAL_BALL)
+                        VoiceKeepAliveService.start(context, VoiceKeepAliveService.ACTION_HIDE_GLOBAL_BALL)
                     } else {
                         onOverlayBallEnabledChange(false)
                         context.startActivity(

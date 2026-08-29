@@ -115,7 +115,7 @@ import com.voiceconfig.app.ai.InstalledAppProvider
 import com.voiceconfig.app.ai.AsrEngineStatus
 import com.voiceconfig.app.ai.LocalAsrManager
 import com.voiceconfig.app.service.AccessibilityKeepAlive
-import com.voiceconfig.app.service.VoiceConfigService
+import com.voiceconfig.app.service.VoiceKeepAliveService
 import com.voiceconfig.app.ui.theme.SuccessGreen
 import com.voiceconfig.app.ui.AgentNavigation
 import com.voiceconfig.app.ui.AgentPage

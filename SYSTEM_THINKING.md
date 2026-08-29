@@ -49,7 +49,7 @@ viewModel.flushPendingGlobalVoice()
 
 ---
 
-### 2.2 `VoiceConfigService` 开始变成上帝服务
+### 2.2 `VoiceKeepAliveService` 开始变成上帝服务
 
 当前它同时承担：
 
@@ -190,7 +190,9 @@ App内语音
 
 ### 第二阶段：重构全局语音服务
 
-把 `VoiceConfigService` 拆成职责清晰的组件：
+> 状态：✅ 本轮已完成组件化拆分
+
+把 `VoiceKeepAliveService` 拆成职责清晰的组件：
 
 | 组件 | 职责 |
 |---|---|

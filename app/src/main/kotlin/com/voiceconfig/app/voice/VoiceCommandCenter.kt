@@ -68,9 +68,11 @@ class VoiceCommandCenter @Inject constructor(
             else -> true
         }
 
-        val key = dedupKey ?: "text:${source.name}:${resolvedTarget.name}:$normalized"
-        recentByDedupKey[key]?.takeIf { !it.isExpired(now) }?.let {
-            return it.command
+        val key = dedupKey
+        if (key != null) {
+            recentByDedupKey[key]?.takeIf { !it.isExpired(now) }?.let {
+                return it.command
+            }
         }
 
         val command = GlobalVoiceCommand(
@@ -85,7 +87,9 @@ class VoiceCommandCenter @Inject constructor(
             autoParse = autoParse,
             expiresAt = now + COMMAND_TTL_MS,
         )
-        recentByDedupKey[key] = RecentCommand(command, now + DEDUP_WINDOW_MS)
+        if (key != null) {
+            recentByDedupKey[key] = RecentCommand(command, now + DEDUP_WINDOW_MS)
+        }
         Log.d(TAG, "submit id=${command.commandId} source=${command.source.name} target=${command.target.name} autoSend=${command.autoSend} text=${command.text}")
         // 保留在 replay 中，晚创建的订阅者也能收到；ack 后不会再执行。
         _commands.tryEmit(command)

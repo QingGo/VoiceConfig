@@ -117,7 +117,7 @@ import com.voiceconfig.app.ai.InstalledAppProvider
 import com.voiceconfig.app.ai.AsrEngineStatus
 import com.voiceconfig.app.ai.LocalAsrManager
 import com.voiceconfig.app.service.AccessibilityKeepAlive
-import com.voiceconfig.app.service.VoiceConfigService
+import com.voiceconfig.app.service.VoiceKeepAliveService
 import com.voiceconfig.app.voice.VoiceCommandCenter
 import com.voiceconfig.app.voice.VoiceCommandSource
 import com.voiceconfig.app.ui.theme.SuccessGreen
@@ -291,7 +291,7 @@ class MainActivity : ComponentActivity() {
             }
         }
         window.decorView.post {
-            VoiceConfigService.start(this, VoiceConfigService.ACTION_HIDE_GLOBAL_BALL)
+            VoiceKeepAliveService.start(this, VoiceKeepAliveService.ACTION_HIDE_GLOBAL_BALL)
             runCatching { accessibilityKeepAlive.ensureEnabled() }
             handleGlobalVoiceIntent(intent)
         }
@@ -316,16 +316,16 @@ class MainActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
-        sendOverlayBallVisibility(VoiceConfigService.ACTION_HIDE_GLOBAL_BALL)
+        sendOverlayBallVisibility(VoiceKeepAliveService.ACTION_HIDE_GLOBAL_BALL)
     }
 
     override fun onPause() {
-        sendOverlayBallVisibility(VoiceConfigService.ACTION_SHOW_GLOBAL_BALL)
+        sendOverlayBallVisibility(VoiceKeepAliveService.ACTION_SHOW_GLOBAL_BALL)
         super.onPause()
     }
 
     private fun sendOverlayBallVisibility(action: String) {
-        val intent = Intent(this, VoiceConfigService::class.java).setAction(action)
+        val intent = Intent(this, VoiceKeepAliveService::class.java).setAction(action)
         runCatching {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 startForegroundService(intent)

@@ -121,7 +121,7 @@ import com.voiceconfig.app.ai.InstalledAppProvider
 import com.voiceconfig.app.ai.AsrEngineStatus
 import com.voiceconfig.app.ai.LocalAsrManager
 import com.voiceconfig.app.service.AccessibilityKeepAlive
-import com.voiceconfig.app.service.VoiceConfigService
+import com.voiceconfig.app.service.VoiceKeepAliveService
 import com.voiceconfig.app.voice.VoiceCommandCenter
 import com.voiceconfig.app.voice.VoiceCommandSource
 import com.voiceconfig.app.voice.VoiceCommandTarget

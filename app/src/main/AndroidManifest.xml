@@ -52,7 +52,7 @@
         </service>
 
         <service
-            android:name=".service.VoiceConfigService"
+            android:name=".service.VoiceKeepAliveService"
             android:exported="false"
             android:foregroundServiceType="specialUse">
             <property

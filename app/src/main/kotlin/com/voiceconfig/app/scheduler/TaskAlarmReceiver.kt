@@ -8,7 +8,7 @@ import android.content.Context
 import android.content.Intent
 import android.os.Build
 import com.voiceconfig.app.MainActivity
-import com.voiceconfig.app.service.VoiceConfigService
+import com.voiceconfig.app.service.VoiceKeepAliveService
 import androidx.core.app.NotificationCompat
 import com.voiceconfig.app.agent.AgentCapabilityInspector
 import com.voiceconfig.app.agent.AgentPreflight
@@ -73,7 +73,7 @@ class TaskAlarmReceiver : BroadcastReceiver() {
                 val task = taskRepository.getTask(taskId) ?: return@launch
                 if (task.actionType == ActionType.AGENT) {
                     // 确保前台保活服务已启动，降低长任务执行中被系统回收的风险。
-                    runCatching { VoiceConfigService.start(context) }
+                    runCatching { VoiceKeepAliveService.start(context) }
                     notifyAgentStarted(context, task)
                 }
                 val startedAt = System.currentTimeMillis()

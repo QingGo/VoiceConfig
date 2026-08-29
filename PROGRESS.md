@@ -105,7 +105,7 @@
 
 - [x] 正式 VoiceCommandCenter / GlobalVoiceCommandBus：Hilt Singleton + SharedFlow<GlobalVoiceCommand> + 去重/超时/ack；Service 发送，Agent/Automation ViewModel 明确订阅，MainViewModel 可变桥接已移除
 - [x] 所有语音入口统一：App 内语音 / 全局悬浮球 / 唤醒词 / 调试广播均经 VoiceCommandCenter 单管道
-- [x] 系统级悬浮球基础：VoiceConfigService 在获得悬浮窗权限后显示可拖动「言」球，短按聆听、长按打开 App，位置本地记忆
+- [x] 系统级悬浮球基础：VoiceKeepAliveService 在获得悬浮窗权限后显示可拖动「言」球，短按聆听、长按打开 App，位置本地记忆
 - [x] 真机校准：悬浮球改用 dp 尺寸（默认 60dp，聆听 150x64dp）；App 前台自动隐藏系统球，回到桌面后自动恢复
 - [x] 全局语音结果直接驱动 Agent：悬浮确认后开始 App 并提交 Agent，不依赖“自动发送”开关
 - [x] 权限引导：设置 → 权限与系统新增「悬浮球（系统级语音入口）」，语音设置页新增「系统级悬浮球」开关
@@ -119,6 +119,16 @@
 - [ ] （后续强化）本地小模型低功耗唤醒
 - [x] 低功耗与前台服务优化（亮/灭屏策略 + 聆听超时）
 - [x] 悬浮球记住最后位置并在重启后恢复
+
+## Phase 2：全局语音服务重构（已完成）
+
+- [x] VoiceKeepAliveService：仅保留前台保活、条件触发、通知与调度；不再直接持有 Overlay/识别/确认逻辑
+- [x] GlobalOverlayController：悬浮球 UI、拖拽、显隐、确认面板独立成 Singleton
+- [x] GlobalVoiceSession：聆听、超时、确认、提交命令状态机，独立于 Android Service
+- [x] GlobalVoiceStateMachine：纯 Kotlin 状态机，已增加 JVM 单测
+- [x] GlobalSpeechRouter / GlobalSpeechInput：本地 ASR 优先、系统 SpeechRecognizer 兜底
+- [x] GlobalWakeWordEngine：监听会话状态自动暂停/恢复，屏幕关闭可 pause/resume
+- [ ] （后续强化）Overlay 状态机接入 Compose/截图回归；本地小模型低功耗唤醒仍属第三阶段
 
 ## Phase 0：地基稳定（已完成）
 

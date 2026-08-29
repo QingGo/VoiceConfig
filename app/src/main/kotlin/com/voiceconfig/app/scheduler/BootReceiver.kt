@@ -6,7 +6,7 @@ import android.content.Intent
 import com.voiceconfig.core.scheduler.NextRunCalculator
 import com.voiceconfig.core.scheduler.TaskScheduler
 import com.voiceconfig.data.local.repository.TaskRepository
-import com.voiceconfig.app.service.VoiceConfigService
+import com.voiceconfig.app.service.VoiceKeepAliveService
 import com.voiceconfig.data.local.repository.TriggerRuleRepository
 import java.time.ZoneId
 import dagger.hilt.android.AndroidEntryPoint
@@ -29,7 +29,7 @@ class BootReceiver : BroadcastReceiver() {
 
     override fun onReceive(context: Context, intent: Intent) {
         if (intent.action != Intent.ACTION_BOOT_COMPLETED) return
-        VoiceConfigService.start(context)
+        VoiceKeepAliveService.start(context)
         val pendingResult = goAsync()
         scope.launch {
             try {
