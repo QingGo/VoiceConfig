@@ -404,7 +404,18 @@ LLM 理解需求
 
 ---
 
-## 7. 后续不做什么
+## 7. 本轮已落地（P0/P1）
+
+- `UiActionLayer`：统一 UI 原语（id / text / desc / 坐标 / 等待 / 断言）
+- `TapTool / TapTextTool / SwipeTool` 改走该层
+- 新增 `UiAssertTool`，Agent 可用 `visible / not_visible / wait_for` 做确定性验证
+- `TerminalSafetyGate` + `StopVerifier`：到达确认订单 / 免密支付 / 提交订单 / 发送确认页时强制 `WAITING_CONFIRM`
+- 单测已补：`TerminalSafetyGateTest`、`TaskPlanTest` 终端页、`UiAssertToolTest`
+- 真机回归受“重装后无障碍未重连 + 设备锁屏”阻塞，已记录到 PROGRESS 待恢复后验证
+
+---
+
+## 8. 后续不做什么
 
 - 不新增“听起来很酷但不可验证”的功能
 - 不依赖 LLM 做精确点击

@@ -180,6 +180,17 @@
 - [ ] 长程购物比价：待跑通 product_compare / product_search 全链路
 - [ ] 新增脚本：`scripts/phase4_safety_regression.sh`、`scripts/phase5_e2e_scenarios.json`、`scripts/phase5_e2e_regression.sh`
 
+## P0/P1：本轮实现
+
+- [x] `UiActionLayer`：统一 `tapById / tapByText / tapByDesc / tapCenter / swipe / back / input / waitFor / assertVisible / assertNotVisible`
+- [x] `TapTool / TapTextTool / SwipeTool` 已收敛到 `UiActionLayer`
+- [x] `UiAssertTool`：确定性 `visible / not_visible / wait_for` 断言，已注册进核心工具集
+- [x] `TerminalSafetyGate`：识别确认订单 / 免密支付 / 提交订单 / 消息发送确认页
+- [x] `StopVerifier` 终端页强制 `WAITING_CONFIRM`，不再判为未完成 / DONE
+- [x] 单测覆盖：TerminalSafetyGateTest、TaskPlanTest 终端页、UiAssertToolTest
+- [ ] 真机瑞幸 E2E：安装新版后 `AgentAccessibilityService` 未重连（dumpsys 显示 Bound 但 app 进程 instance 为 null，且设备处于锁屏），待恢复无障碍连接与解锁后回归
+- [ ] 严格 E2E 断言脚本：需要继续把 `run_finished.state / 关键 UI / 浮层缺失 / 最终动作未执行` 纳入自动判定
+
 ## 已提交代码
 
 - 安全四级与审计

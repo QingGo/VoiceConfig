@@ -64,6 +64,35 @@ class TaskPlanTest {
         assertEquals("等待用户确认购物清单", store.snapshot()?.waitingForHuman)
     }
     @Test
+    fun `stop verifier terminal safety gate forces wait user on payment page`() {
+        val plan = TaskPlan(
+            goal = "瑞幸点单",
+            steps = mutableListOf(
+                TaskStep("step_1", "打开App", TaskStepStatus.COMPLETED, "已打开"),
+                TaskStep("step_2", "选饮品", TaskStepStatus.PENDING),
+            ),
+        )
+        assertEquals(StopDecision.WAIT_USER, StopVerifier().evaluate(plan, "确认订单 免密支付 按钮"))
+    }
+
+    @Test
+    fun `stop verifier terminal safety gate forces wait user on send page`() {
+        val plan = TaskPlan(
+            goal = "微信回复消息",
+            steps = mutableListOf(
+                TaskStep("step_1", "打开微信", TaskStepStatus.COMPLETED),
+                TaskStep("step_2", "输入回复", TaskStepStatus.COMPLETED),
+            ),
+        )
+        assertEquals(StopDecision.WAIT_USER, StopVerifier().evaluate(plan, "发送按钮"))
+    }
+
+    @Test
+    fun `stop verifier terminal safety gate works without a plan`() {
+        assertEquals(StopDecision.WAIT_USER, StopVerifier().evaluate(null, "免密支付 确认订单"))
+    }
+
+    @Test
     fun `stop verifier requires evidence before done`() {
         val plan = TaskPlan(
             goal = "测试",

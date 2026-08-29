@@ -53,6 +53,13 @@ object AgentToolSchemas {
         "dismiss_popups" -> objectSchema(
             "maxAttempts" to integer("最多尝试关闭次数，默认3"),
         )
+        "ui_assert" -> objectSchema(
+            "action" to string("visible/not_visible/wait_for，默认 visible"),
+            "resourceId" to string("目标资源 id，例如 com.lucky.luckyclient:id/close_iv"),
+            "text" to string("目标文字"),
+            "desc" to string("目标 content-desc"),
+            "timeoutMs" to integer("wait_for 的等待超时毫秒，默认 5000"),
+        )
         "task_plan" -> objectSchema(
             "action" to string("create/update/wait_user/get"),
             "goal" to string("目标描述，create 时必填"),

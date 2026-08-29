@@ -15,6 +15,7 @@ class AgentToolsetTest {
         primary.forEach { name ->
             assertEquals("$name should be CORE", ToolGroup.CORE, AgentToolMetadataRegistry.of(name).group)
         }
+        assertEquals(ToolGroup.CORE, AgentToolMetadataRegistry.of("ui_assert").group)
     }
 
     @Test

@@ -463,20 +463,38 @@ class AgentSession @Inject constructor(
                 }
                 val currentPlan = taskPlanStore.snapshot()
                 val stopDecision = stopVerifier.evaluate(currentPlan, latestUiEvidence)
+                val terminalHit = TerminalSafetyGate.detect(latestUiEvidence, currentPlan?.goal)
                 trace.log(runId, "stop_verifier", mapOf(
                     "round" to round,
                     "decision" to stopDecision.name,
                     "waiting" to (currentPlan?.waitingForHuman ?: ""),
+                    "terminal_kind" to terminalHit.kind.name,
+                    "terminal_marker" to terminalHit.marker,
                     "steps_total" to (currentPlan?.steps?.size ?: 0),
                     "steps_completed" to (currentPlan?.steps?.count { it.status == TaskStepStatus.COMPLETED || it.status == TaskStepStatus.SKIPPED } ?: 0),
                 ))
                 when (stopDecision) {
                     StopDecision.WAIT_USER -> {
-                        val reason = currentPlan?.waitingForHuman ?: "需要用户确认"
+                        val reason = currentPlan?.waitingForHuman
+                            ?: terminalHit.reason.ifBlank { "需要用户确认" }
                         val finalText = assistantContent.ifBlank { "（无文本回复）" } +
                             "\n（已暂停，等待用户确认：$reason）"
-                        setState(AgentRunState.WAITING_CONFIRM)
+                        if (currentPlan == null) {
+                            taskPlanStore.set(
+                                TaskPlan(
+                                    goal = userText,
+                                    waitingForHuman = reason,
+                                    status = TaskPlanStatus.WAITING_CONFIRM,
+                                ),
+                            )
+                        } else if (currentPlan.waitingForHuman == null) {
+                            taskPlanStore.update {
+                                it.copy(waitingForHuman = reason, status = TaskPlanStatus.WAITING_CONFIRM)
+                            }
+                        }
                         taskPlanStore.saveCurrent()
+                        val savedPlan = taskPlanStore.snapshot()
+                        setState(AgentRunState.WAITING_CONFIRM)
                         trace.log(runId, "run_finished", mapOf("ok" to true, "message" to finalText, "tool_call_count" to allToolCalls.size, "duration_ms" to (System.currentTimeMillis() - startedAtMs), "waiting" to true))
                         return AgentTurnResult(
                             ok = true,
@@ -490,7 +508,7 @@ class AgentSession @Inject constructor(
                             verifyMs = verifyMs,
                             rounds = rounds,
                             state = AgentRunState.WAITING_CONFIRM,
-                            plan = currentPlan,
+                            plan = savedPlan,
                         )
                     }
                     StopDecision.FAILED -> {

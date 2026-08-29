@@ -188,8 +188,16 @@ class StopVerifier {
      * 我们仍认为“未验证通过”，返回 CONTINUE，避免模型直接说完成。
      */
     fun evaluate(plan: TaskPlan?, uiEvidence: String = ""): StopDecision {
+        // Terminal Safety Gate：一旦 UI 证据表明已到达最终确认/支付/发送页，
+        // 即使没有任务计划或计划未全部完成，也必须强制等待用户，不能判 DONE/CONTINUE。
+        val terminal = TerminalSafetyGate.detect(uiEvidence, plan?.goal)
+        if (terminal.kind != TerminalSafetyGate.TerminalKind.NONE) {
+            return StopDecision.WAIT_USER
+        }
+
         if (plan == null) return StopDecision.UNKNOWN
         if (plan.waitingForHuman != null) return StopDecision.WAIT_USER
+
         if (plan.allCompleted()) {
             val hasStepEvidence = plan.steps.any {
                 it.status == TaskStepStatus.COMPLETED && (it.evidence.isNotBlank() || it.note.isNotBlank())
