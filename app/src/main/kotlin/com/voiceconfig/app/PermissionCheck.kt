@@ -234,6 +234,21 @@ private fun buildPermissionStatuses(context: Context): List<PermissionStatus> {
         },
     )
 
+    val overlayGranted = Build.VERSION.SDK_INT >= Build.VERSION_CODES.O &&
+        Settings.canDrawOverlays(context)
+    statuses += PermissionStatus(
+        name = "悬浮球（系统级语音入口）",
+        granted = overlayGranted,
+        action = {
+            context.startActivity(
+                Intent(
+                    Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                    Uri.parse("package:${context.packageName}"),
+                ),
+            )
+        },
+    )
+
     val shizukuReady = isShizukuReady()
     statuses += PermissionStatus(
         name = "Shizuku（高级自动打开）",

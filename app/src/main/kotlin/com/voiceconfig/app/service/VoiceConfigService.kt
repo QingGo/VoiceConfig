@@ -12,6 +12,15 @@ import android.content.IntentFilter
 import android.net.wifi.WifiManager
 import android.os.Build
 import android.os.IBinder
+import android.provider.Settings
+import android.view.Gravity
+import android.view.MotionEvent
+import android.view.View
+import android.view.WindowManager
+import android.widget.TextView
+import android.graphics.Color
+import android.graphics.PixelFormat
+import android.graphics.drawable.GradientDrawable
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
 import com.voiceconfig.app.MainActivity
@@ -51,6 +60,9 @@ class VoiceConfigService : Service() {
     @Inject lateinit var wakeWordDetector: WakeWordDetector
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private var overlayView: View? = null
+    private var overlayParams: WindowManager.LayoutParams? = null
+    private var overlayWindowManager: WindowManager? = null
     private val receiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
             scope.launch {
@@ -70,6 +82,7 @@ class VoiceConfigService : Service() {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         startForeground(NOTIFICATION_ID, buildNotification())
+        showGlobalBallIfAllowed()
         if (!receiverRegistered) {
             registerConditionReceiver()
         }
@@ -86,6 +99,7 @@ class VoiceConfigService : Service() {
             receiverRegistered = false
         }
         wakeWordDetector.stop()
+        removeGlobalBall()
         super.onDestroy()
     }
 
@@ -177,6 +191,91 @@ class VoiceConfigService : Service() {
             registerReceiver(receiver, filter)
         }
         receiverRegistered = true
+    }
+
+    private fun showGlobalBallIfAllowed() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
+        if (!Settings.canDrawOverlays(this)) return
+        if (overlayView != null) return
+        val wm = getSystemService(WINDOW_SERVICE) as? WindowManager ?: return
+        val prefs = getSharedPreferences("voiceconfig_overlay", Context.MODE_PRIVATE)
+        val size = 56
+        val text = TextView(this).apply {
+            this.text = "言"
+            textSize = 20f
+            setTextColor(Color.WHITE)
+            gravity = Gravity.CENTER
+            background = GradientDrawable().apply {
+                shape = GradientDrawable.OVAL
+                setColor(0xCC4F46E5.toInt())
+            }
+            isClickable = true
+            isFocusable = true
+        }
+        val params = WindowManager.LayoutParams(
+            size,
+            size,
+            WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
+            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
+                WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or
+                WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
+            PixelFormat.TRANSLUCENT,
+        ).apply {
+            gravity = Gravity.TOP or Gravity.START
+            x = prefs.getInt("x", 24)
+            y = prefs.getInt("y", 200)
+        }
+        var downX = 0f
+        var downY = 0f
+        var initialX = 0
+        var initialY = 0
+        var moved = false
+        text.setOnTouchListener { _, event ->
+            when (event.actionMasked) {
+                MotionEvent.ACTION_DOWN -> {
+                    downX = event.rawX
+                    downY = event.rawY
+                    initialX = params.x
+                    initialY = params.y
+                    moved = false
+                }
+                MotionEvent.ACTION_MOVE -> {
+                    val dx = (event.rawX - downX).toInt()
+                    val dy = (event.rawY - downY).toInt()
+                    if (kotlin.math.abs(dx) > 8 || kotlin.math.abs(dy) > 8) moved = true
+                    params.x = initialX + dx
+                    params.y = initialY + dy
+                    runCatching { wm.updateViewLayout(text, params) }
+                }
+                MotionEvent.ACTION_UP -> {
+                    if (!moved) {
+                        val intent = Intent(this@VoiceConfigService, MainActivity::class.java).apply {
+                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                            putExtra("global_ball", true)
+                        }
+                        runCatching { startActivity(intent) }
+                    } else {
+                        prefs.edit().putInt("x", params.x).putInt("y", params.y).apply()
+                    }
+                }
+            }
+            true
+        }
+        runCatching {
+            wm.addView(text, params)
+            overlayView = text
+            overlayParams = params
+            overlayWindowManager = wm
+        }
+    }
+
+    private fun removeGlobalBall() {
+        val view = overlayView ?: return
+        val wm = overlayWindowManager ?: return
+        runCatching { wm.removeView(view) }
+        overlayView = null
+        overlayParams = null
+        overlayWindowManager = null
     }
 
     private fun buildNotification(): Notification {

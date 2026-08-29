@@ -99,6 +99,15 @@
 - [x] P2-12 远程高级能力统一设计：统一入口 + Material 图标 + 默认折叠
 - [x] Adaptive Icon（新增 mipmap-anydpi-v26 + 前景矢量）
 
+## Phase 1：全局语音入口（进行中）
+
+- [x] 系统级悬浮球基础：VoiceConfigService 在获得悬浮窗权限后显示可拖动「言」球，点击拉起 App，位置本地记忆
+- [x] 权限引导：设置 → 权限与系统新增「悬浮球（系统级语音入口）」
+- [x] 全局唤醒词基础：WakeWordDetector 已在保活服务中监听「言控」并拉起 App
+- [ ] 悬浮球唤醒/聆听/播报完整生命周期
+- [ ] 低功耗与前台服务优化
+- [ ] 悬浮球记住最后位置并在重启后恢复
+
 ## Phase 0：地基稳定（进行中）
 
 - [x] 正式引入 Navigation Compose：Conversation / Automation / Profile 为三个顶层路由，Shopping / Home Assistant 为二级路由，不再使用 boolean overlay
