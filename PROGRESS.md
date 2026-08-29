@@ -167,6 +167,7 @@
 - [ ] （后续强化）Compose UI 测试与截图自动对比
 
 ## Phase 5：真实场景端到端回归（开始执行）
+- [x] Real foreground verify: Luckin / WeChat / WeCom / Settings 4/4 PASS (com.lucky.luckyclient, com.tencent.mm, com.tencent.wework, com.android.settings)
 
 - [x] 企业微信定时打开：真机 PASS（create_scheduled_task 成功）
 - [x] Phase 4 敏感确认：远程 shell 命令触发 WAITING_CONFIRM，未被语音/调试命令绕过
