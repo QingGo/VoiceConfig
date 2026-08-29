@@ -166,6 +166,18 @@
 - [x] 新增 Phase 0 模拟器导航冒烟脚本 scripts/phase0_nav_smoke.sh（首页/自动化/设置/返回检查）
 - [ ] （后续强化）Compose UI 测试与截图自动对比
 
+## Phase 5：真实场景端到端回归（开始执行）
+
+- [x] 企业微信定时打开：真机 PASS（create_scheduled_task 成功）
+- [x] Phase 4 敏感确认：远程 shell 命令触发 WAITING_CONFIRM，未被语音/调试命令绕过
+- [x] Phase 4 能力预检：瑞幸点单 / 微信发送等 UI 命令在无无障碍/Shizuku 真机上被 preflight 阻断，trace 完整
+- [ ] 瑞幸点单真实 UI 选品/加购/确认：需在已授权无障碍或 Shizuku 的真机执行
+- [ ] 微信回复真实发送：需先授权无障碍/Shizuku，并完成 Agent 层二次确认
+- [ ] Home Assistant 控制：需配置 HA token 后跑通 home_devices/home_control
+- [ ] 远程设备管理：本轮已验证敏感确认，节点清单/远程构建待配置节点后回归
+- [ ] 长程购物比价：待跑通 product_compare / product_search 全链路
+- [ ] 新增脚本：`scripts/phase4_safety_regression.sh`、`scripts/phase5_e2e_scenarios.json`、`scripts/phase5_e2e_regression.sh`
+
 ## 已提交代码
 
 - 安全四级与审计

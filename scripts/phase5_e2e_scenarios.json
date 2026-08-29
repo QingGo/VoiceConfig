@@ -1,0 +1,50 @@
+[
+  {
+    "name": "企业微信定时打开",
+    "text": "帮我设置一个每天早上8点打开企业微信的定时任务",
+    "expect": "",
+    "timeout": 120,
+    "estimated_seconds": 60,
+    "category": "enterprise-wechat-schedule"
+  },
+  {
+    "name": "瑞幸点单准备（不下单）",
+    "text": "帮我生成一杯瑞幸冰美式的点单确认清单，不要下单",
+    "expect": "",
+    "timeout": 120,
+    "estimated_seconds": 60,
+    "category": "luckin-prepare"
+  },
+  {
+    "name": "微信回复草稿（不发送）",
+    "text": "帮我就微信消息生成一条回复草稿：收到，稍后回复",
+    "expect": "",
+    "timeout": 120,
+    "estimated_seconds": 60,
+    "category": "wechat-draft"
+  },
+  {
+    "name": "Home Assistant 设备列表",
+    "text": "列出家里的智能家居设备",
+    "expect": "",
+    "timeout": 120,
+    "estimated_seconds": 60,
+    "category": "home-assistant"
+  },
+  {
+    "name": "远程节点列表",
+    "text": "列出所有远程节点",
+    "expect": "",
+    "timeout": 120,
+    "estimated_seconds": 60,
+    "category": "remote-nodes"
+  },
+  {
+    "name": "长程购物比价",
+    "text": "帮我比较iPhone 15和iPhone 16的价格和评价",
+    "expect": "",
+    "timeout": 240,
+    "estimated_seconds": 120,
+    "category": "shopping-compare"
+  }
+]
