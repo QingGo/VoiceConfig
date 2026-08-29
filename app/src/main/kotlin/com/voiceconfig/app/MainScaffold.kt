@@ -309,6 +309,7 @@ fun MainScreen(viewModel: MainViewModel) {
     LaunchedEffect(Unit) {
         viewModel.automationViewModel = automationViewModel
         viewModel.agentViewModel = agentViewModel
+        viewModel.flushPendingGlobalVoice()
     }
 
     LaunchedEffect(currentRoute) {

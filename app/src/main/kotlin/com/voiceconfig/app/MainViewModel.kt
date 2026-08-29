@@ -159,6 +159,7 @@ class MainViewModel @Inject constructor(
 
     private var lastVoiceSessionId: String? = null
     private var lastVoiceText: String = ""
+    private var pendingGlobalVoiceCommand: String? = null
 
     fun updateShoppingItemStatus(productId: String, status: String) {
         viewModelScope.launch {
@@ -176,6 +177,29 @@ class MainViewModel @Inject constructor(
         viewModelScope.launch {
             shoppingFeature.clear()
         }
+    }
+
+    fun submitGlobalVoiceCommand(text: String) {
+        val command = text.trim()
+        if (command.isBlank()) return
+        if (apiKeyStore.deepSeekApiKey.isNotBlank()) {
+            if (agentViewModel == null) {
+                pendingGlobalVoiceCommand = command
+                return
+            }
+            agentViewModel?.onAgentInputChange(command)
+            agentViewModel?.sendAgentMessage(command)
+            agentViewModel?.clearAgentDraft()
+        } else {
+            automationViewModel?.onInputChange(command)
+            automationViewModel?.parse()
+        }
+    }
+
+    fun flushPendingGlobalVoice() {
+        val command = pendingGlobalVoiceCommand ?: return
+        pendingGlobalVoiceCommand = null
+        submitGlobalVoiceCommand(command)
     }
 
     fun submitNaturalLanguageInput() {

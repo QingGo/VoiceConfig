@@ -70,11 +70,11 @@ internal fun VoiceSettingsSection(
             onCheckedChange = { enabled ->
                 if (!enabled) {
                     onOverlayBallEnabledChange(false)
-                    VoiceConfigService.start(context)
+                    VoiceConfigService.start(context, VoiceConfigService.ACTION_HIDE_GLOBAL_BALL)
                 } else {
                     if (Settings.canDrawOverlays(context)) {
                         onOverlayBallEnabledChange(true)
-                        VoiceConfigService.start(context)
+                        VoiceConfigService.start(context, VoiceConfigService.ACTION_HIDE_GLOBAL_BALL)
                     } else {
                         onOverlayBallEnabledChange(false)
                         context.startActivity(

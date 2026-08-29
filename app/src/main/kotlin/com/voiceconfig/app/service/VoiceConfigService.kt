@@ -566,8 +566,10 @@ class VoiceConfigService : Service() {
         const val ACTION_HIDE_GLOBAL_BALL = "com.voiceconfig.app.action.HIDE_GLOBAL_BALL"
         const val ACTION_SHOW_GLOBAL_BALL = "com.voiceconfig.app.action.SHOW_GLOBAL_BALL"
 
-        fun start(context: Context) {
-            val intent = Intent(context, VoiceConfigService::class.java)
+        fun start(context: Context, action: String? = null) {
+            val intent = Intent(context, VoiceConfigService::class.java).apply {
+                action?.let { setAction(it) }
+            }
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 context.startForegroundService(intent)
             } else {
