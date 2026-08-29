@@ -168,7 +168,33 @@ class DismissPopupsTool @Inject constructor(
                 )
             }
         }
+
+        // 优先识别 X/关闭图标（如确认订单页一键换购浮层的 close_iv）。
+        val nodes = AgentAccessibilityService.currentNodes()
+        val closeNode = nodes.firstOrNull { node ->
+            val id = node.resourceId.lowercase()
+            node.clickable && (
+                id.contains("close_iv") || id.contains("iv_close") ||
+                    id.contains("btn_close") || id.contains("close") ||
+                    id.contains("dismiss") || id.contains("cancel")
+                )
+        }
+        if (closeNode != null) {
+            val center = parseBoundsCenter(closeNode.bounds)
+            if (center != null && AgentAccessibilityService.gestureTap(center.first, center.second) == true) {
+                return ToolResult.success(
+                    "已通过无障碍手势点击关闭浮层（${closeNode.resourceId}）",
+                    mapOf("source" to "accessibility_gesture", "resourceId" to closeNode.resourceId, "x" to center.first, "y" to center.second),
+                )
+            }
+        }
         return ToolResult.failure("未检测到可关闭弹窗；请确认是否需要 Shizuku 授权")
+    }
+
+    private fun parseBoundsCenter(bounds: String): Pair<Int, Int>? {
+        val m = Regex("""\[(\d+),(\d+)\]\[(\d+),(\d+)\]""").find(bounds) ?: return null
+        return ((m.groupValues[1].toIntOrNull() ?: return null) + (m.groupValues[3].toIntOrNull() ?: return null)) / 2 to
+            ((m.groupValues[2].toIntOrNull() ?: return null) + (m.groupValues[4].toIntOrNull() ?: return null)) / 2
     }
 
     private fun accessibilityUiNodes(): List<UiDumpParser.UiNode> =

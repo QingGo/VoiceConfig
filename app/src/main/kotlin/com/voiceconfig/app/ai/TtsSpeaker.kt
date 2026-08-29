@@ -29,10 +29,10 @@ class TtsSpeaker @Inject constructor(
     }
 
     fun speak(text: String) {
-        val trimmed = text.trim()
-        if (trimmed.isBlank() || !ready) return
+        val cleaned = SpeechTextCleaner.cleanForSpeech(text)
+        if (cleaned.isBlank() || !ready) return
         val utteranceId = UUID.randomUUID().toString()
-        tts?.speak(trimmed, TextToSpeech.QUEUE_FLUSH, null, utteranceId)
+        tts?.speak(cleaned, TextToSpeech.QUEUE_FLUSH, null, utteranceId)
     }
 
     fun stop() {
@@ -44,5 +44,26 @@ class TtsSpeaker @Inject constructor(
         tts?.shutdown()
         tts = null
         ready = false
+    }
+}
+
+/**
+ * 纯文本化，供 TTS 使用，避免朗读 Markdown 符号。
+ */
+object SpeechTextCleaner {
+    fun cleanForSpeech(text: String): String {
+        return text
+            .replace(Regex("""!\[([^\]]*)\]\([^)]*\)"""), "$1")
+            .replace(Regex("""\[([^\]]+)\]\([^)]*\)"""), "$1")
+            .replace(Regex("""^#{1,6}\s*""", RegexOption.MULTILINE), "")
+            .replace(Regex("""^>\s?""", RegexOption.MULTILINE), "")
+            .replace(Regex("""^[-*+]\s+""", RegexOption.MULTILINE), "")
+            .replace("**", "")
+            .replace("__", "")
+            .replace("`", "")
+            .replace("*", "")
+            .replace("~~", "")
+            .replace(Regex("""\n{3,}"""), "\n\n")
+            .trim()
     }
 }
