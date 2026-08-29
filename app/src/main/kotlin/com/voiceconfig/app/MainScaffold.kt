@@ -529,7 +529,9 @@ fun MainScreen(viewModel: MainViewModel) {
 
         }
 
-        NavigationBar {
+        NavigationBar(
+            containerColor = MaterialTheme.colorScheme.background,
+        ) {
             NavigationBarItem(
                 selected = currentDestination == AppDestination.Conversation,
                 onClick = {

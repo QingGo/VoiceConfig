@@ -160,7 +160,7 @@ fun AgentPage(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(start = 8.dp, end = 4.dp, top = 4.dp, bottom = 4.dp),
+                .padding(start = 12.dp, end = 8.dp, top = 8.dp, bottom = 4.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             if (selectedSessionId != null) {
@@ -537,29 +537,26 @@ private fun AccessibilityHelpCard(
             containerColor = MaterialTheme.colorScheme.errorContainer,
         ),
     ) {
-        Column(
+        Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(12.dp),
-            verticalArrangement = Arrangement.spacedBy(6.dp),
+                .padding(horizontal = 12.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text(
-                text = "无法验证当前屏幕，可能未开启无障碍服务",
-                style = MaterialTheme.typography.titleSmall,
-                color = MaterialTheme.colorScheme.onErrorContainer,
-            )
-            Text(
-                text = "开启后，即使没有 Shizuku，也能读屏、点击并验证前台结果。",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onErrorContainer,
-            )
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Button(onClick = onEnableViaShizuku) {
-                    Text("Shizuku 一键开启")
-                }
-                TextButton(onClick = onOpenSettings) {
-                    Text("去系统设置")
-                }
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = "高级自动化未开启",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onErrorContainer,
+                )
+                Text(
+                    text = "读屏、点击与自动验证能力受限",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onErrorContainer,
+                )
+            }
+            TextButton(onClick = onOpenSettings) {
+                Text("去开启")
             }
         }
     }
