@@ -94,9 +94,14 @@ class DismissPopupsTool @Inject constructor(
                         } ?: return ToolResult.failure("检测到弹窗但已尝试所有可解析关闭按钮，仍未关闭")
                         val center = OverlayDetector.center(candidate.node.bounds)!!
                         usedKeys += candidate.node.resourceId + "|" + candidate.node.bounds
-                        val tap = shizuku.execute("input", "tap", center.first.toString(), center.second.toString())
-                        if (!tap.ok) {
-                            return ToolResult.failure("点击关闭按钮失败：${tap.stderr.ifBlank { "exit=${tap.exitCode}" }}")
+                        val tapped =
+                            if (AgentAccessibilityService.gestureTap(center.first, center.second) == true) {
+                                true
+                            } else {
+                                shizuku.execute("input", "tap", center.first.toString(), center.second.toString()).ok
+                            }
+                        if (!tapped) {
+                            return ToolResult.failure("点击关闭按钮失败：无法通过无障碍或 Shizuku 点击")
                         }
                         actions += "关闭(${candidate.reason}) at ${center.first},${center.second}"
                         delay(450)

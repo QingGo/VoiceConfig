@@ -2,6 +2,7 @@ package com.voiceconfig.app.agent
 
 import javax.inject.Inject
 import javax.inject.Singleton
+import com.voiceconfig.app.service.AgentAccessibilityService
 
 /**
  * 滑动 / 长按。
@@ -21,6 +22,14 @@ class SwipeTool @Inject constructor(
         val x2 = (args["x2"] as? Number)?.toInt() ?: return ToolResult.failure("缺少参数 x2")
         val y2 = (args["y2"] as? Number)?.toInt() ?: return ToolResult.failure("缺少参数 y2")
         val duration = (args["durationMs"] as? Number)?.toInt()?.coerceIn(0, 10_000) ?: 300
+
+        if (AgentAccessibilityService.gestureSwipe(x1, y1, x2, y2, duration) == true) {
+            return ToolResult.success(
+                "已通过无障碍手势滑动",
+                mapOf("x1" to x1, "y1" to y1, "x2" to x2, "y2" to y2, "source" to "accessibility_gesture"),
+            )
+        }
+
         val result = shizuku.execute("input", "swipe", x1.toString(), y1.toString(), x2.toString(), y2.toString(), duration.toString())
         return if (result.ok) {
             ToolResult.success("已滑动", mapOf("x1" to x1, "y1" to y1, "x2" to x2, "y2" to y2))

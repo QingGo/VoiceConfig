@@ -6,6 +6,8 @@ import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
 import android.os.Bundle
 import android.util.Log
+import android.accessibilityservice.GestureDescription
+import android.graphics.Path
 
 data class AccessibilityUiSnapshot(
     val text: String,
@@ -178,11 +180,49 @@ class AgentAccessibilityService : AccessibilityService() {
         return null
     }
 
+    private fun gestureTap(x: Int, y: Int): Boolean {
+        val path = Path().apply {
+            moveTo(x.toFloat(), y.toFloat())
+            lineTo(x.toFloat(), y.toFloat())
+        }
+        val gesture = GestureDescription.Builder()
+            .addStroke(GestureDescription.StrokeDescription(path, 0, 60))
+            .build()
+        return runCatching { dispatchGesture(gesture, null, null) }.getOrDefault(false)
+    }
+
+    private fun gestureSwipe(
+        x1: Int, y1: Int,
+        x2: Int, y2: Int,
+        durationMs: Int,
+    ): Boolean {
+        val path = Path().apply {
+            moveTo(x1.toFloat(), y1.toFloat())
+            lineTo(x2.toFloat(), y2.toFloat())
+        }
+        val gesture = GestureDescription.Builder()
+            .addStroke(GestureDescription.StrokeDescription(path, 0, durationMs.toLong().coerceAtLeast(1)))
+            .build()
+        return runCatching { dispatchGesture(gesture, null, null) }.getOrDefault(false)
+    }
+
     companion object {
         private const val TAG = "AgentAccessibilityService"
         @Volatile
         var instance: AgentAccessibilityService? = null
             private set
+
+        fun gestureTap(x: Int, y: Int): Boolean? = instance?.gestureTap(x, y)
+
+        fun gestureSwipe(
+            x1: Int, y1: Int,
+            x2: Int, y2: Int,
+            durationMs: Int,
+        ): Boolean? = instance?.gestureSwipe(x1, y1, x2, y2, durationMs)
+
+        fun pressBack(): Boolean? = instance?.performGlobalAction(AccessibilityService.GLOBAL_ACTION_BACK)
+
+        fun pressHome(): Boolean? = instance?.performGlobalAction(AccessibilityService.GLOBAL_ACTION_HOME)
 
         fun currentSnapshot(): String? = instance?.snapshotText()
 

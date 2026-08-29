@@ -29,6 +29,14 @@ class TapTool @Inject constructor(
             )
         }
 
+        // 其次使用 AccessibilityService.dispatchGesture 模拟真实触摸。
+        if (AgentAccessibilityService.gestureTap(x, y) == true) {
+            return ToolResult.success(
+                "已通过无障碍手势点击 ($x, $y)",
+                mapOf("x" to x, "y" to y, "source" to "accessibility_gesture"),
+            )
+        }
+
         if (!shizuku.isAvailable()) {
             return ToolResult.failure("tap 需要 Shizuku 授权或开启无障碍服务；无障碍服务未能点击 $x,$y")
         }

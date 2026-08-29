@@ -46,11 +46,19 @@ class TapTextTool @Inject constructor(
         }
         if (a11yNode != null) {
             val center = parseBoundsCenter(a11yNode.bounds)
-            if (center != null && AgentAccessibilityService.clickPoint(center.first, center.second) == true) {
-                return ToolResult.success(
-                    "已通过无障碍节点定位并点击“${texts.first()}”",
-                    mapOf("text" to a11yNode.text, "texts" to texts, "x" to center.first, "y" to center.second, "source" to "accessibility_nodes"),
-                )
+            if (center != null) {
+                if (AgentAccessibilityService.clickPoint(center.first, center.second) == true) {
+                    return ToolResult.success(
+                        "已通过无障碍节点定位并点击“${texts.first()}”",
+                        mapOf("text" to a11yNode.text, "texts" to texts, "x" to center.first, "y" to center.second, "source" to "accessibility_nodes"),
+                    )
+                }
+                if (AgentAccessibilityService.gestureTap(center.first, center.second) == true) {
+                    return ToolResult.success(
+                        "已通过无障碍手势点击“${texts.first()}”",
+                        mapOf("text" to a11yNode.text, "texts" to texts, "x" to center.first, "y" to center.second, "source" to "accessibility_gesture"),
+                    )
+                }
             }
         }
 
