@@ -71,6 +71,7 @@ class VoiceConfigService : Service() {
     private var overlayWindowManager: WindowManager? = null
     private var globalRecognizer: SpeechRecognizer? = null
     private var globalListening = false
+    private var globalVoiceTimeout: Runnable? = null
     private val mainHandler = Handler(Looper.getMainLooper())
     private val receiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
@@ -357,9 +358,18 @@ class VoiceConfigService : Service() {
             .onFailure {
                 finishGlobalVoice(sendResult = false)
             }
+        val timeout = Runnable {
+            if (globalListening) {
+                finishGlobalVoice(sendResult = false)
+            }
+        }
+        globalVoiceTimeout = timeout
+        mainHandler.postDelayed(timeout, 12_000)
     }
 
     private fun finishGlobalVoice(sendResult: Boolean, text: String = "") {
+        globalVoiceTimeout?.let { mainHandler.removeCallbacks(it) }
+        globalVoiceTimeout = null
         globalListening = false
         runCatching { globalRecognizer?.stopListening() }
         runCatching { globalRecognizer?.destroy() }
@@ -376,6 +386,8 @@ class VoiceConfigService : Service() {
     }
 
     private fun stopGlobalVoice() {
+        globalVoiceTimeout?.let { mainHandler.removeCallbacks(it) }
+        globalVoiceTimeout = null
         globalListening = false
         runCatching { globalRecognizer?.stopListening() }
         runCatching { globalRecognizer?.destroy() }
