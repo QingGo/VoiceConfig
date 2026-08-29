@@ -257,7 +257,9 @@ class MainActivity : ComponentActivity() {
                 registerReceiver(debugAsrFileReceiver, IntentFilter("com.voiceconfig.app.DEBUG_ASR_FILE"))
             }
         }
+        viewModel.refreshCapabilityStatus()
         setContent {
+            val capabilityStatus by viewModel.capabilityStatus.collectAsState()
             val themeMode by profileViewModel.themeMode.collectAsState()
             VoiceConfigTheme(themeMode = themeMode) {
                 val prefs = LocalContext.current.getSharedPreferences("voiceconfig_ux", Context.MODE_PRIVATE)
@@ -269,10 +271,13 @@ class MainActivity : ComponentActivity() {
                     color = MaterialTheme.colorScheme.background,
                 ) {
                     if (!onboardingDone) {
-                        OnboardingScreen(onFinish = {
-                            prefs.edit().putBoolean("onboarding_done", true).apply()
-                            onboardingDone = true
-                        })
+                        OnboardingScreen(
+                            onFinish = {
+                                prefs.edit().putBoolean("onboarding_done", true).apply()
+                                onboardingDone = true
+                            },
+                            capabilityStatus = capabilityStatus,
+                        )
                     } else {
                         MainScreen(viewModel = viewModel)
                     }

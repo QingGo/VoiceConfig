@@ -86,7 +86,10 @@ private val onboardingSteps = listOf(
 )
 
 @Composable
-fun OnboardingScreen(onFinish: () -> Unit) {
+fun OnboardingScreen(
+    onFinish: () -> Unit,
+    capabilityStatus: CapabilityStatus = CapabilityStatus(),
+) {
     var step by remember { mutableIntStateOf(0) }
     val current = onboardingSteps[step]
     val isLast = step == onboardingSteps.lastIndex
@@ -182,6 +185,16 @@ fun OnboardingScreen(onFinish: () -> Unit) {
                 }
             }
         }
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        Text(
+            text = "当前能力：${capabilityStatus.readySummary}",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.fillMaxWidth(),
+        )
 
         Spacer(modifier = Modifier.weight(1f))
 

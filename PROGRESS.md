@@ -118,7 +118,7 @@
 - [x] 拆分 ProfileViewModel：模型/语音/主题/Home Assistant/AI 调试日志/设置项移出 MainViewModel
 - [x] 拆分 AutomationViewModel：任务/模板/解析/运行/触发器/日志总结全部移出 MainViewModel
 - [x] 拆分 AgentViewModel：Agent 会话/消息/执行/技能/语音会话状态全部移出 MainViewModel，MainViewModel 已降至约 340 行
-- [x] 建立 CapabilityStatus 统一模型：AI / 网络 / 无障碍 / Shizuku / HA / 远程 / 唤醒词，首页与设置共用
+- [x] 建立 CapabilityStatus 统一模型：AI / 网络 / 无障碍 / Shizuku / HA / 远程 / 唤醒词，首页、设置与 Onboarding 共用
 - [x] 建立 DesignTokens：Spacing / Radius / SemanticColors
 - [x] 新增 AppRoutesTest、CapabilityStatusTest 基础单元测试
 - [x] 四个 Feature ViewModel 已全部拆分：Agent / Automation / Ssh / Profile
