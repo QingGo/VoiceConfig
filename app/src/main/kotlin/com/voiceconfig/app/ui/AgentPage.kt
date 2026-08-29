@@ -64,6 +64,7 @@ import com.voiceconfig.data.local.entity.AgentMessageEntity
 import com.voiceconfig.data.local.entity.AgentSessionEntity
 import com.voiceconfig.data.local.entity.TaskEventEntity
 import com.voiceconfig.app.R
+import com.voiceconfig.app.service.AgentAccessibilityService
 import com.voiceconfig.app.agent.AgentRunRecord
 import com.voiceconfig.app.agent.AgentRunState
 import com.voiceconfig.app.agent.AgentSkill
@@ -303,11 +304,10 @@ fun AgentPage(
         }
 
         val latestRun = agentRunRecords.firstOrNull()
-        val needsAccessibilityHelp = latestRun != null && (
-            latestRun.verified == false ||
-            latestRun.message.contains("无障碍") ||
-            (latestRun.capabilitySummary?.contains("Accessibility=N") == true)
-        )
+        val accessibilityEnabled = runCatching {
+            AgentAccessibilityService.instance != null
+        }.getOrDefault(false)
+        val needsAccessibilityHelp = !accessibilityEnabled
         if (needsAccessibilityHelp) {
             AccessibilityHelpCard(
                 onEnableViaShizuku = onEnableAccessibility,
