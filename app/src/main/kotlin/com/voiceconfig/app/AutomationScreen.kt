@@ -208,7 +208,7 @@ fun MainScreenContent(
         modifier = Modifier
             .fillMaxSize()
             .padding(start = 16.dp, top = 16.dp, end = 16.dp)
-            .padding(bottom = if (showCreatePanel) 240.dp else 110.dp),
+            .padding(bottom = if (showCreatePanel) 200.dp else 24.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         item {

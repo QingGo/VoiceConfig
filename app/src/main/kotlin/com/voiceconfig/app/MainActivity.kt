@@ -45,6 +45,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.requiredSize
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
@@ -259,7 +260,12 @@ class MainActivity : ComponentActivity() {
             VoiceConfigTheme(themeMode = themeMode) {
                 val prefs = LocalContext.current.getSharedPreferences("voiceconfig_ux", Context.MODE_PRIVATE)
                 var onboardingDone by remember { mutableStateOf(prefs.getBoolean("onboarding_done", false)) }
-                Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
+                Surface(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .statusBarsPadding(),
+                    color = MaterialTheme.colorScheme.background,
+                ) {
                     if (!onboardingDone) {
                         OnboardingScreen(onFinish = {
                             prefs.edit().putBoolean("onboarding_done", true).apply()

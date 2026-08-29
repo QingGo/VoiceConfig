@@ -458,7 +458,7 @@ fun MainScreen(viewModel: MainViewModel) {
                         onAgentThinkingEnabledChange = viewModel::setAgentDeepSeekThinkingEnabled,
                         onAgentReasoningEffortChange = viewModel::setAgentDeepSeekReasoningEffort,
                         onBack = {
-                            currentDestination = AppDestination.Conversation
+                            (context as? android.app.Activity)?.finish()
                         },
                         onSelectSession = viewModel::selectAgentSession,
                         onSend = viewModel::sendAgentMessage,
