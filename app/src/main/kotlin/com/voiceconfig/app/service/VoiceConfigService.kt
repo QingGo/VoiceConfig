@@ -23,6 +23,8 @@ import android.view.Gravity
 import android.view.MotionEvent
 import android.view.View
 import android.view.WindowManager
+import android.widget.Button
+import android.widget.LinearLayout
 import android.widget.TextView
 import android.graphics.Color
 import android.graphics.PixelFormat
@@ -72,6 +74,8 @@ class VoiceConfigService : Service() {
     private var globalRecognizer: SpeechRecognizer? = null
     private var globalListening = false
     private var globalVoiceTimeout: Runnable? = null
+    private var voiceConfirmationView: View? = null
+    private var voiceConfirmationParams: WindowManager.LayoutParams? = null
     private val mainHandler = Handler(Looper.getMainLooper())
     private val receiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
@@ -111,6 +115,7 @@ class VoiceConfigService : Service() {
         wakeWordDetector.stop()
         stopGlobalVoice()
         removeGlobalBall()
+        dismissVoiceConfirmation()
         super.onDestroy()
     }
 
@@ -376,11 +381,7 @@ class VoiceConfigService : Service() {
         globalRecognizer = null
         setOverlayListening(false)
         if (sendResult && text.isNotBlank()) {
-            val intent = Intent(this@VoiceConfigService, MainActivity::class.java).apply {
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
-                putExtra("global_voice_text", text)
-            }
-            runCatching { startActivity(intent) }
+            showVoiceConfirmation(text)
         }
         startWakeWordIfEnabled()
     }
@@ -421,6 +422,86 @@ class VoiceConfigService : Service() {
             }
             runCatching { wm.updateViewLayout(view, params) }
         }
+    }
+
+    private fun showVoiceConfirmation(text: String) {
+        dismissVoiceConfirmation()
+        val wm = getSystemService(WINDOW_SERVICE) as? WindowManager ?: return
+        val density = resources.displayMetrics.density
+        val panelWidth = (300 * density).toInt()
+        val panel = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(
+                (16 * density).toInt(),
+                (12 * density).toInt(),
+                (16 * density).toInt(),
+                (12 * density).toInt(),
+            )
+            background = GradientDrawable().apply {
+                cornerRadius = 16 * density
+                setColor(0xF2FFFFFF.toInt())
+            }
+            elevation = 12f
+        }
+        val title = TextView(this).apply {
+            this.text = "识别到"
+            textSize = 13f
+            setTextColor(Color.GRAY)
+        }
+        val body = TextView(this).apply {
+            this.text = text
+            textSize = 17f
+            setTextColor(Color.BLACK)
+            setPadding(0, (6 * density).toInt(), 0, (8 * density).toInt())
+        }
+        val buttonRow = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+        }
+        val execute = Button(this).apply {
+            this.text = "执行"
+        }
+        val cancel = Button(this).apply {
+            this.text = "取消"
+        }
+        execute.setOnClickListener {
+            val intent = Intent(this@VoiceConfigService, MainActivity::class.java).apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+                putExtra("global_voice_text", text)
+            }
+            dismissVoiceConfirmation()
+            runCatching { startActivity(intent) }
+        }
+        cancel.setOnClickListener {
+            dismissVoiceConfirmation()
+        }
+        buttonRow.addView(execute, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
+        buttonRow.addView(cancel, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
+        panel.addView(title)
+        panel.addView(body)
+        panel.addView(buttonRow)
+        val params = WindowManager.LayoutParams(
+            panelWidth,
+            WindowManager.LayoutParams.WRAP_CONTENT,
+            WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
+            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
+                WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL,
+            PixelFormat.TRANSLUCENT,
+        ).apply {
+            gravity = Gravity.CENTER
+        }
+        runCatching {
+            wm.addView(panel, params)
+            voiceConfirmationView = panel
+            voiceConfirmationParams = params
+        }
+    }
+
+    private fun dismissVoiceConfirmation() {
+        val view = voiceConfirmationView ?: return
+        val wm = overlayWindowManager ?: getSystemService(WINDOW_SERVICE) as? WindowManager ?: return
+        runCatching { wm.removeView(view) }
+        voiceConfirmationView = null
+        voiceConfirmationParams = null
     }
 
     private fun buildNotification(): Notification {
