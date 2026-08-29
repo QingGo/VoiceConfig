@@ -150,17 +150,18 @@ import kotlinx.coroutines.withContext
 fun MainScreen(viewModel: MainViewModel) {
     val sshViewModel: SshViewModel = hiltViewModel()
     val profileViewModel: ProfileViewModel = hiltViewModel()
-    val uiState by viewModel.uiState.collectAsState()
-    val tasks by viewModel.tasks.collectAsState()
-    val templates by viewModel.templates.collectAsState()
-    val recentLogs by viewModel.recentLogs.collectAsState()
+    val automationViewModel: AutomationViewModel = hiltViewModel()
+    val uiState by automationViewModel.uiState.collectAsState()
+    val tasks by automationViewModel.tasks.collectAsState()
+    val templates by automationViewModel.templates.collectAsState()
+    val recentLogs by automationViewModel.recentLogs.collectAsState()
     val deepSeekApiKey by profileViewModel.deepSeekApiKey.collectAsState()
     val agentDeepSeekThinkingEnabled by profileViewModel.agentDeepSeekThinkingEnabled.collectAsState()
     val agentDeepSeekReasoningEffort by profileViewModel.agentDeepSeekReasoningEffort.collectAsState()
     val agentSkills by viewModel.agentSkills.collectAsState()
     val pendingAgentConfirmation by viewModel.pendingAgentConfirmation.collectAsState()
     val aiDebugLogs by profileViewModel.aiDebugLogs.collectAsState()
-    val triggerRules by viewModel.triggerRules.collectAsState()
+    val triggerRules by automationViewModel.triggerRules.collectAsState()
     val agentSessions by viewModel.agentSessions.collectAsState()
     val agentRunRecords by viewModel.agentRunRecords.collectAsState()
     val agentRunDetail by viewModel.agentRunDetail.collectAsState()
@@ -304,6 +305,10 @@ fun MainScreen(viewModel: MainViewModel) {
         }
     }
 
+    LaunchedEffect(Unit) {
+        viewModel.automationViewModel = automationViewModel
+    }
+
     LaunchedEffect(currentRoute) {
         if (currentRoute == AppRoutes.CONVERSATION) {
             viewModel.openAgentPage()
@@ -360,19 +365,19 @@ fun MainScreen(viewModel: MainViewModel) {
                         tasks = tasks,
                         templates = templates,
                         recentLogs = recentLogs,
-                        onInputChange = viewModel::onInputChange,
-                        onManualPackageChange = viewModel::onManualPackageChange,
-                        onManualDeepLinkChange = viewModel::onManualDeepLinkChange,
+                        onInputChange = automationViewModel::onInputChange,
+                        onManualPackageChange = automationViewModel::onManualPackageChange,
+                        onManualDeepLinkChange = automationViewModel::onManualDeepLinkChange,
                         onParse = onParseClick,
-                        onConfirmCreate = viewModel::confirmCreate,
-                        onClearResult = viewModel::clearResult,
-                        onToggleTask = viewModel::toggleTask,
-                        onDeleteTask = viewModel::deleteTask,
-                        onCopyTask = viewModel::copyTaskToInput,
-                        onRunNow = viewModel::runNow,
-                        onSummarizeLogs = viewModel::summarizeLogs,
-                        onSaveTemplate = viewModel::saveCurrentAsTemplate,
-                        onDeleteTemplate = viewModel::deleteTemplate,
+                        onConfirmCreate = automationViewModel::confirmCreate,
+                        onClearResult = automationViewModel::clearResult,
+                        onToggleTask = automationViewModel::toggleTask,
+                        onDeleteTask = automationViewModel::deleteTask,
+                        onCopyTask = automationViewModel::copyTaskToInput,
+                        onRunNow = automationViewModel::runNow,
+                        onSummarizeLogs = automationViewModel::summarizeLogs,
+                        onSaveTemplate = automationViewModel::saveCurrentAsTemplate,
+                        onDeleteTemplate = automationViewModel::deleteTemplate,
                         onExportTemplates = {
                             val text = templates.joinToString("\n") { template ->
                                 "${template.name}|${template.description}|${template.category}|${template.configJson}"
@@ -394,7 +399,7 @@ fun MainScreen(viewModel: MainViewModel) {
                                 text.lineSequence().forEach { line ->
                                     val parts = line.split("|", limit = 4)
                                     if (parts.size == 4 && parts[3].isNotBlank()) {
-                                        viewModel.importTemplate(
+                                        automationViewModel.importTemplate(
                                             name = parts[0],
                                             description = parts[1],
                                             category = parts[2],
@@ -404,7 +409,7 @@ fun MainScreen(viewModel: MainViewModel) {
                                 }
                             }
                         },
-                        onTemplateSelected = viewModel::onTemplateSelected,
+                        onTemplateSelected = automationViewModel::onTemplateSelected,
                     )
                 }
 
@@ -538,6 +543,7 @@ fun MainScreen(viewModel: MainViewModel) {
                 composable(AppRoutes.PROFILE) {
                     SettingsScreen(
                         viewModel = viewModel,
+                        automationViewModel = automationViewModel,
                         profileViewModel = profileViewModel,
                         sshViewModel = sshViewModel,
                         localAsrManager = localAsrManager,

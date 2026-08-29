@@ -77,6 +77,7 @@ import kotlinx.coroutines.launch
 @Composable
 fun SettingsScreen(
     viewModel: MainViewModel,
+    automationViewModel: AutomationViewModel,
     profileViewModel: ProfileViewModel,
     sshViewModel: SshViewModel,
     localAsrManager: LocalAsrManager?,
@@ -92,7 +93,7 @@ fun SettingsScreen(
     var developerMode by remember { mutableStateOf(uxPrefs.getBoolean("developer_mode", false)) }
     BackHandler(onBack = onClose)
 
-    val uiState by viewModel.uiState.collectAsState()
+    val uiState by automationViewModel.uiState.collectAsState()
     val deepSeekApiKey by profileViewModel.deepSeekApiKey.collectAsState()
     val deepSeekModel by profileViewModel.deepSeekModel.collectAsState()
     val agentAutoConfirmSensitiveActions by profileViewModel.agentAutoConfirmSensitiveActions.collectAsState()
@@ -307,11 +308,11 @@ fun SettingsScreen(
                 item {
                     TriggerSettingsSection(
                         rules = triggerRules,
-                        onAddWifi = viewModel::addWifiTrigger,
-                        onAddBattery = viewModel::addBatteryTrigger,
-                        onAddLocation = viewModel::addLocationTrigger,
-                        onToggleRule = viewModel::toggleTriggerRule,
-                        onDeleteRule = viewModel::deleteTriggerRule,
+                        onAddWifi = automationViewModel::addWifiTrigger,
+                        onAddBattery = automationViewModel::addBatteryTrigger,
+                        onAddLocation = automationViewModel::addLocationTrigger,
+                        onToggleRule = automationViewModel::toggleTriggerRule,
+                        onDeleteRule = automationViewModel::deleteTriggerRule,
                     )
                 }
 
