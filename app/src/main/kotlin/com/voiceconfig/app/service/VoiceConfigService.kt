@@ -107,7 +107,11 @@ class VoiceConfigService : Service() {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         startForeground(NOTIFICATION_ID, buildNotification())
-        showGlobalBallIfAllowed()
+        when (intent?.action) {
+            ACTION_HIDE_GLOBAL_BALL -> hideGlobalBall()
+            ACTION_SHOW_GLOBAL_BALL -> showGlobalBallIfAllowed()
+            else -> showGlobalBallIfAllowed()
+        }
         if (!receiverRegistered) {
             registerConditionReceiver()
         }
@@ -225,10 +229,11 @@ class VoiceConfigService : Service() {
         if (overlayView != null) return
         val wm = getSystemService(WINDOW_SERVICE) as? WindowManager ?: return
         val prefs = getSharedPreferences("voiceconfig_overlay", Context.MODE_PRIVATE)
-        val size = 56
+        val density = resources.displayMetrics.density
+        val size = (60 * density).toInt()
         val text = TextView(this).apply {
             this.text = "言"
-            textSize = 20f
+            textSize = 24f
             setTextColor(Color.WHITE)
             gravity = Gravity.CENTER
             background = GradientDrawable().apply {
@@ -304,6 +309,10 @@ class VoiceConfigService : Service() {
             overlayParams = params
             overlayWindowManager = wm
         }
+    }
+
+    private fun hideGlobalBall() {
+        removeGlobalBall()
     }
 
     private fun removeGlobalBall() {
@@ -414,24 +423,25 @@ class VoiceConfigService : Service() {
             val view = overlayView as? TextView ?: return@post
             val params = overlayParams ?: return@post
             val wm = overlayWindowManager ?: return@post
+            val density = resources.displayMetrics.density
             if (listening) {
                 view.text = "听"
-                view.textSize = 16f
+                view.textSize = 20f
                 view.background = GradientDrawable().apply {
                     shape = GradientDrawable.OVAL
                     setColor(0xCCE53935.toInt())
                 }
-                params.width = 120
-                params.height = 56
+                params.width = (150 * density).toInt()
+                params.height = (64 * density).toInt()
             } else {
                 view.text = "言"
-                view.textSize = 20f
+                view.textSize = 24f
                 view.background = GradientDrawable().apply {
                     shape = GradientDrawable.OVAL
                     setColor(0xCC4F46E5.toInt())
                 }
-                params.width = 56
-                params.height = 56
+                params.width = (60 * density).toInt()
+                params.height = (60 * density).toInt()
             }
             runCatching { wm.updateViewLayout(view, params) }
         }
@@ -553,6 +563,8 @@ class VoiceConfigService : Service() {
     companion object {
         private const val CHANNEL_ID = "voice_config_keep_alive"
         private const val NOTIFICATION_ID = 1001
+        const val ACTION_HIDE_GLOBAL_BALL = "com.voiceconfig.app.action.HIDE_GLOBAL_BALL"
+        const val ACTION_SHOW_GLOBAL_BALL = "com.voiceconfig.app.action.SHOW_GLOBAL_BALL"
 
         fun start(context: Context) {
             val intent = Intent(context, VoiceConfigService::class.java)

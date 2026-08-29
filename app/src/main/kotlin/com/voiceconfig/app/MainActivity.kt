@@ -308,6 +308,27 @@ class MainActivity : ComponentActivity() {
         )
     }
 
+    override fun onResume() {
+        super.onResume()
+        sendOverlayBallVisibility(VoiceConfigService.ACTION_HIDE_GLOBAL_BALL)
+    }
+
+    override fun onPause() {
+        sendOverlayBallVisibility(VoiceConfigService.ACTION_SHOW_GLOBAL_BALL)
+        super.onPause()
+    }
+
+    private fun sendOverlayBallVisibility(action: String) {
+        val intent = Intent(this, VoiceConfigService::class.java).setAction(action)
+        runCatching {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                startForegroundService(intent)
+            } else {
+                startService(intent)
+            }
+        }
+    }
+
     override fun onDestroy() {
         super.onDestroy()
         runCatching { unregisterReceiver(debugAgentReceiver) }
