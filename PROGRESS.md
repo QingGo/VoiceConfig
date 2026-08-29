@@ -147,8 +147,8 @@
 - [x] 全局语音命令携带 `commandId / source / confirmationToken / timestamp` 进入 AgentTrace
 - [x] trace 可从 `voice_origin` 回放到 `user_input`、`preflight`、`safety_evaluate`、`tool_call`、`verification`、`run_finished`
 - [x] 后台定时 Agent 与手动 Agent 也传入 preflight，统一安全记录
-- [x] 真机验证：debug voice -> trace 已出现 `voice_origin` + `preflight`
-- [ ] 不可逆操作真机演练（支付/发送/删除类命令在确认页停止）
+- [x] 真机验证：debug voice -> trace 已出现 `voice_origin` + `preflight`；敏感发送类命令被能力预检直接阻止，未产生工具调用
+- [ ] 不可逆操作真机演练（在已具备无障碍/Shizuku 的真机上验证支付/发送/删除类命令停在确认页）
 - [ ] 语音“快速确认”与 Agent 层二次确认的 UI/真机完整演练
 
 ## Phase 0：地基稳定（已完成）
