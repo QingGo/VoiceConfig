@@ -91,6 +91,49 @@ def verify_expected(serial, expected):
     return expected.lower() in text.lower()
 
 
+def foreground_package(serial):
+    """返回当前前台 Activity 的包名。"""
+    out = adb(serial, ["shell", "dumpsys", "activity", "activities"])
+    m = re.search(r"topResumedActivity=ActivityRecord\{[^}]* u0 (\S+)", out)
+    if m:
+        return m.group(1).split("/")[0]
+    m = re.search(r"ResumedActivity: ActivityRecord\{[^}]* u0 (\S+)", out)
+    if m:
+        return m.group(1).split("/")[0]
+    return ""
+
+
+def verify_scenario(serial, scenario):
+    """严格场景断言：前台包名 / 关键 UI 文本 / 不允许出现的浮层文本。"""
+    checks = []
+    ok = True
+
+    expected_fg = scenario.get("expectedForeground")
+    if expected_fg:
+        actual_fg = foreground_package(serial)
+        passed = actual_fg == expected_fg
+        checks.append({"type": "foreground", "expected": expected_fg, "actual": actual_fg, "ok": passed})
+        ok = ok and passed
+
+    terminal_texts = scenario.get("terminalText") or []
+    if terminal_texts:
+        ui = get_ui_text(serial)
+        missing = [t for t in terminal_texts if t.lower() not in ui.lower()]
+        passed = not missing
+        checks.append({"type": "terminal_text", "expected": terminal_texts, "missing": missing, "ok": passed})
+        ok = ok and passed
+
+    absent_texts = scenario.get("absentText") or []
+    if absent_texts:
+        ui = get_ui_text(serial)
+        present = [t for t in absent_texts if t.lower() in ui.lower()]
+        passed = not present
+        checks.append({"type": "absent_text", "expected": absent_texts, "present": present, "ok": passed})
+        ok = ok and passed
+
+    return {"scenarioVerified": ok, "scenarioChecks": checks}
+
+
 def launch_app(serial):
     adb(serial, ["shell", "am", "start", "-n", f"{PACKAGE}/{ACTIVITY}"])
 
@@ -162,6 +205,7 @@ def summarize_run(run):
         "duration_ms": finished.get("duration_ms"),
     }
     result["failure_category"] = classify_failure(result)
+    result["waiting"] = bool(finished.get("waiting"))
     return result
 
 
@@ -226,7 +270,7 @@ def stop_packages(serial, packages):
             pass
 
 
-def run_and_evaluate(serial, text, timeout=90, expected=None, pre_stop_packages=()):
+def run_and_evaluate(serial, text, timeout=90, expected=None, pre_stop_packages=(), scenario=None):
     local = os.path.join(tempfile.gettempdir(), "voiceconfig_agent_trace_eval.log")
     # 每次运行前拉取当前设备最新 trace 作为基线，避免跨设备临时文件污染。
     try:
@@ -262,6 +306,19 @@ def run_and_evaluate(serial, text, timeout=90, expected=None, pre_stop_packages=
                             result["failure_category"] = "VERIFY_FAIL"
                     else:
                         result["verification"] = "NO_EXPECTED"
+                    if scenario:
+                        extra = verify_scenario(serial, scenario)
+                        result.update(extra)
+                        if scenario.get("requireWaiting") and not result.get("waiting"):
+                            result["ok"] = False
+                            result.setdefault("scenarioChecks", []).append(
+                                {"type": "waiting", "expected": True, "actual": False, "ok": False}
+                            )
+                            result["scenarioVerified"] = False
+                            result["failure_category"] = "SCENARIO_VERIFY_FAIL"
+                        if not extra.get("scenarioVerified", False):
+                            result["ok"] = False
+                            result["failure_category"] = "SCENARIO_VERIFY_FAIL"
                     return result
         return {"input": text, "ok": False, "message": "timeout", "tool_count": 0, "failed_tools": [], "declined": 0, "verification": "TIMEOUT"}
     finally:
@@ -317,7 +374,7 @@ def main():
         for sc in scenarios:
             print(f"==> {sc.get('name', sc['text'])}")
             pre_stop = tuple(sc.get("preStop", [])) or stop_default
-            result = run_and_evaluate(args.serial, sc["text"], sc.get("timeout", args.timeout), sc.get("expect"), pre_stop)
+            result = run_and_evaluate(args.serial, sc["text"], sc.get("timeout", args.timeout), sc.get("expect"), pre_stop, scenario=sc)
             result["name"] = sc.get("name", sc["text"])
             if "expected" not in result:
                 result["expected"] = sc.get("expect")

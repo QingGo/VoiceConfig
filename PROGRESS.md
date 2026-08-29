@@ -189,7 +189,9 @@
 - [x] `StopVerifier` 终端页强制 `WAITING_CONFIRM`，不再判为未完成 / DONE
 - [x] 单测覆盖：TerminalSafetyGateTest、TaskPlanTest 终端页、UiAssertToolTest
 - [ ] 真机瑞幸 E2E：安装新版后 `AgentAccessibilityService` 未重连（dumpsys 显示 Bound 但 app 进程 instance 为 null，且设备处于锁屏），待恢复无障碍连接与解锁后回归
-- [ ] 严格 E2E 断言脚本：需要继续把 `run_finished.state / 关键 UI / 浮层缺失 / 最终动作未执行` 纳入自动判定
+- [x] 严格 E2E 断言脚本：`agent_scenario_eval.py` 已支持 `expectedForeground / terminalText / absentText / requireWaiting`
+- [x] 新增 `scripts/phase5_terminal_scenarios.json`：瑞幸免密支付、微信发送确认的严格终端场景
+- [ ] 真机执行上述终端场景（当前设备锁屏 + 无障碍未重连）
 
 ## 已提交代码
 
