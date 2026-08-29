@@ -140,6 +140,17 @@
 - [x] KWS 模型资产已随包内置：`assets/sherpa-onnx-kws-zipformer-wenetspeech-3.3M-2024-01-01`（ModelScope 下载，约 4.9MB）
 - [ ] 连续唤醒 1 小时不显著耗电的真机验收
 
+## Phase 4：安全与验证闭环（已完成核心链路）
+
+- [x] 所有 Agent 命令统一走 `AgentPreflight → 规划 → 敏感确认 → 执行 → 验证 → 汇报`
+- [x] AgentViewModel/AgentSession 已接入确定性能力预检，blocker 直接阻止执行并写入 trace
+- [x] 全局语音命令携带 `commandId / source / confirmationToken / timestamp` 进入 AgentTrace
+- [x] trace 可从 `voice_origin` 回放到 `user_input`、`preflight`、`safety_evaluate`、`tool_call`、`verification`、`run_finished`
+- [x] 后台定时 Agent 与手动 Agent 也传入 preflight，统一安全记录
+- [x] 真机验证：debug voice -> trace 已出现 `voice_origin` + `preflight`
+- [ ] 不可逆操作真机演练（支付/发送/删除类命令在确认页停止）
+- [ ] 语音“快速确认”与 Agent 层二次确认的 UI/真机完整演练
+
 ## Phase 0：地基稳定（已完成）
 
 - [x] 正式引入 Navigation Compose：Conversation / Automation / Profile 为三个顶层路由，Shopping / Home Assistant 为二级路由，不再使用 boolean overlay

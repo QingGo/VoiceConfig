@@ -177,6 +177,7 @@ class TaskAlarmReceiver : BroadcastReceiver() {
                 maxPerRun = apiKeyStore.agentMaxAutoVerifies,
             ),
             capabilitySummary = capabilitySummary,
+            preflight = preflight,
             onStep = { step ->
                 if (step.status != AgentStepStatus.RUNNING) {
                     notifyAgentProgress(context, task, step)

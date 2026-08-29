@@ -6,6 +6,8 @@ import com.voiceconfig.app.agent.AgentMessage
 import com.voiceconfig.app.agent.AgentRunLedger
 import com.voiceconfig.app.agent.AgentRunRecord
 import com.voiceconfig.app.agent.AgentCapabilityInspector
+import com.voiceconfig.app.agent.AgentPreflight
+import com.voiceconfig.app.agent.AgentPreflightResult
 import com.voiceconfig.app.agent.AgentRunState
 import com.voiceconfig.app.agent.AgentSession
 import com.voiceconfig.app.agent.AgentSkill
@@ -23,6 +25,7 @@ import com.voiceconfig.app.agent.VoiceSessionManager
 import com.voiceconfig.app.ai.ApiKeyStore
 import com.voiceconfig.app.ai.TtsSpeaker
 import com.voiceconfig.app.voice.GlobalVoiceCommand
+import com.voiceconfig.app.voice.VoiceCommandOrigin
 import com.voiceconfig.app.voice.VoiceCommandCenter
 import com.voiceconfig.app.voice.VoiceCommandTarget
 import com.voiceconfig.data.local.entity.AgentMessageEntity
@@ -334,7 +337,7 @@ class AgentViewModel @Inject constructor(
         if (text.isBlank()) return
         if (command.autoSend && apiKeyStore.deepSeekApiKey.isNotBlank()) {
             onAgentInputChange(text)
-            sendAgentMessage(text)
+            sendAgentMessage(text, origin = VoiceCommandOrigin.from(command))
             clearAgentDraft()
         } else {
             onAgentInputChange(text)
@@ -355,7 +358,11 @@ class AgentViewModel @Inject constructor(
      * 未配置时回退到本地/兼容解析，仅用于模板和历史数据兼容。
      */
 
-    fun sendAgentMessage(text: String, explicitPlan: TaskPlan? = null) {
+    fun sendAgentMessage(
+        text: String,
+        explicitPlan: TaskPlan? = null,
+        origin: VoiceCommandOrigin? = null,
+    ) {
         if (text.isBlank() || _isAgentBusy.value) return
         viewModelScope.launch {
             _isAgentBusy.value = true
@@ -385,7 +392,9 @@ class AgentViewModel @Inject constructor(
                     null
                 }
                 if (resumePlan != null) taskPlanStore.set(resumePlan)
-                val capabilitySummary = agentCapabilityInspector.snapshot().summary()
+                val capabilitySnapshot = agentCapabilityInspector.snapshot()
+                val capabilitySummary = capabilitySnapshot.summary()
+                val preflight = AgentPreflight.evaluate(capabilitySnapshot, text)
                 val result = agentSession.send(
                     text,
                     skills = relevantSkills,
@@ -393,6 +402,8 @@ class AgentViewModel @Inject constructor(
                     plan = resumePlan,
                     resetHistory = isNewSession,
                     capabilitySummary = capabilitySummary,
+                    origin = origin,
+                    preflight = preflight,
                     onSensitiveAction = { request -> confirmSensitiveAction(request) },
                     onStep = { step ->
                         _agentSteps.update { current ->

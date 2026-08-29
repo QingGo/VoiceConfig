@@ -433,6 +433,7 @@ class AutomationViewModel @Inject constructor(
                                 maxPerRun = apiKeyStore.agentMaxAutoVerifies,
                             ),
                             capabilitySummary = capabilitySummary,
+                            preflight = preflight,
                             onSensitiveAction = {
                                 apiKeyStore.agentAutoConfirmSensitiveActions
                             },

@@ -6,6 +6,7 @@ import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import com.voiceconfig.app.voice.VoiceCommandOrigin
 import kotlinx.coroutines.withTimeout
 import org.json.JSONObject
 import java.util.concurrent.ConcurrentHashMap
@@ -121,6 +122,8 @@ class AgentSession @Inject constructor(
         onStateChange: (AgentRunState) -> Unit = {},
         onStep: (AgentStepUi) -> Unit = {},
         onSensitiveAction: suspend (SensitiveActionRequest) -> Boolean = { false },
+        origin: VoiceCommandOrigin? = null,
+        preflight: AgentPreflightResult? = null,
     ): AgentTurnResult = runMutex.withLock {
         val saved = history.toList()
         history.clear()
@@ -136,6 +139,8 @@ class AgentSession @Inject constructor(
                 onStateChange = onStateChange,
                 onStep = onStep,
                 onSensitiveAction = onSensitiveAction,
+                origin = origin,
+                preflight = preflight,
             )
             val stats = safetyStatsByRun.remove(rawResult.runId) ?: SafetyRunStats()
             val result = rawResult.withSafetyStats(stats)
@@ -162,6 +167,8 @@ class AgentSession @Inject constructor(
         onMessage: suspend (AgentMessage) -> Unit = {},
         onSensitiveAction: suspend (SensitiveActionRequest) -> Boolean = { false },
         onStep: (AgentStepUi) -> Unit = {},
+        origin: VoiceCommandOrigin? = null,
+        preflight: AgentPreflightResult? = null,
     ): AgentTurnResult = runMutex.withLock {
         val rawResult = sendLocked(
             userText = userText,
@@ -176,6 +183,8 @@ class AgentSession @Inject constructor(
             onMessage = onMessage,
             onSensitiveAction = onSensitiveAction,
             onStep = onStep,
+            origin = origin,
+            preflight = preflight,
         )
         val stats = safetyStatsByRun.remove(rawResult.runId) ?: SafetyRunStats()
         val result = rawResult.withSafetyStats(stats)
@@ -197,6 +206,8 @@ class AgentSession @Inject constructor(
         onMessage: suspend (AgentMessage) -> Unit = {},
         onSensitiveAction: suspend (SensitiveActionRequest) -> Boolean = { false },
         onStep: (AgentStepUi) -> Unit = {},
+        origin: VoiceCommandOrigin? = null,
+        preflight: AgentPreflightResult? = null,
     ): AgentTurnResult {
         if (userText.isBlank()) return AgentTurnResult(ok = false, message = "输入为空", toolCalls = emptyList(), history = historySnapshot(), runId = "")
         val runId = trace.startRun(userText)
@@ -209,6 +220,38 @@ class AgentSession @Inject constructor(
         history += AgentMessage("user", userText)
         onMessage(history.last())
         trace.log(runId, "user_input", mapOf("text" to userText))
+        if (origin != null) {
+            trace.log(runId, "voice_origin", mapOf(
+                "commandId" to (origin.commandId ?: ""),
+                "source" to (origin.source ?: ""),
+                "confirmationToken" to (origin.confirmationToken ?: ""),
+                "timestamp" to (origin.timestamp ?: 0L),
+            ))
+        }
+        if (preflight != null) {
+            trace.log(runId, "preflight", mapOf(
+                "ready" to preflight.ready,
+                "blockers" to preflight.blockers.joinToString(" | ") { it.message },
+                "warnings" to preflight.warnings.joinToString(" | ") { it.message },
+            ))
+            if (!preflight.ready) {
+                val blockedMessage = "能力预检未通过，已阻止执行：" + preflight.blockers.joinToString("；") { it.message }
+                history += AgentMessage("assistant", blockedMessage)
+                onMessage(history.last())
+                trace.log(runId, "run_finished", mapOf("ok" to false, "message" to blockedMessage, "tool_call_count" to 0, "duration_ms" to 0, "preflight_blocked" to true))
+                return AgentTurnResult(
+                    ok = false,
+                    message = blockedMessage,
+                    toolCalls = emptyList(),
+                    toolResults = emptyList(),
+                    history = historySnapshot(),
+                    runId = runId,
+                    durationMs = 0,
+                    rounds = 0,
+                    state = AgentRunState.FAILED,
+                )
+            }
+        }
 
         taskPlanStore.set(plan)
         trace.log(runId, "task_plan", mapOf(
