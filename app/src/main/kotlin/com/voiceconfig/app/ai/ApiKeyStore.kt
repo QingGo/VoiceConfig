@@ -104,6 +104,12 @@ class ApiKeyStore @Inject constructor(
             prefs.edit().putBoolean(KEY_WAKE_WORD_ENABLED, value).apply()
         }
 
+    var overlayBallEnabled: Boolean
+        get() = prefs.getBoolean(KEY_OVERLAY_BALL_ENABLED, false)
+        set(value) {
+            prefs.edit().putBoolean(KEY_OVERLAY_BALL_ENABLED, value).apply()
+        }
+
     var themeMode: String
         get() = prefs.getString(KEY_THEME_MODE, "system") ?: "system"
         set(value) {
@@ -203,6 +209,7 @@ class ApiKeyStore @Inject constructor(
         private const val KEY_AGENT_VOICE_AUTO_SEND = "agent_voice_auto_send"
         private const val KEY_AGENT_TTS_ENABLED = "agent_tts_enabled"
         private const val KEY_WAKE_WORD_ENABLED = "wake_word_enabled"
+        private const val KEY_OVERLAY_BALL_ENABLED = "overlay_ball_enabled"
         private const val KEY_THEME_MODE = "theme_mode"
         const val DEFAULT_MAX_AUTO_VERIFY = 2
         const val DEFAULT_MODEL = "deepseek-v4-flash-vision-exp"

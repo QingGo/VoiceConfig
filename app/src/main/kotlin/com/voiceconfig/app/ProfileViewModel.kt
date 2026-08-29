@@ -39,6 +39,9 @@ class ProfileViewModel @Inject constructor(
     private val _wakeWordEnabled = MutableStateFlow(apiKeyStore.wakeWordEnabled)
     val wakeWordEnabled: StateFlow<Boolean> = _wakeWordEnabled.asStateFlow()
 
+    private val _overlayBallEnabled = MutableStateFlow(apiKeyStore.overlayBallEnabled)
+    val overlayBallEnabled: StateFlow<Boolean> = _overlayBallEnabled.asStateFlow()
+
     private val _themeMode = MutableStateFlow(apiKeyStore.themeMode)
     val themeMode: StateFlow<String> = _themeMode.asStateFlow()
 
@@ -87,6 +90,11 @@ class ProfileViewModel @Inject constructor(
     fun setWakeWordEnabled(enabled: Boolean) {
         apiKeyStore.wakeWordEnabled = enabled
         _wakeWordEnabled.value = enabled
+    }
+
+    fun setOverlayBallEnabled(enabled: Boolean) {
+        apiKeyStore.overlayBallEnabled = enabled
+        _overlayBallEnabled.value = enabled
     }
 
     fun setThemeMode(mode: String) {

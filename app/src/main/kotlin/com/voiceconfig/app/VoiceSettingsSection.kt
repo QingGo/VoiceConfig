@@ -1,13 +1,17 @@
 package com.voiceconfig.app
 
 import android.Manifest
+import android.content.Intent
 import android.content.pm.PackageManager
+import android.net.Uri
+import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.platform.LocalContext
+import com.voiceconfig.app.service.VoiceConfigService
 import com.voiceconfig.app.ui.VoiceSectionCard
 
 @Composable
@@ -18,6 +22,8 @@ internal fun VoiceSettingsSection(
     onAgentTtsEnabledChange: (Boolean) -> Unit,
     wakeWordEnabled: Boolean,
     onWakeWordEnabledChange: (Boolean) -> Unit,
+    overlayBallEnabled: Boolean = false,
+    onOverlayBallEnabledChange: (Boolean) -> Unit = {},
 ) {
     val context = LocalContext.current
     val audioPermissionLauncher = rememberLauncherForActivityResult(
@@ -53,6 +59,30 @@ internal fun VoiceSettingsSection(
                         onWakeWordEnabledChange(true)
                     } else {
                         audioPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+                    }
+                }
+            },
+        )
+        SwitchRow(
+            title = "系统级悬浮球",
+            subtitle = "在任意 App 上显示可拖动悬浮球，点击后直接聆听并交给智能助手",
+            checked = overlayBallEnabled,
+            onCheckedChange = { enabled ->
+                if (!enabled) {
+                    onOverlayBallEnabledChange(false)
+                    VoiceConfigService.start(context)
+                } else {
+                    if (Settings.canDrawOverlays(context)) {
+                        onOverlayBallEnabledChange(true)
+                        VoiceConfigService.start(context)
+                    } else {
+                        onOverlayBallEnabledChange(false)
+                        context.startActivity(
+                            Intent(
+                                Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                                Uri.parse("package:${context.packageName}"),
+                            ),
+                        )
                     }
                 }
             },

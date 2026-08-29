@@ -282,7 +282,25 @@ class MainActivity : ComponentActivity() {
         window.decorView.post {
             VoiceConfigService.start(this)
             runCatching { accessibilityKeepAlive.ensureEnabled() }
+            handleGlobalVoiceIntent(intent)
         }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        handleGlobalVoiceIntent(intent)
+    }
+
+    private fun handleGlobalVoiceIntent(intent: Intent?) {
+        val text = intent?.getStringExtra("global_voice_text")?.takeIf { it.isNotBlank() } ?: return
+        intent.removeExtra("global_voice_text")
+        viewModel.submitVoiceResult(
+            text = text,
+            asrEngine = "global-overlay",
+            toAgent = true,
+            autoParse = true,
+        )
     }
 
     override fun onDestroy() {

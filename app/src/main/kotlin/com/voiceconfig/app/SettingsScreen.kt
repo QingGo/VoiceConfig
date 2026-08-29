@@ -108,6 +108,7 @@ fun SettingsScreen(
     val agentVoiceAutoSend by profileViewModel.agentVoiceAutoSend.collectAsState()
     val agentTtsEnabled by profileViewModel.agentTtsEnabled.collectAsState()
     val wakeWordEnabled by profileViewModel.wakeWordEnabled.collectAsState()
+    val overlayBallEnabled by profileViewModel.overlayBallEnabled.collectAsState()
     val themeMode by profileViewModel.themeMode.collectAsState()
     val capabilityStatus by viewModel.capabilityStatus.collectAsState()
 
@@ -298,6 +299,8 @@ fun SettingsScreen(
                         onAgentTtsEnabledChange = profileViewModel::setAgentTtsEnabled,
                         wakeWordEnabled = wakeWordEnabled,
                         onWakeWordEnabledChange = profileViewModel::setWakeWordEnabled,
+                        overlayBallEnabled = overlayBallEnabled,
+                        onOverlayBallEnabledChange = profileViewModel::setOverlayBallEnabled,
                     )
                 }
 

@@ -11,8 +11,14 @@ import android.content.Intent
 import android.content.IntentFilter
 import android.net.wifi.WifiManager
 import android.os.Build
+import android.os.Bundle
+import android.os.Handler
 import android.os.IBinder
+import android.os.Looper
 import android.provider.Settings
+import android.speech.RecognitionListener
+import android.speech.RecognizerIntent
+import android.speech.SpeechRecognizer
 import android.view.Gravity
 import android.view.MotionEvent
 import android.view.View
@@ -63,6 +69,9 @@ class VoiceConfigService : Service() {
     private var overlayView: View? = null
     private var overlayParams: WindowManager.LayoutParams? = null
     private var overlayWindowManager: WindowManager? = null
+    private var globalRecognizer: SpeechRecognizer? = null
+    private var globalListening = false
+    private val mainHandler = Handler(Looper.getMainLooper())
     private val receiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
             scope.launch {
@@ -99,6 +108,7 @@ class VoiceConfigService : Service() {
             receiverRegistered = false
         }
         wakeWordDetector.stop()
+        stopGlobalVoice()
         removeGlobalBall()
         super.onDestroy()
     }
@@ -162,11 +172,7 @@ class VoiceConfigService : Service() {
         wakeWordDetector.start(
             listener = object : WakeWordDetector.Listener {
                 override fun onWakeWord(text: String) {
-                    val intent = Intent(this@VoiceConfigService, MainActivity::class.java).apply {
-                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                        putExtra("wake_word", text)
-                    }
-                    startActivity(intent)
+                    startGlobalVoice()
                 }
 
                 override fun onError(error: Int) {
@@ -196,6 +202,7 @@ class VoiceConfigService : Service() {
     private fun showGlobalBallIfAllowed() {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
         if (!Settings.canDrawOverlays(this)) return
+        if (!apiKeyStore.overlayBallEnabled) return
         if (overlayView != null) return
         val wm = getSystemService(WINDOW_SERVICE) as? WindowManager ?: return
         val prefs = getSharedPreferences("voiceconfig_overlay", Context.MODE_PRIVATE)
@@ -249,11 +256,7 @@ class VoiceConfigService : Service() {
                 }
                 MotionEvent.ACTION_UP -> {
                     if (!moved) {
-                        val intent = Intent(this@VoiceConfigService, MainActivity::class.java).apply {
-                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                            putExtra("global_ball", true)
-                        }
-                        runCatching { startActivity(intent) }
+                        startGlobalVoice()
                     } else {
                         prefs.edit().putInt("x", params.x).putInt("y", params.y).apply()
                     }
@@ -276,6 +279,114 @@ class VoiceConfigService : Service() {
         overlayView = null
         overlayParams = null
         overlayWindowManager = null
+    }
+
+    private fun startGlobalVoice() {
+        if (globalListening) return
+        val granted = ContextCompat.checkSelfPermission(
+            this,
+            android.Manifest.permission.RECORD_AUDIO,
+        ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+        if (!granted) return
+        if (!SpeechRecognizer.isRecognitionAvailable(this)) return
+        wakeWordDetector.stop()
+        globalListening = true
+        setOverlayListening(true)
+        val recognizer = runCatching { SpeechRecognizer.createSpeechRecognizer(this) }.getOrNull() ?: run {
+            globalListening = false
+            setOverlayListening(false)
+            startWakeWordIfEnabled()
+            return
+        }
+        globalRecognizer = recognizer
+        recognizer.setRecognitionListener(object : RecognitionListener {
+            override fun onReadyForSpeech(params: Bundle?) {}
+            override fun onBeginningOfSpeech() {}
+            override fun onRmsChanged(rmsdB: Float) {}
+            override fun onBufferReceived(buffer: ByteArray?) {}
+            override fun onEndOfSpeech() {}
+            override fun onError(error: Int) {
+                finishGlobalVoice(sendResult = false)
+            }
+            override fun onResults(results: Bundle?) {
+                val text = results
+                    ?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
+                    ?.firstOrNull()
+                    .orEmpty()
+                finishGlobalVoice(sendResult = true, text = text)
+            }
+            override fun onPartialResults(partialResults: Bundle?) {
+                val text = partialResults
+                    ?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
+                    ?.firstOrNull()
+                if (!text.isNullOrBlank()) {
+                    runCatching {
+                        overlayView?.let { view ->
+                            if (view is TextView) {
+                                view.text = text.take(4)
+                                view.textSize = 12f
+                            }
+                        }
+                    }
+                }
+            }
+            override fun onEvent(eventType: Int, params: Bundle?) {}
+        })
+        val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+            putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+            putExtra(RecognizerIntent.EXTRA_LANGUAGE, "zh-CN")
+            putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
+            putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 3)
+        }
+        runCatching { recognizer.startListening(intent) }
+            .onFailure {
+                finishGlobalVoice(sendResult = false)
+            }
+    }
+
+    private fun finishGlobalVoice(sendResult: Boolean, text: String = "") {
+        globalListening = false
+        runCatching { globalRecognizer?.stopListening() }
+        runCatching { globalRecognizer?.destroy() }
+        globalRecognizer = null
+        setOverlayListening(false)
+        if (sendResult && text.isNotBlank()) {
+            val intent = Intent(this@VoiceConfigService, MainActivity::class.java).apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+                putExtra("global_voice_text", text)
+            }
+            runCatching { startActivity(intent) }
+        }
+        startWakeWordIfEnabled()
+    }
+
+    private fun stopGlobalVoice() {
+        globalListening = false
+        runCatching { globalRecognizer?.stopListening() }
+        runCatching { globalRecognizer?.destroy() }
+        globalRecognizer = null
+        setOverlayListening(false)
+    }
+
+    private fun setOverlayListening(listening: Boolean) {
+        mainHandler.post {
+            val view = overlayView as? TextView ?: return@post
+            if (listening) {
+                view.text = "听"
+                view.textSize = 16f
+                view.background = GradientDrawable().apply {
+                    shape = GradientDrawable.OVAL
+                    setColor(0xCCE53935.toInt())
+                }
+            } else {
+                view.text = "言"
+                view.textSize = 20f
+                view.background = GradientDrawable().apply {
+                    shape = GradientDrawable.OVAL
+                    setColor(0xCC4F46E5.toInt())
+                }
+            }
+        }
     }
 
     private fun buildNotification(): Notification {
