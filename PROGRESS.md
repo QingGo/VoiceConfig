@@ -111,7 +111,7 @@
 - [ ] 低功耗与前台服务优化
 - [x] 悬浮球记住最后位置并在重启后恢复
 
-## Phase 0：地基稳定（进行中）
+## Phase 0：地基稳定（已完成）
 
 - [x] 正式引入 Navigation Compose：Conversation / Automation / Profile 为三个顶层路由，Shopping / Home Assistant 为二级路由，不再使用 boolean overlay
 - [x] 统一返回行为：二级页面 popBackStack，首页返回桌面，悬浮球仅首页/自动化显示
@@ -124,7 +124,7 @@
 - [x] 新增 AppRoutesTest、CapabilityStatusTest 基础单元测试
 - [x] 四个 Feature ViewModel 已全部拆分：Agent / Automation / Ssh / Profile
 - [x] 新增 Phase 0 模拟器导航冒烟脚本 scripts/phase0_nav_smoke.sh（首页/自动化/设置/返回检查）
-- [ ] Compose UI 测试与截图自动对比稳定化
+- [ ] （后续强化）Compose UI 测试与截图自动对比
 
 ## 已提交代码
 
