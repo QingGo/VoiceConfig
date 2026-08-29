@@ -76,3 +76,6 @@ benchmark_results/
 
 # Transcribe.cpp checkout (built locally / by CI, not committed)
 third_party/
+
+# Phase 0 smoke dump
+.vc_phase0_smoke.xml
