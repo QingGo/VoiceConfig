@@ -396,3 +396,67 @@ AgentPreflight
 - 真实场景回归可以自动化
 
 然后才进入本地唤醒、低功耗和场景闭环。
+
+---
+
+## 7. 本轮实施后的技术债与计划修正
+
+### 7.1 已完成的关键闭环
+
+- 全局语音正式管道：`VoiceCommandCenter` 已统一所有语音入口
+- 全局语音服务拆分：`VoiceKeepAliveService` + Overlay / Session / Wake / ASR 组件化
+- 本地 KWS：sherpa-onnx `KeywordSpotter` + 4.9MB 模型已内置，系统识别降级
+- 统一安全预检：`AgentPreflight` 已接入所有 Agent 发送路径
+- 全链路 trace：`voice_origin → preflight → safety → tool_call → verification → run_finished`
+- 真实 UI 操作：无障碍 `dispatchGesture` 已支持真实点击/滑动/返回
+- 瑞幸真实到达 `OrderPreviewActivity2`，已出现“免密支付”按钮
+- 识别并关闭“一键换购”浮层 `close_iv`
+- TTS 已清洗 Markdown，不再朗读 `**`
+
+### 7.2 本轮暴露的新技术债
+
+| # | 技术债 | 当前表现 |
+|---|---|---|
+| 1 | UI 操作缺少统一“选择器层” | 有时用坐标点错商品；`tap_text` 对无文字 X 仍不稳 |
+| 2 | 终止条件不严谨 | 已到“免密支付”页但 Agent 可能被 StopVerifier 判为“计划未完成” |
+| 3 | E2E 验证以 `result.ok` 为准 | 无法可靠证明“真实停在支付页且浮层已关闭” |
+| 4 | MIUI 无障碍生命周期脆弱 | force-stop 后无障碍会掉，需自动重连/检测 |
+| 5 | LLM 过度思考 | 大量读屏、猜坐标、重复尝试，增加失败面 |
+| 6 | Overlay 识别仍是启发式 | `close_iv` 已修，但其他 App 浮层没有通用确定性关闭 |
+| 7 | 测试基础设施不够“状态断言” | 场景应断言具体 UI 文本、前台包名、浮层缺失 |
+
+### 7.3 计划修正
+
+不再把“准备/草稿/定时创建”视为端到端通过。
+
+从下一阶段起，优先级调整：
+
+1. **UI Action Layer**
+   - 统一原语：`tap_by_text / tap_by_id / tap_center / swipe / back / input / wait_for`
+   - 所有 Agent 工具只调用这一层，禁止直接裸坐标
+   - 坐标仅作为最后兜底
+
+2. **Terminal Safety Gate**
+   - StopVerifier 识别“确认订单 / 免密支付 / 发送前确认”等终端状态
+   - 到达后强制进入 `WAITING_CONFIRM`，不再判为 incomplete
+
+3. **严格 E2E 断言**
+   - 每个场景断言：
+     - 前台包名
+     - 关键 UI 文本
+     - 不存在 `close_iv` / 一键换购等浮层
+   - 记录截图与 trace，自动生成报告
+
+4. **场景化 Skill**
+   - 瑞幸、微信、企业微信、HA、远程都做成“可复放技能”
+   - LLM 负责理解需求，确定性 Skill 负责执行路径
+
+5. **设备可靠性**
+   - 增加 AccessibilityKeepAlive 状态机
+   - 回归脚本自动重连无障碍
+   - 支持真机/模拟器双跑
+
+6. **模型行为收敛**
+   - 强化“到达终端页即停”的系统提示和工具返回
+   - 减少重复读屏
+   - 能提供证据时直接结论，不展开长篇思考
