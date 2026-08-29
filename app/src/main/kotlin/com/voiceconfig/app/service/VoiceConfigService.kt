@@ -34,6 +34,7 @@ import androidx.core.content.ContextCompat
 import com.voiceconfig.app.MainActivity
 import com.voiceconfig.app.R
 import com.voiceconfig.app.agent.TaskPlanStore
+import com.voiceconfig.app.ai.TtsSpeaker
 import com.voiceconfig.app.ai.WakeWordDetector
 import com.voiceconfig.app.scheduler.ConditionTriggerHandler
 import com.voiceconfig.app.scheduler.TriggerRuleScheduler
@@ -66,6 +67,7 @@ class VoiceConfigService : Service() {
     @Inject lateinit var taskPlanStore: TaskPlanStore
     @Inject lateinit var apiKeyStore: com.voiceconfig.app.ai.ApiKeyStore
     @Inject lateinit var wakeWordDetector: WakeWordDetector
+    @Inject lateinit var ttsSpeaker: TtsSpeaker
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private var overlayView: View? = null
@@ -469,6 +471,7 @@ class VoiceConfigService : Service() {
                 putExtra("global_voice_text", text)
             }
             dismissVoiceConfirmation()
+            runCatching { ttsSpeaker.speak("好的，正在处理") }
             runCatching { startActivity(intent) }
         }
         cancel.setOnClickListener {
