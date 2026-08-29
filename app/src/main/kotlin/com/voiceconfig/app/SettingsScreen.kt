@@ -77,6 +77,7 @@ import kotlinx.coroutines.launch
 @Composable
 fun SettingsScreen(
     viewModel: MainViewModel,
+    profileViewModel: ProfileViewModel,
     sshViewModel: SshViewModel,
     localAsrManager: LocalAsrManager?,
     aiDebugLogs: List<AiDebugLogEntity>,
@@ -92,21 +93,21 @@ fun SettingsScreen(
     BackHandler(onBack = onClose)
 
     val uiState by viewModel.uiState.collectAsState()
-    val deepSeekApiKey by viewModel.deepSeekApiKey.collectAsState()
-    val deepSeekModel by viewModel.deepSeekModel.collectAsState()
-    val agentAutoConfirmSensitiveActions by viewModel.agentAutoConfirmSensitiveActions.collectAsState()
-    val agentAutoVerifyEnabled by viewModel.agentAutoVerifyEnabled.collectAsState()
-    val agentMaxAutoVerifies by viewModel.agentMaxAutoVerifies.collectAsState()
-    val homeAssistantBaseUrl by viewModel.homeAssistantBaseUrl.collectAsState()
-    val homeAssistantToken by viewModel.homeAssistantToken.collectAsState()
-    val homeAssistantConfigured by viewModel.homeAssistantConfigured.collectAsState()
-    val homeAssistantDevices by viewModel.homeAssistantDevices.collectAsState()
-    val homeAssistantTestMessage by viewModel.homeAssistantTestMessage.collectAsState()
-    val homeAssistantControlMessage by viewModel.homeAssistantControlMessage.collectAsState()
-    val agentVoiceAutoSend by viewModel.agentVoiceAutoSend.collectAsState()
-    val agentTtsEnabled by viewModel.agentTtsEnabled.collectAsState()
-    val wakeWordEnabled by viewModel.wakeWordEnabled.collectAsState()
-    val themeMode by viewModel.themeMode.collectAsState()
+    val deepSeekApiKey by profileViewModel.deepSeekApiKey.collectAsState()
+    val deepSeekModel by profileViewModel.deepSeekModel.collectAsState()
+    val agentAutoConfirmSensitiveActions by profileViewModel.agentAutoConfirmSensitiveActions.collectAsState()
+    val agentAutoVerifyEnabled by profileViewModel.agentAutoVerifyEnabled.collectAsState()
+    val agentMaxAutoVerifies by profileViewModel.agentMaxAutoVerifies.collectAsState()
+    val homeAssistantBaseUrl by profileViewModel.homeAssistantBaseUrl.collectAsState()
+    val homeAssistantToken by profileViewModel.homeAssistantToken.collectAsState()
+    val homeAssistantConfigured by profileViewModel.homeAssistantConfigured.collectAsState()
+    val homeAssistantDevices by profileViewModel.homeAssistantDevices.collectAsState()
+    val homeAssistantTestMessage by profileViewModel.homeAssistantTestMessage.collectAsState()
+    val homeAssistantControlMessage by profileViewModel.homeAssistantControlMessage.collectAsState()
+    val agentVoiceAutoSend by profileViewModel.agentVoiceAutoSend.collectAsState()
+    val agentTtsEnabled by profileViewModel.agentTtsEnabled.collectAsState()
+    val wakeWordEnabled by profileViewModel.wakeWordEnabled.collectAsState()
+    val themeMode by profileViewModel.themeMode.collectAsState()
     val capabilityStatus by viewModel.capabilityStatus.collectAsState()
 
     var draftApiKey by remember { mutableStateOf(deepSeekApiKey) }
@@ -237,7 +238,7 @@ fun SettingsScreen(
                 item {
                     AppearanceSettingsSection(
                         themeMode = themeMode,
-                        onThemeModeChange = viewModel::setThemeMode,
+                        onThemeModeChange = profileViewModel::setThemeMode,
                     )
                 }
 
@@ -248,12 +249,12 @@ fun SettingsScreen(
                         draftApiKey = draftApiKey,
                         onDraftApiKeyChange = {
                             draftApiKey = it
-                            viewModel.setDeepSeekApiKey(it)
+                            profileViewModel.setDeepSeekApiKey(it)
                         },
                         draftModel = draftModel,
                         onDraftModelChange = {
                             draftModel = it
-                            viewModel.setDeepSeekModel(it)
+                            profileViewModel.setDeepSeekModel(it)
                         },
                         showEditor = showModelEditor,
                         onShowEditorChange = { showModelEditor = it },
@@ -265,11 +266,11 @@ fun SettingsScreen(
                 item {
                     AgentBehaviorSettingsSection(
                         autoConfirm = agentAutoConfirmSensitiveActions,
-                        onAutoConfirmChange = viewModel::setAgentAutoConfirmSensitiveActions,
+                        onAutoConfirmChange = profileViewModel::setAgentAutoConfirmSensitiveActions,
                         autoVerify = agentAutoVerifyEnabled,
-                        onAutoVerifyChange = viewModel::setAgentAutoVerifyEnabled,
+                        onAutoVerifyChange = profileViewModel::setAgentAutoVerifyEnabled,
                         maxAutoVerifies = agentMaxAutoVerifies,
-                        onMaxAutoVerifiesChange = viewModel::setAgentMaxAutoVerifies,
+                        onMaxAutoVerifiesChange = profileViewModel::setAgentMaxAutoVerifies,
                     )
                 }
 
@@ -281,21 +282,21 @@ fun SettingsScreen(
                         testMessage = homeAssistantTestMessage,
                         controlMessage = homeAssistantControlMessage,
                         devices = homeAssistantDevices ?: emptyList(),
-                        onSaveConfig = viewModel::saveHomeAssistantConfig,
-                        onTest = viewModel::testHomeAssistantConnection,
+                        onSaveConfig = profileViewModel::saveHomeAssistantConfig,
+                        onTest = profileViewModel::testHomeAssistantConnection,
                         onOpenPanel = onOpenHomeAssistant,
-                        onControl = viewModel::controlHomeAssistant,
+                        onControl = profileViewModel::controlHomeAssistant,
                     )
                 }
 
                 item {
                     VoiceSettingsSection(
                         agentVoiceAutoSend = agentVoiceAutoSend,
-                        onAgentVoiceAutoSendChange = viewModel::setAgentVoiceAutoSend,
+                        onAgentVoiceAutoSendChange = profileViewModel::setAgentVoiceAutoSend,
                         agentTtsEnabled = agentTtsEnabled,
-                        onAgentTtsEnabledChange = viewModel::setAgentTtsEnabled,
+                        onAgentTtsEnabledChange = profileViewModel::setAgentTtsEnabled,
                         wakeWordEnabled = wakeWordEnabled,
-                        onWakeWordEnabledChange = viewModel::setWakeWordEnabled,
+                        onWakeWordEnabledChange = profileViewModel::setWakeWordEnabled,
                     )
                 }
 
@@ -368,12 +369,12 @@ fun SettingsScreen(
                         lastAiParseError = uiState.lastAiParseError,
                         lastAiRawResponse = uiState.lastAiRawResponse,
                         onCopyDebugReport = {
-                            val report = viewModel.buildAiDebugLogReport(aiDebugLogs)
+                            val report = profileViewModel.buildAiDebugLogReport(aiDebugLogs)
                             val clipboard = context.getSystemService(ClipboardManager::class.java)
                             clipboard?.setPrimaryClip(ClipData.newPlainText("AI错误日志", report))
                         },
                         onShareDebugReport = {
-                            val report = viewModel.buildAiDebugLogReport(aiDebugLogs)
+                            val report = profileViewModel.buildAiDebugLogReport(aiDebugLogs)
                             val sendIntent = Intent(Intent.ACTION_SEND).apply {
                                 type = "text/plain"
                                 putExtra(Intent.EXTRA_TEXT, report)

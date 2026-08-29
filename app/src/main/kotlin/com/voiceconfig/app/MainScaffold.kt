@@ -149,16 +149,17 @@ import kotlinx.coroutines.withContext
 @Composable
 fun MainScreen(viewModel: MainViewModel) {
     val sshViewModel: SshViewModel = hiltViewModel()
+    val profileViewModel: ProfileViewModel = hiltViewModel()
     val uiState by viewModel.uiState.collectAsState()
     val tasks by viewModel.tasks.collectAsState()
     val templates by viewModel.templates.collectAsState()
     val recentLogs by viewModel.recentLogs.collectAsState()
-    val deepSeekApiKey by viewModel.deepSeekApiKey.collectAsState()
-    val agentDeepSeekThinkingEnabled by viewModel.agentDeepSeekThinkingEnabled.collectAsState()
-    val agentDeepSeekReasoningEffort by viewModel.agentDeepSeekReasoningEffort.collectAsState()
+    val deepSeekApiKey by profileViewModel.deepSeekApiKey.collectAsState()
+    val agentDeepSeekThinkingEnabled by profileViewModel.agentDeepSeekThinkingEnabled.collectAsState()
+    val agentDeepSeekReasoningEffort by profileViewModel.agentDeepSeekReasoningEffort.collectAsState()
     val agentSkills by viewModel.agentSkills.collectAsState()
     val pendingAgentConfirmation by viewModel.pendingAgentConfirmation.collectAsState()
-    val aiDebugLogs by viewModel.aiDebugLogs.collectAsState()
+    val aiDebugLogs by profileViewModel.aiDebugLogs.collectAsState()
     val triggerRules by viewModel.triggerRules.collectAsState()
     val agentSessions by viewModel.agentSessions.collectAsState()
     val agentRunRecords by viewModel.agentRunRecords.collectAsState()
@@ -174,16 +175,16 @@ fun MainScreen(viewModel: MainViewModel) {
     val agentStreamText by viewModel.agentStreamText.collectAsState()
     val agentReasoningText by viewModel.agentReasoningText.collectAsState()
     val agentDraft by viewModel.agentDraft.collectAsState()
-    val agentVoiceAutoSend by viewModel.agentVoiceAutoSend.collectAsState()
-    val agentTtsEnabled by viewModel.agentTtsEnabled.collectAsState()
-    val wakeWordEnabled by viewModel.wakeWordEnabled.collectAsState()
+    val agentVoiceAutoSend by profileViewModel.agentVoiceAutoSend.collectAsState()
+    val agentTtsEnabled by profileViewModel.agentTtsEnabled.collectAsState()
+    val wakeWordEnabled by profileViewModel.wakeWordEnabled.collectAsState()
     val shoppingItems by viewModel.shoppingItems.collectAsState()
-    val homeAssistantBaseUrl by viewModel.homeAssistantBaseUrl.collectAsState()
-    val homeAssistantToken by viewModel.homeAssistantToken.collectAsState()
-    val homeAssistantConfigured by viewModel.homeAssistantConfigured.collectAsState()
-    val homeAssistantDevices by viewModel.homeAssistantDevices.collectAsState()
-    val homeAssistantTestMessage by viewModel.homeAssistantTestMessage.collectAsState()
-    val homeAssistantControlMessage by viewModel.homeAssistantControlMessage.collectAsState()
+    val homeAssistantBaseUrl by profileViewModel.homeAssistantBaseUrl.collectAsState()
+    val homeAssistantToken by profileViewModel.homeAssistantToken.collectAsState()
+    val homeAssistantConfigured by profileViewModel.homeAssistantConfigured.collectAsState()
+    val homeAssistantDevices by profileViewModel.homeAssistantDevices.collectAsState()
+    val homeAssistantTestMessage by profileViewModel.homeAssistantTestMessage.collectAsState()
+    val homeAssistantControlMessage by profileViewModel.homeAssistantControlMessage.collectAsState()
     val capabilityStatus by viewModel.capabilityStatus.collectAsState()
     var agentInitialTab by remember { mutableIntStateOf(0) }
     var agentTabIndex by remember { mutableIntStateOf(0) }
@@ -459,11 +460,11 @@ fun MainScreen(viewModel: MainViewModel) {
                         onClearAllSessions = viewModel::clearAllAgentSessions,
                         hasDeepSeekKey = deepSeekApiKey.isNotBlank(),
                         agentVoiceAutoSend = agentVoiceAutoSend,
-                        onAgentVoiceAutoSendChange = viewModel::setAgentVoiceAutoSend,
+                        onAgentVoiceAutoSendChange = profileViewModel::setAgentVoiceAutoSend,
                         agentTtsEnabled = agentTtsEnabled,
-                        onAgentTtsEnabledChange = viewModel::setAgentTtsEnabled,
+                        onAgentTtsEnabledChange = profileViewModel::setAgentTtsEnabled,
                         wakeWordEnabled = wakeWordEnabled,
-                        onWakeWordEnabledChange = viewModel::setWakeWordEnabled,
+                        onWakeWordEnabledChange = profileViewModel::setWakeWordEnabled,
                         initialLogTaskId = agentLogTaskId,
                         canResumeTask = canResumeTask,
                         activeTaskPlans = activeTaskPlans,
@@ -473,8 +474,8 @@ fun MainScreen(viewModel: MainViewModel) {
                         onCancelTaskPlan = viewModel::cancelTaskPlan,
                         agentThinkingEnabled = agentDeepSeekThinkingEnabled,
                         agentReasoningEffort = agentDeepSeekReasoningEffort,
-                        onAgentThinkingEnabledChange = viewModel::setAgentDeepSeekThinkingEnabled,
-                        onAgentReasoningEffortChange = viewModel::setAgentDeepSeekReasoningEffort,
+                        onAgentThinkingEnabledChange = profileViewModel::setAgentDeepSeekThinkingEnabled,
+                        onAgentReasoningEffortChange = profileViewModel::setAgentDeepSeekReasoningEffort,
                         capabilityStatus = capabilityStatus,
                         onBack = {
                             (context as? android.app.Activity)?.finish()
@@ -537,6 +538,7 @@ fun MainScreen(viewModel: MainViewModel) {
                 composable(AppRoutes.PROFILE) {
                     SettingsScreen(
                         viewModel = viewModel,
+                        profileViewModel = profileViewModel,
                         sshViewModel = sshViewModel,
                         localAsrManager = localAsrManager,
                         aiDebugLogs = aiDebugLogs,
@@ -593,11 +595,11 @@ fun MainScreen(viewModel: MainViewModel) {
                         controlMessage = homeAssistantControlMessage,
                         onClose = { navController.popBackStack() },
                         onSaveAndTest = { url, tokenValue ->
-                            viewModel.saveHomeAssistantConfig(url, tokenValue)
-                            viewModel.testHomeAssistantConnection()
+                            profileViewModel.saveHomeAssistantConfig(url, tokenValue)
+                            profileViewModel.testHomeAssistantConnection()
                         },
-                        onControlService = viewModel::controlHomeAssistantService,
-                        onRefresh = viewModel::testHomeAssistantConnection,
+                        onControlService = profileViewModel::controlHomeAssistantService,
+                        onRefresh = profileViewModel::testHomeAssistantConnection,
                     )
                 }
             }

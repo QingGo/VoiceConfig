@@ -152,6 +152,7 @@ class MainActivity : ComponentActivity() {
     @Inject lateinit var accessibilityKeepAlive: AccessibilityKeepAlive
 
     private val viewModel: MainViewModel by viewModels()
+    private val profileViewModel: ProfileViewModel by viewModels()
 
     private val debugAgentReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
@@ -256,7 +257,7 @@ class MainActivity : ComponentActivity() {
             }
         }
         setContent {
-            val themeMode by viewModel.themeMode.collectAsState()
+            val themeMode by profileViewModel.themeMode.collectAsState()
             VoiceConfigTheme(themeMode = themeMode) {
                 val prefs = LocalContext.current.getSharedPreferences("voiceconfig_ux", Context.MODE_PRIVATE)
                 var onboardingDone by remember { mutableStateOf(prefs.getBoolean("onboarding_done", false)) }
