@@ -527,6 +527,33 @@ fun MainScreen(viewModel: MainViewModel) {
                 }
             }
 
+            if (currentDestination != AppDestination.Profile) {
+                FloatingMicButton(
+                    isListening = isListening,
+                    isPreparing = isPreparing,
+                    onClick = {
+                        if (currentDestination == AppDestination.Conversation) {
+                            onAgentMicClick()
+                        } else {
+                            showCreatePanel = true
+                            onMicClick()
+                        }
+                    },
+                    modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .padding(
+                            end = 20.dp,
+                            bottom = 120.dp,
+                        )
+                        .offset { IntOffset(micOffsetX.roundToInt(), micOffsetY.roundToInt()) },
+                    offsetX = micOffsetX,
+                    offsetY = micOffsetY,
+                    onOffsetChange = { x, y ->
+                        micOffsetX = x
+                        micOffsetY = y
+                    },
+                )
+            }
         }
 
         NavigationBar(

@@ -35,20 +35,6 @@ fun VoiceCommandBar(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        IconButton(
-            onClick = onVoiceInput,
-            enabled = !isBusy,
-        ) {
-            Icon(
-                painter = painterResource(id = R.drawable.ic_mic),
-                contentDescription = if (isListening) "正在聆听" else "语音输入",
-                tint = if (isListening) {
-                    MaterialTheme.colorScheme.error
-                } else {
-                    MaterialTheme.colorScheme.primary
-                },
-            )
-        }
         OutlinedTextField(
             value = input,
             onValueChange = onInputChange,
