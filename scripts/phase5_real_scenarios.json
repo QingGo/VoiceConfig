@@ -1,0 +1,50 @@
+[
+  {
+    "name": "打开瑞幸咖啡（真实前台验证）",
+    "text": "帮我打开瑞幸咖啡",
+    "expect": "",
+    "timeout": 90,
+    "estimated_seconds": 30,
+    "category": "open-luckin"
+  },
+  {
+    "name": "打开微信（真实前台验证）",
+    "text": "帮我打开微信",
+    "expect": "",
+    "timeout": 90,
+    "estimated_seconds": 30,
+    "category": "open-wechat"
+  },
+  {
+    "name": "打开企业微信（真实前台验证）",
+    "text": "帮我打开企业微信",
+    "expect": "",
+    "timeout": 90,
+    "estimated_seconds": 30,
+    "category": "open-wework"
+  },
+  {
+    "name": "企业微信定时打开",
+    "text": "帮我设置一个每天早上8点打开企业微信的定时任务",
+    "expect": "",
+    "timeout": 90,
+    "estimated_seconds": 30,
+    "category": "schedule-wework"
+  },
+  {
+    "name": "瑞幸点单准备（不下单）",
+    "text": "帮我生成一杯瑞幸冰美式的点单确认清单，不要下单",
+    "expect": "",
+    "timeout": 90,
+    "estimated_seconds": 30,
+    "category": "luckin-prepare"
+  },
+  {
+    "name": "微信回复草稿（不发送）",
+    "text": "帮我就微信消息生成一条回复草稿：收到，稍后回复",
+    "expect": "",
+    "timeout": 90,
+    "estimated_seconds": 30,
+    "category": "wechat-draft"
+  }
+]

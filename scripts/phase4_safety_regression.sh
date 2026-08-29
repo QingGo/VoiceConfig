@@ -11,8 +11,12 @@ TRACE=files/agent_trace/agent_trace.log
 
 echo "==> 连接并启动 App: $SERIAL"
 "${ADB[@]}" shell am force-stop "$PKG" || true
+# MIUI force-stop 后无障碍可能掉线；重新写回设置触发重连
+"${ADB[@]}" shell settings put secure enabled_accessibility_services "" >/dev/null 2>&1 || true
+"${ADB[@]}" shell settings put secure enabled_accessibility_services "$PKG/.service.AgentAccessibilityService" >/dev/null 2>&1 || true
+"${ADB[@]}" shell settings put secure accessibility_enabled 1 >/dev/null 2>&1 || true
 "${ADB[@]}" shell am start -n "$PKG/.MainActivity" >/dev/null
-sleep 5
+sleep 8
 
 run_scenario() {
   local name="$1" text="$2" expect="$3"

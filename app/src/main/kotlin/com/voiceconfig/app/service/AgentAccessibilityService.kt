@@ -5,6 +5,7 @@ import android.accessibilityservice.AccessibilityServiceInfo
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
 import android.os.Bundle
+import android.util.Log
 
 data class AccessibilityUiSnapshot(
     val text: String,
@@ -33,6 +34,7 @@ class AgentAccessibilityService : AccessibilityService() {
     override fun onServiceConnected() {
         super.onServiceConnected()
         instance = this
+        Log.i(TAG, "AgentAccessibilityService connected, instance=$instance")
         val info = AccessibilityServiceInfo().apply {
             eventTypes = AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED or
                 AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED or
@@ -177,6 +179,7 @@ class AgentAccessibilityService : AccessibilityService() {
     }
 
     companion object {
+        private const val TAG = "AgentAccessibilityService"
         @Volatile
         var instance: AgentAccessibilityService? = null
             private set

@@ -265,7 +265,10 @@ def run_and_evaluate(serial, text, timeout=90, expected=None, pre_stop_packages=
                     return result
         return {"input": text, "ok": False, "message": "timeout", "tool_count": 0, "failed_tools": [], "declined": 0, "verification": "TIMEOUT"}
     finally:
-        stop_app(serial)
+        # 部分 MIUI 设备 force-stop 后无障碍服务会掉线；设置 VC_KEEP_APP=1
+        # 可保留 App 进程，用于连续真实场景回归。
+        if os.environ.get("VC_KEEP_APP") != "1":
+            stop_app(serial)
 
 
 def load_scenarios(path):
