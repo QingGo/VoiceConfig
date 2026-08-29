@@ -130,6 +130,16 @@
 - [x] GlobalWakeWordEngine：监听会话状态自动暂停/恢复，屏幕关闭可 pause/resume
 - [ ] （后续强化）Overlay 状态机接入 Compose/截图回归；本地小模型低功耗唤醒仍属第三阶段
 
+## Phase 3：本地语音与低功耗（组件/策略已完成，模型资产生效中）
+
+- [x] GlobalPowerPolicy：灭屏 / 低电量 / 充电状态统一门控全局聆听
+- [x] LocalSherpaKeywordSpotter：基于 sherpa-onnx KeywordSpotter + AudioRecord 的本地唤醒实现，模型缺失时自动降级系统 WakeWordDetector
+- [x] GlobalSpeechRouter：本地 ASR 优先、系统 SpeechRecognizer 仅作兜底
+- [x] 低电量自动关闭全局聆听，充电后恢复
+- [x] 灭屏暂停，亮屏/充电恢复
+- [x] KWS 模型资产已随包内置：`assets/sherpa-onnx-kws-zipformer-wenetspeech-3.3M-2024-01-01`（ModelScope 下载，约 4.9MB）
+- [ ] 连续唤醒 1 小时不显著耗电的真机验收
+
 ## Phase 0：地基稳定（已完成）
 
 - [x] 正式引入 Navigation Compose：Conversation / Automation / Profile 为三个顶层路由，Shopping / Home Assistant 为二级路由，不再使用 boolean overlay

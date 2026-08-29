@@ -22,6 +22,7 @@ class GlobalVoiceSession @Inject constructor(
     private val voiceCommandCenter: VoiceCommandCenter,
     private val stateMachine: GlobalVoiceStateMachine,
     private val speechInputFactory: GlobalSpeechInputFactory,
+    private val powerPolicy: GlobalPowerPolicy,
 ) {
     val state: StateFlow<GlobalVoiceUiState> = stateMachine.state
 
@@ -40,6 +41,7 @@ class GlobalVoiceSession @Inject constructor(
     }
 
     fun startListening(source: VoiceCommandSource): Boolean {
+        if (!powerPolicy.canListen()) return false
         if (!stateMachine.startListening(source)) return false
         currentSource = source
         val created = speechInputFactory.create()

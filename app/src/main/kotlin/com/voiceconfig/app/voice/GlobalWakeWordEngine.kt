@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.pm.PackageManager
 import androidx.core.content.ContextCompat
 import com.voiceconfig.app.ai.ApiKeyStore
+import com.voiceconfig.app.ai.LocalSherpaKeywordSpotter
 import com.voiceconfig.app.ai.WakeWordDetector
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
@@ -26,7 +27,9 @@ class GlobalWakeWordEngine @Inject constructor(
     @ApplicationContext private val context: Context,
     private val apiKeyStore: ApiKeyStore,
     private val wakeWordDetector: WakeWordDetector,
+    private val localKeywordSpotter: LocalSherpaKeywordSpotter,
     private val session: GlobalVoiceSession,
+    private val powerPolicy: GlobalPowerPolicy,
 ) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     @Volatile private var paused = false
@@ -61,7 +64,7 @@ class GlobalWakeWordEngine @Inject constructor(
     }
 
     fun startIfEnabled() {
-        if (paused) {
+        if (paused || !powerPolicy.canListen()) {
             stop()
             return
         }
@@ -75,6 +78,20 @@ class GlobalWakeWordEngine @Inject constructor(
         ) == PackageManager.PERMISSION_GRANTED
         if (!granted) {
             stop()
+            return
+        }
+        if (localKeywordSpotter.isAvailable) {
+            localKeywordSpotter.start(
+                listener = object : LocalSherpaKeywordSpotter.Listener {
+                    override fun onKeyword(keyword: String) {
+                        session.startListening(VoiceCommandSource.WAKE_WORD)
+                    }
+
+                    override fun onError(error: Exception) {
+                        // 本地 KWS 异常时保持静默，下一次启动会重试。
+                    }
+                },
+            )
             return
         }
         wakeWordDetector.start(
@@ -92,6 +109,7 @@ class GlobalWakeWordEngine @Inject constructor(
     }
 
     fun stop() {
+        localKeywordSpotter.stop()
         wakeWordDetector.stop()
     }
 }

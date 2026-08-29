@@ -10,6 +10,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.net.wifi.WifiManager
+import android.os.BatteryManager
 import android.os.Build
 import android.os.IBinder
 import androidx.core.app.NotificationCompat
@@ -18,6 +19,7 @@ import com.voiceconfig.app.R
 import com.voiceconfig.app.agent.TaskPlanStore
 import com.voiceconfig.app.scheduler.ConditionTriggerHandler
 import com.voiceconfig.app.scheduler.TriggerRuleScheduler
+import com.voiceconfig.app.voice.GlobalPowerPolicy
 import com.voiceconfig.app.voice.GlobalVoiceSession
 import com.voiceconfig.app.voice.GlobalWakeWordEngine
 import com.voiceconfig.core.scheduler.TaskScheduler
@@ -44,17 +46,33 @@ class VoiceKeepAliveService : Service() {
     @Inject lateinit var overlayController: GlobalOverlayController
     @Inject lateinit var voiceSession: GlobalVoiceSession
     @Inject lateinit var wakeWordEngine: GlobalWakeWordEngine
+    @Inject lateinit var powerPolicy: GlobalPowerPolicy
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val receiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
             when (intent.action) {
                 Intent.ACTION_SCREEN_OFF -> {
+                    powerPolicy.setScreenOff(true)
                     wakeWordEngine.pause()
                     voiceSession.stop()
                 }
                 Intent.ACTION_SCREEN_ON -> {
+                    powerPolicy.setScreenOff(false)
                     wakeWordEngine.resume()
+                }
+                Intent.ACTION_BATTERY_LOW -> {
+                    powerPolicy.setLowBattery(true)
+                    wakeWordEngine.pause()
+                    voiceSession.stop()
+                }
+                Intent.ACTION_POWER_CONNECTED -> {
+                    powerPolicy.setLowBattery(false)
+                    wakeWordEngine.resume()
+                }
+                Intent.ACTION_POWER_DISCONNECTED -> {
+                    // 断开电源本身不强制恢复；若此前进入低电量仍保持暂停，
+                    // 只有 POWER_CONNECTED 或亮屏会解除。
                 }
             }
             scope.launch {
@@ -85,6 +103,7 @@ class VoiceKeepAliveService : Service() {
         restoreSchedules()
         startAccessibilityKeepAliveLoop()
         notifyUnfinishedAgentPlans()
+        applyInitialPowerPolicy()
         wakeWordEngine.startIfEnabled()
         return START_STICKY
     }
@@ -98,6 +117,17 @@ class VoiceKeepAliveService : Service() {
         voiceSession.stop()
         overlayController.dispose()
         super.onDestroy()
+    }
+
+    private fun applyInitialPowerPolicy() {
+        val batteryIntent = registerReceiver(null, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
+        val level = batteryIntent?.getIntExtra(BatteryManager.EXTRA_LEVEL, -1) ?: -1
+        val scale = batteryIntent?.getIntExtra(BatteryManager.EXTRA_SCALE, -1) ?: -1
+        val low = level >= 0 && scale > 0 && level * 100 / scale <= 20
+        powerPolicy.setLowBattery(low)
+        if (low) {
+            wakeWordEngine.pause()
+        }
     }
 
     private fun startAccessibilityKeepAliveLoop() {
