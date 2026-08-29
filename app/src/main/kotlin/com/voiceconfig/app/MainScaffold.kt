@@ -313,6 +313,7 @@ fun MainScreen(viewModel: MainViewModel) {
 
     LaunchedEffect(currentRoute) {
         if (currentRoute == AppRoutes.CONVERSATION) {
+            viewModel.refreshCapabilityStatus()
             agentViewModel.openAgentPage()
         }
     }
