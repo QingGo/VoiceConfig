@@ -77,6 +77,7 @@ import kotlinx.coroutines.launch
 @Composable
 fun SettingsScreen(
     viewModel: MainViewModel,
+    sshViewModel: SshViewModel,
     localAsrManager: LocalAsrManager?,
     aiDebugLogs: List<AiDebugLogEntity>,
     triggerRules: List<TriggerRule>,
@@ -106,6 +107,7 @@ fun SettingsScreen(
     val agentTtsEnabled by viewModel.agentTtsEnabled.collectAsState()
     val wakeWordEnabled by viewModel.wakeWordEnabled.collectAsState()
     val themeMode by viewModel.themeMode.collectAsState()
+    val capabilityStatus by viewModel.capabilityStatus.collectAsState()
 
     var draftApiKey by remember { mutableStateOf(deepSeekApiKey) }
     var draftModel by remember { mutableStateOf(deepSeekModel) }
@@ -125,24 +127,24 @@ fun SettingsScreen(
     var showSshKeys by remember { mutableStateOf(false) }
     var showSshServices by remember { mutableStateOf(false) }
     var showSshNodeLogs by remember { mutableStateOf(false) }
-    val remoteNodes by viewModel.remoteNodes.collectAsState()
-    val remoteProjects by viewModel.remoteProjects.collectAsState()
-    val remoteCommandResult by viewModel.remoteCommandResult.collectAsState()
-    val sshResult by viewModel.sshResult.collectAsState()
-    val sshBootstrapResult by viewModel.sshBootstrapResult.collectAsState()
-    val sshFileResult by viewModel.sshFileResult.collectAsState()
-    val sshFileEntries by viewModel.sshFileEntries.collectAsState()
-    val sshKeys by viewModel.sshKeys.collectAsState()
-    val sshServiceResult by viewModel.sshServiceResult.collectAsState()
-    val sshNodeLogResult by viewModel.sshNodeLogResult.collectAsState()
-    val sshShellOutput by viewModel.sshShellOutput.collectAsState()
-    val sshShellRunning by viewModel.sshShellRunning.collectAsState()
-    val sshShellError by viewModel.sshShellError.collectAsState()
-    val sshAuditText by viewModel.sshAuditText.collectAsState()
-    val pendingSshHostKey by viewModel.pendingSshHostKey.collectAsState()
+    val remoteNodes by sshViewModel.remoteNodes.collectAsState()
+    val remoteProjects by sshViewModel.remoteProjects.collectAsState()
+    val remoteCommandResult by sshViewModel.remoteCommandResult.collectAsState()
+    val sshResult by sshViewModel.sshResult.collectAsState()
+    val sshBootstrapResult by sshViewModel.sshBootstrapResult.collectAsState()
+    val sshFileResult by sshViewModel.sshFileResult.collectAsState()
+    val sshFileEntries by sshViewModel.sshFileEntries.collectAsState()
+    val sshKeys by sshViewModel.sshKeys.collectAsState()
+    val sshServiceResult by sshViewModel.sshServiceResult.collectAsState()
+    val sshNodeLogResult by sshViewModel.sshNodeLogResult.collectAsState()
+    val sshShellOutput by sshViewModel.sshShellOutput.collectAsState()
+    val sshShellRunning by sshViewModel.sshShellRunning.collectAsState()
+    val sshShellError by sshViewModel.sshShellError.collectAsState()
+    val sshAuditText by sshViewModel.sshAuditText.collectAsState()
+    val pendingSshHostKey by sshViewModel.pendingSshHostKey.collectAsState()
     val defaultRemoteHost = remoteNodes.firstOrNull()?.host.orEmpty()
     val savedSshCredential = remember(defaultRemoteHost, showSshFile, showSshConsole, showSshShell) {
-        defaultRemoteHost.takeIf { it.isNotBlank() }?.let { viewModel.getSshCredential(it, 22) }
+        defaultRemoteHost.takeIf { it.isNotBlank() }?.let { sshViewModel.getSshCredential(it, 22) }
     }
 
     Surface(modifier = Modifier.fillMaxSize()) {
@@ -188,18 +190,30 @@ fun SettingsScreen(
                             add(
                                 VoiceStatusItem(
                                     label = "AI 模型",
-                                    value = if (deepSeekApiKey.isBlank()) "未配置" else "已配置",
-                                    valueColor = if (deepSeekApiKey.isBlank()) {
-                                        MaterialTheme.colorScheme.error
-                                    } else {
+                                    value = if (capabilityStatus.cloudLlm) "已配置" else "未配置",
+                                    valueColor = if (capabilityStatus.cloudLlm) {
                                         MaterialTheme.colorScheme.primary
+                                    } else {
+                                        MaterialTheme.colorScheme.error
                                     },
                                 ),
                             )
                             add(
                                 VoiceStatusItem(
                                     label = "Home Assistant",
-                                    value = if (homeAssistantConfigured) "已连接" else "未配置",
+                                    value = if (capabilityStatus.homeAssistant) "已连接" else "未配置",
+                                ),
+                            )
+                            add(
+                                VoiceStatusItem(
+                                    label = "无障碍",
+                                    value = if (capabilityStatus.accessibility) "已开启" else "未开启",
+                                ),
+                            )
+                            add(
+                                VoiceStatusItem(
+                                    label = "Shizuku",
+                                    value = if (capabilityStatus.shizuku) "可用" else "未启用",
                                 ),
                             )
                             add(
@@ -321,32 +335,32 @@ fun SettingsScreen(
                         onOpenRemoteNodes = { showRemoteNodes = true },
                         onOpenSshConsole = {
                             showSshConsole = true
-                            viewModel.clearSshResult()
+                            sshViewModel.clearSshResult()
                         },
                         onOpenSshFile = {
                             showSshFile = true
-                            viewModel.clearSshFileResult()
+                            sshViewModel.clearSshFileResult()
                         },
                         onOpenSshShell = {
                             showSshShell = true
-                            viewModel.clearSshShellOutput()
-                            viewModel.clearSshShellError()
+                            sshViewModel.clearSshShellOutput()
+                            sshViewModel.clearSshShellError()
                         },
                         onOpenSshAudit = {
                             showSshAudit = true
-                            viewModel.loadSshAudit()
+                            sshViewModel.loadSshAudit()
                         },
                         onOpenSshKeys = {
                             showSshKeys = true
-                            viewModel.refreshSshKeys()
+                            sshViewModel.refreshSshKeys()
                         },
                         onOpenSshServices = {
                             showSshServices = true
-                            viewModel.clearSshServiceResult()
+                            sshViewModel.clearSshServiceResult()
                         },
                         onOpenSshNodeLogs = {
                             showSshNodeLogs = true
-                            viewModel.clearSshNodeLogResult()
+                            sshViewModel.clearSshNodeLogResult()
                         },
                         onOpenRemoteProjects = { showRemoteProjects = true },
                         aiDebugLogsSize = aiDebugLogs.size,
@@ -385,13 +399,13 @@ fun SettingsScreen(
         RemoteNodesDialog(
             nodes = remoteNodes,
             onDismiss = { showRemoteNodes = false },
-            onSave = viewModel::saveRemoteNode,
-            onDelete = viewModel::deleteRemoteNode,
-            onToggleEnabled = viewModel::setRemoteNodeEnabled,
-            onTogglePaused = viewModel::setRemoteNodePaused,
+            onSave = sshViewModel::saveRemoteNode,
+            onDelete = sshViewModel::deleteRemoteNode,
+            onToggleEnabled = sshViewModel::setRemoteNodeEnabled,
+            onTogglePaused = sshViewModel::setRemoteNodePaused,
             commandResult = remoteCommandResult,
-            onExecute = viewModel::executeRemoteCommand,
-            onClearResult = viewModel::clearRemoteCommandResult,
+            onExecute = sshViewModel::executeRemoteCommand,
+            onClearResult = sshViewModel::clearRemoteCommandResult,
         )
     }
 
@@ -405,15 +419,15 @@ fun SettingsScreen(
     if (showSshConsole) {
         SshConsoleDialog(
             onDismiss = { showSshConsole = false },
-            onRun = viewModel::executeSsh,
+            onRun = sshViewModel::executeSsh,
             result = sshResult,
-            onClearResult = viewModel::clearSshResult,
+            onClearResult = sshViewModel::clearSshResult,
             defaultHost = defaultRemoteHost,
             initialCredential = savedSshCredential,
-            onInstall = viewModel::installNodeViaSsh,
+            onInstall = sshViewModel::installNodeViaSsh,
             bootstrapResult = sshBootstrapResult,
-            onClearBootstrapResult = viewModel::clearSshBootstrapResult,
-            onClearHostKey = viewModel::clearSshHostKey,
+            onClearBootstrapResult = sshViewModel::clearSshBootstrapResult,
+            onClearHostKey = sshViewModel::clearSshHostKey,
             savedKeys = sshKeys,
         )
     }
@@ -423,15 +437,15 @@ fun SettingsScreen(
             onDismiss = { showSshFile = false },
             defaultHost = defaultRemoteHost,
             initialCredential = savedSshCredential,
-            onList = viewModel::listSshFiles,
-            onRead = viewModel::readSshFile,
-            onWrite = viewModel::writeSshFile,
+            onList = sshViewModel::listSshFiles,
+            onRead = sshViewModel::readSshFile,
+            onWrite = sshViewModel::writeSshFile,
             result = sshFileResult,
-            onClearResult = viewModel::clearSshFileResult,
+            onClearResult = sshViewModel::clearSshFileResult,
             entries = sshFileEntries,
-            onMkdir = viewModel::mkdirSshFile,
-            onDelete = viewModel::deleteSshFile,
-            onRename = viewModel::renameSshFile,
+            onMkdir = sshViewModel::mkdirSshFile,
+            onDelete = sshViewModel::deleteSshFile,
+            onRename = sshViewModel::renameSshFile,
             savedKeys = sshKeys,
         )
     }
@@ -439,21 +453,21 @@ fun SettingsScreen(
     if (showSshShell) {
         SshShellDialog(
             onDismiss = {
-                viewModel.closeSshShell()
+                sshViewModel.closeSshShell()
                 showSshShell = false
             },
             defaultHost = defaultRemoteHost,
             initialCredential = savedSshCredential,
-            onStart = viewModel::startSshShell,
-            onSend = viewModel::sendSshShellCommand,
-            onCloseSession = viewModel::closeSshShell,
+            onStart = sshViewModel::startSshShell,
+            onSend = sshViewModel::sendSshShellCommand,
+            onCloseSession = sshViewModel::closeSshShell,
             output = sshShellOutput,
             running = sshShellRunning,
             error = sshShellError,
-            onClearOutput = viewModel::clearSshShellOutput,
-            onClearError = viewModel::clearSshShellError,
+            onClearOutput = sshViewModel::clearSshShellOutput,
+            onClearError = sshViewModel::clearSshShellError,
             savedKeys = sshKeys,
-            onResize = viewModel::resizeSshShell,
+            onResize = sshViewModel::resizeSshShell,
         )
     }
 
@@ -461,7 +475,7 @@ fun SettingsScreen(
         AlertDialog(
             onDismissRequest = {
                 showSshAudit = false
-                viewModel.clearSshAudit()
+                sshViewModel.clearSshAudit()
             },
             title = { Text("SSH 审计（最近 200 条）") },
             text = {
@@ -475,7 +489,7 @@ fun SettingsScreen(
             confirmButton = {
                 TextButton(onClick = {
                     showSshAudit = false
-                    viewModel.clearSshAudit()
+                    sshViewModel.clearSshAudit()
                 }) {
                     Text("关闭")
                 }
@@ -487,9 +501,9 @@ fun SettingsScreen(
         SshKeysDialog(
             keys = sshKeys,
             onDismiss = { showSshKeys = false },
-            onGenerate = viewModel::generateSshKey,
-            onRename = viewModel::renameSshKey,
-            onDelete = viewModel::deleteSshKey,
+            onGenerate = sshViewModel::generateSshKey,
+            onRename = sshViewModel::renameSshKey,
+            onDelete = sshViewModel::deleteSshKey,
         )
     }
 
@@ -499,13 +513,13 @@ fun SettingsScreen(
             defaultHost = defaultRemoteHost,
             initialCredential = savedSshCredential,
             result = sshServiceResult,
-            onClearResult = viewModel::clearSshServiceResult,
-            onList = viewModel::listSshServices,
-            onStart = viewModel::startSshService,
-            onStop = viewModel::stopSshService,
-            onRestart = viewModel::restartSshService,
-            onStatus = viewModel::statusSshService,
-            onLogs = viewModel::logsSshService,
+            onClearResult = sshViewModel::clearSshServiceResult,
+            onList = sshViewModel::listSshServices,
+            onStart = sshViewModel::startSshService,
+            onStop = sshViewModel::stopSshService,
+            onRestart = sshViewModel::restartSshService,
+            onStatus = sshViewModel::statusSshService,
+            onLogs = sshViewModel::logsSshService,
             savedKeys = sshKeys,
         )
     }
@@ -516,16 +530,16 @@ fun SettingsScreen(
             defaultHost = defaultRemoteHost,
             initialCredential = savedSshCredential,
             result = sshNodeLogResult,
-            onClearResult = viewModel::clearSshNodeLogResult,
-            onReadAudit = viewModel::readSshNodeAudit,
-            onReadLog = viewModel::readSshNodeLog,
+            onClearResult = sshViewModel::clearSshNodeLogResult,
+            onReadAudit = sshViewModel::readSshNodeAudit,
+            onReadLog = sshViewModel::readSshNodeLog,
             savedKeys = sshKeys,
         )
     }
 
     pendingSshHostKey?.let { pending ->
         AlertDialog(
-            onDismissRequest = { viewModel.confirmSshHostKey(false) },
+            onDismissRequest = { sshViewModel.confirmSshHostKey(false) },
             title = { Text("首次连接确认") },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -548,12 +562,12 @@ fun SettingsScreen(
                 }
             },
             confirmButton = {
-                TextButton(onClick = { viewModel.confirmSshHostKey(true) }) {
+                TextButton(onClick = { sshViewModel.confirmSshHostKey(true) }) {
                     Text("信任并继续")
                 }
             },
             dismissButton = {
-                TextButton(onClick = { viewModel.confirmSshHostKey(false) }) {
+                TextButton(onClick = { sshViewModel.confirmSshHostKey(false) }) {
                     Text("拒绝")
                 }
             },

@@ -64,7 +64,7 @@ import com.voiceconfig.data.local.entity.AgentMessageEntity
 import com.voiceconfig.data.local.entity.AgentSessionEntity
 import com.voiceconfig.data.local.entity.TaskEventEntity
 import com.voiceconfig.app.R
-import com.voiceconfig.app.service.AgentAccessibilityService
+import com.voiceconfig.app.ui.CapabilityStatus
 import com.voiceconfig.app.agent.AgentRunRecord
 import com.voiceconfig.app.agent.AgentRunState
 import com.voiceconfig.app.agent.AgentSkill
@@ -109,6 +109,7 @@ fun AgentPage(
     onOpenShopping: () -> Unit = {},
     onClearAllSessions: () -> Unit = {},
     hasDeepSeekKey: Boolean = true,
+    capabilityStatus: CapabilityStatus = CapabilityStatus(),
     agentVoiceAutoSend: Boolean = false,
     onAgentVoiceAutoSendChange: (Boolean) -> Unit = {},
     agentTtsEnabled: Boolean = false,
@@ -304,9 +305,7 @@ fun AgentPage(
         }
 
         val latestRun = agentRunRecords.firstOrNull()
-        val accessibilityEnabled = runCatching {
-            AgentAccessibilityService.instance != null
-        }.getOrDefault(false)
+        val accessibilityEnabled = capabilityStatus.accessibility
         val needsAccessibilityHelp = !accessibilityEnabled
         if (needsAccessibilityHelp) {
             AccessibilityHelpCard(

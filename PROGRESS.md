@@ -99,6 +99,17 @@
 - [x] P2-12 远程高级能力统一设计：统一入口 + Material 图标 + 默认折叠
 - [x] Adaptive Icon（新增 mipmap-anydpi-v26 + 前景矢量）
 
+## Phase 0：地基稳定（进行中）
+
+- [x] 正式引入 Navigation Compose：Conversation / Automation / Profile 为三个顶层路由，Shopping / Home Assistant 为二级路由，不再使用 boolean overlay
+- [x] 统一返回行为：二级页面 popBackStack，首页返回桌面，悬浮球仅首页/自动化显示
+- [x] 拆分 SshViewModel：远程节点、SSH 命令/文件/Shell/服务/密钥全部移出 MainViewModel，MainViewModel 已从 2282 行降至约 1730 行
+- [x] 建立 CapabilityStatus 统一模型：AI / 网络 / 无障碍 / Shizuku / HA / 远程 / 唤醒词，首页与设置共用
+- [x] 建立 DesignTokens：Spacing / Radius / SemanticColors
+- [x] 新增 AppRoutesTest、CapabilityStatusTest 基础单元测试
+- [ ] 继续拆分 Agent / Automation / Profile ViewModel
+- [ ] 截图回归 / Compose UI 测试稳定化
+
 ## 已提交代码
 
 - 安全四级与审计

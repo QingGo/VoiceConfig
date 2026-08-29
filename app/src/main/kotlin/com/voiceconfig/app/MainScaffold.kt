@@ -109,6 +109,11 @@ import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.currentBackStackEntryAsState
+import androidx.navigation.compose.rememberNavController
+import androidx.hilt.navigation.compose.hiltViewModel
 import com.voiceconfig.app.agent.AgentSession
 import com.voiceconfig.app.agent.ShizukuCommandRunner
 import com.voiceconfig.app.agent.TaskPlan
@@ -119,7 +124,7 @@ import com.voiceconfig.app.service.AccessibilityKeepAlive
 import com.voiceconfig.app.service.VoiceConfigService
 import com.voiceconfig.app.ui.theme.SuccessGreen
 import com.voiceconfig.app.ui.AgentNavigation
-import com.voiceconfig.app.ui.AppDestination
+import com.voiceconfig.app.ui.AppRoutes
 import com.voiceconfig.app.ui.AgentPage
 import com.voiceconfig.app.ui.HomeAssistantPage
 import com.voiceconfig.app.ui.OnboardingScreen
@@ -143,6 +148,7 @@ import kotlinx.coroutines.withContext
 
 @Composable
 fun MainScreen(viewModel: MainViewModel) {
+    val sshViewModel: SshViewModel = hiltViewModel()
     val uiState by viewModel.uiState.collectAsState()
     val tasks by viewModel.tasks.collectAsState()
     val templates by viewModel.templates.collectAsState()
@@ -178,9 +184,7 @@ fun MainScreen(viewModel: MainViewModel) {
     val homeAssistantDevices by viewModel.homeAssistantDevices.collectAsState()
     val homeAssistantTestMessage by viewModel.homeAssistantTestMessage.collectAsState()
     val homeAssistantControlMessage by viewModel.homeAssistantControlMessage.collectAsState()
-    var showShoppingPage by remember { mutableStateOf(false) }
-    var showHomeAssistantPage by remember { mutableStateOf(false) }
-    var showAgentPage by remember { mutableStateOf(false) }
+    val capabilityStatus by viewModel.capabilityStatus.collectAsState()
     var agentInitialTab by remember { mutableIntStateOf(0) }
     var agentTabIndex by remember { mutableIntStateOf(0) }
     var agentLogTaskId by remember { mutableStateOf<Long?>(null) }
@@ -284,11 +288,23 @@ fun MainScreen(viewModel: MainViewModel) {
         voiceController.onAgentMicClick()
     }
     val onParseClick = voiceController.onParseClick
+    val navController = rememberNavController()
+    val navBackStackEntry by navController.currentBackStackEntryAsState()
+    val currentRoute = navBackStackEntry?.destination?.route
+    val isTopLevel = currentRoute == AppRoutes.CONVERSATION ||
+        currentRoute == AppRoutes.AUTOMATION ||
+        currentRoute == AppRoutes.PROFILE
 
-    var currentDestination by remember { mutableStateOf<AppDestination>(AppDestination.Conversation) }
-    LaunchedEffect(currentDestination) {
-        showAgentPage = currentDestination == AppDestination.Conversation
-        if (showAgentPage) {
+    fun navigateTop(route: String) {
+        navController.navigate(route) {
+            popUpTo(AppRoutes.CONVERSATION) { saveState = true }
+            launchSingleTop = true
+            restoreState = true
+        }
+    }
+
+    LaunchedEffect(currentRoute) {
+        if (currentRoute == AppRoutes.CONVERSATION) {
             viewModel.openAgentPage()
         }
     }
@@ -300,44 +316,43 @@ fun MainScreen(viewModel: MainViewModel) {
                 .weight(1f)
                 .fillMaxWidth(),
         ) {
-            AnimatedContent(
-                targetState = currentDestination,
-                transitionSpec = { fadeIn() togetherWith fadeOut() },
-            ) { destination ->
-            when (destination) {
-                    AppDestination.Automation -> MainScreenContent(
+            NavHost(
+                navController = navController,
+                startDestination = AppRoutes.CONVERSATION,
+                modifier = Modifier.fillMaxSize(),
+            ) {
+                composable(AppRoutes.AUTOMATION) {
+                    MainScreenContent(
                         uiState = uiState,
                         deepSeekApiKey = deepSeekApiKey,
                         installedAppLabels = installedAppLabels,
                         isListening = isListening,
                         isPreparing = isPreparing,
                         onMicClick = onMicClick,
-                        onOpenAiSettings = {
-                            currentDestination = AppDestination.Profile
-                        },
+                        onOpenAiSettings = { navigateTop(AppRoutes.PROFILE) },
                         onOpenAgent = {
                             agentInitialTab = 0
                             agentTabIndex = 0
                             agentLogTaskId = null
-                            currentDestination = AppDestination.Conversation
+                            navigateTop(AppRoutes.CONVERSATION)
                         },
                         onCreateByAgent = {
                             viewModel.newAgentSession()
                             viewModel.onAgentInputChange("帮我创建一个自动化任务：")
-                            currentDestination = AppDestination.Conversation
+                            navigateTop(AppRoutes.CONVERSATION)
                             scope.launch {
                                 snackbarHostState.showSnackbar("已进入对话，输入你的自动化需求")
                             }
                         },
-                        onOpenAgentLogs = { task ->
-                            currentDestination = AppDestination.Automation
+                        onOpenAgentLogs = { _ ->
+                            navigateTop(AppRoutes.AUTOMATION)
                         },
                         onOpenAgentSession = { sessionId ->
                             viewModel.selectAgentSession(sessionId)
                             agentInitialTab = 0
                             agentTabIndex = 0
                             agentLogTaskId = null
-                            currentDestination = AppDestination.Conversation
+                            navigateTop(AppRoutes.CONVERSATION)
                         },
                         showCreatePanel = showCreatePanel,
                         onCreatePanelChange = { showCreatePanel = it },
@@ -390,7 +405,10 @@ fun MainScreen(viewModel: MainViewModel) {
                         },
                         onTemplateSelected = viewModel::onTemplateSelected,
                     )
-                    AppDestination.Conversation -> AgentPage(
+                }
+
+                composable(AppRoutes.CONVERSATION) {
+                    AgentPage(
                         initialTabIndex = agentInitialTab,
                         tabIndex = agentTabIndex,
                         onTabChange = { agentTabIndex = it },
@@ -437,7 +455,7 @@ fun MainScreen(viewModel: MainViewModel) {
                         },
                         onVoiceInput = onAgentMicClick,
                         isListening = isListening,
-                        onOpenShopping = { showShoppingPage = true },
+                        onOpenShopping = { navController.navigate(AppRoutes.SHOPPING) },
                         onClearAllSessions = viewModel::clearAllAgentSessions,
                         hasDeepSeekKey = deepSeekApiKey.isNotBlank(),
                         agentVoiceAutoSend = agentVoiceAutoSend,
@@ -457,6 +475,7 @@ fun MainScreen(viewModel: MainViewModel) {
                         agentReasoningEffort = agentDeepSeekReasoningEffort,
                         onAgentThinkingEnabledChange = viewModel::setAgentDeepSeekThinkingEnabled,
                         onAgentReasoningEffortChange = viewModel::setAgentDeepSeekReasoningEffort,
+                        capabilityStatus = capabilityStatus,
                         onBack = {
                             (context as? android.app.Activity)?.finish()
                         },
@@ -503,36 +522,92 @@ fun MainScreen(viewModel: MainViewModel) {
                                 }
                             }
                         },
-                        onOpenTask = { taskId ->
-                            currentDestination = AppDestination.Automation
+                        onOpenTask = { _ ->
+                            navigateTop(AppRoutes.AUTOMATION)
                         },
                         onOpenAutomation = {
-                            currentDestination = AppDestination.Automation
+                            navigateTop(AppRoutes.AUTOMATION)
                         },
                         onOpenSettings = {
-                            currentDestination = AppDestination.Profile
+                            navigateTop(AppRoutes.PROFILE)
                         },
                     )
-                    AppDestination.Profile -> SettingsScreen(
+                }
+
+                composable(AppRoutes.PROFILE) {
+                    SettingsScreen(
                         viewModel = viewModel,
+                        sshViewModel = sshViewModel,
                         localAsrManager = localAsrManager,
                         aiDebugLogs = aiDebugLogs,
                         triggerRules = triggerRules,
                         onClose = {
-                            currentDestination = AppDestination.Conversation
+                            navigateTop(AppRoutes.CONVERSATION)
                         },
-                        onOpenShopping = { showShoppingPage = true },
-                        onOpenHomeAssistant = { showHomeAssistantPage = true },
+                        onOpenShopping = { navController.navigate(AppRoutes.SHOPPING) },
+                        onOpenHomeAssistant = { navController.navigate(AppRoutes.HOME_ASSISTANT) },
+                    )
+                }
+
+                composable(AppRoutes.SHOPPING) {
+                    ShoppingResearchPage(
+                        items = shoppingItems,
+                        onClose = { navController.popBackStack() },
+                        onUpdateStatus = viewModel::updateShoppingItemStatus,
+                        onDelete = viewModel::deleteShoppingItem,
+                        onStartResearch = {
+                            navController.popBackStack()
+                            viewModel.newAgentSession()
+                            viewModel.onAgentInputChange("帮我查母婴用品并比较价格和评价")
+                            scope.launch {
+                                navigateTop(AppRoutes.CONVERSATION)
+                                snackbarHostState.showSnackbar("已进入智能助手，输入研究目标后发送")
+                            }
+                        },
+                        onClearAll = {
+                            viewModel.clearShoppingItems()
+                            scope.launch {
+                                snackbarHostState.showSnackbar("已清空购物研究")
+                            }
+                        },
+                        onExport = {
+                            val text = shoppingItems.joinToString("\n") { item ->
+                                "${item.title} | ${item.platform} | ¥${item.price} | 评分${item.rating ?: "无"} | ${item.status}"
+                            }
+                            val clipboard = context.getSystemService(ClipboardManager::class.java)
+                            clipboard?.setPrimaryClip(ClipData.newPlainText("购物研究清单", text))
+                            scope.launch {
+                                snackbarHostState.showSnackbar("已复制购物研究清单")
+                            }
+                        },
+                    )
+                }
+
+                composable(AppRoutes.HOME_ASSISTANT) {
+                    HomeAssistantPage(
+                        baseUrl = homeAssistantBaseUrl,
+                        token = homeAssistantToken,
+                        configured = homeAssistantConfigured,
+                        devices = homeAssistantDevices ?: emptyList(),
+                        testMessage = homeAssistantTestMessage,
+                        controlMessage = homeAssistantControlMessage,
+                        onClose = { navController.popBackStack() },
+                        onSaveAndTest = { url, tokenValue ->
+                            viewModel.saveHomeAssistantConfig(url, tokenValue)
+                            viewModel.testHomeAssistantConnection()
+                        },
+                        onControlService = viewModel::controlHomeAssistantService,
+                        onRefresh = viewModel::testHomeAssistantConnection,
                     )
                 }
             }
 
-            if (currentDestination != AppDestination.Profile) {
+            if (currentRoute == AppRoutes.CONVERSATION || currentRoute == AppRoutes.AUTOMATION) {
                 FloatingMicButton(
                     isListening = isListening,
                     isPreparing = isPreparing,
                     onClick = {
-                        if (currentDestination == AppDestination.Conversation) {
+                        if (currentRoute == AppRoutes.CONVERSATION) {
                             onAgentMicClick()
                         } else {
                             showCreatePanel = true
@@ -556,107 +631,59 @@ fun MainScreen(viewModel: MainViewModel) {
             }
         }
 
-        NavigationBar(
-            containerColor = MaterialTheme.colorScheme.background,
-        ) {
-            NavigationBarItem(
-                selected = currentDestination == AppDestination.Conversation,
-                onClick = {
-                    agentInitialTab = 0
-                    agentTabIndex = agentInitialTab
-                    agentLogTaskId = null
-                    currentDestination = AppDestination.Conversation
-                },
-                icon = {
-                    Icon(
-                        imageVector = Icons.Default.Home,
-                        contentDescription = "首页/对话",
-                    )
-                },
-                label = { Text("首页/对话") },
-            )
-            NavigationBarItem(
-                selected = currentDestination == AppDestination.Automation,
-                onClick = {
-                    currentDestination = AppDestination.Automation
-                },
-                icon = {
-                    Icon(
-                        imageVector = Icons.Default.List,
-                        contentDescription = "自动化",
-                    )
-                },
-                label = { Text("自动化") },
-            )
-            NavigationBarItem(
-                selected = currentDestination == AppDestination.Profile,
-                onClick = {
-                    currentDestination = AppDestination.Profile
-                },
-                icon = {
-                    Icon(
-                        imageVector = Icons.Default.Settings,
-                        contentDescription = "我的",
-                    )
-                },
-                label = { Text("我的") },
-            )
+        if (isTopLevel) {
+            NavigationBar(
+                containerColor = MaterialTheme.colorScheme.background,
+            ) {
+                NavigationBarItem(
+                    selected = currentRoute == AppRoutes.CONVERSATION,
+                    onClick = {
+                        agentInitialTab = 0
+                        agentTabIndex = agentInitialTab
+                        agentLogTaskId = null
+                        navigateTop(AppRoutes.CONVERSATION)
+                    },
+                    icon = {
+                        Icon(
+                            imageVector = Icons.Default.Home,
+                            contentDescription = "首页/对话",
+                        )
+                    },
+                    label = { Text("首页/对话") },
+                )
+                NavigationBarItem(
+                    selected = currentRoute == AppRoutes.AUTOMATION,
+                    onClick = {
+                        navigateTop(AppRoutes.AUTOMATION)
+                    },
+                    icon = {
+                        Icon(
+                            imageVector = Icons.Default.List,
+                            contentDescription = "自动化",
+                        )
+                    },
+                    label = { Text("自动化") },
+                )
+                NavigationBarItem(
+                    selected = currentRoute == AppRoutes.PROFILE,
+                    onClick = {
+                        navigateTop(AppRoutes.PROFILE)
+                    },
+                    icon = {
+                        Icon(
+                            imageVector = Icons.Default.Settings,
+                            contentDescription = "我的",
+                        )
+                    },
+                    label = { Text("我的") },
+                )
+            }
         }
     }
     SnackbarHost(
         hostState = snackbarHostState,
         modifier = Modifier.align(Alignment.BottomCenter),
     )
-    if (showShoppingPage) {
-        ShoppingResearchPage(
-            items = shoppingItems,
-            onClose = { showShoppingPage = false },
-            onUpdateStatus = viewModel::updateShoppingItemStatus,
-            onDelete = viewModel::deleteShoppingItem,
-            onStartResearch = {
-                showShoppingPage = false
-                viewModel.newAgentSession()
-                viewModel.onAgentInputChange("帮我查母婴用品并比较价格和评价")
-                scope.launch {
-                    currentDestination = AppDestination.Conversation
-                    snackbarHostState.showSnackbar("已进入智能助手，输入研究目标后发送")
-                }
-            },
-            onClearAll = {
-                viewModel.clearShoppingItems()
-                scope.launch {
-                    snackbarHostState.showSnackbar("已清空购物研究")
-                }
-            },
-            onExport = {
-                val text = shoppingItems.joinToString("\\n") { item ->
-                    "${item.title} | ${item.platform} | ¥${item.price} | 评分${item.rating ?: "无"} | ${item.status}"
-                }
-                val clipboard = context.getSystemService(ClipboardManager::class.java)
-                clipboard?.setPrimaryClip(ClipData.newPlainText("购物研究清单", text))
-                scope.launch {
-                    snackbarHostState.showSnackbar("已复制购物研究清单")
-                }
-            },
-        )
-    }
-    if (showHomeAssistantPage) {
-        HomeAssistantPage(
-            baseUrl = homeAssistantBaseUrl,
-            token = homeAssistantToken,
-            configured = homeAssistantConfigured,
-            devices = homeAssistantDevices ?: emptyList(),
-            testMessage = homeAssistantTestMessage,
-            controlMessage = homeAssistantControlMessage,
-            onClose = { showHomeAssistantPage = false },
-            onSaveAndTest = { url, tokenValue ->
-                viewModel.saveHomeAssistantConfig(url, tokenValue)
-                viewModel.testHomeAssistantConnection()
-            },
-            onControlService = viewModel::controlHomeAssistantService,
-            onRefresh = viewModel::testHomeAssistantConnection,
-        )
-    }
     }
     pendingAgentConfirmation?.let { pending ->
         AlertDialog(
