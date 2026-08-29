@@ -111,7 +111,8 @@
 - [x] 建立 DesignTokens：Spacing / Radius / SemanticColors
 - [x] 新增 AppRoutesTest、CapabilityStatusTest 基础单元测试
 - [x] 四个 Feature ViewModel 已全部拆分：Agent / Automation / Ssh / Profile
-- [ ] 截图回归 / Compose UI 测试稳定化
+- [x] 新增 Phase 0 模拟器导航冒烟脚本 scripts/phase0_nav_smoke.sh（首页/自动化/设置/返回检查）
+- [ ] Compose UI 测试与截图自动对比稳定化
 
 ## 已提交代码
 
