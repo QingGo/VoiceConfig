@@ -30,6 +30,9 @@ import com.voiceconfig.app.agent.AgentSession
 import com.voiceconfig.app.agent.AgentSkillStore
 import com.voiceconfig.app.agent.AgentVerificationPolicy
 import com.voiceconfig.app.ai.ApiKeyStore
+import com.voiceconfig.app.voice.GlobalVoiceCommand
+import com.voiceconfig.app.voice.VoiceCommandCenter
+import com.voiceconfig.app.voice.VoiceCommandTarget
 import com.voiceconfig.app.ai.DeepSeekNlpParser
 import com.voiceconfig.app.scheduler.TriggerRuleScheduler
 import com.voiceconfig.app.di.UserAliasRegistry
@@ -43,6 +46,7 @@ import java.time.ZoneId
 import javax.inject.Inject
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -72,6 +76,7 @@ class AutomationViewModel @Inject constructor(
     private val agentSession: AgentSession,
     private val agentSkillStore: AgentSkillStore,
     private val agentCapabilityInspector: AgentCapabilityInspector,
+    private val voiceCommandCenter: VoiceCommandCenter,
 ) : ViewModel() {
 
     init {
@@ -79,6 +84,19 @@ class AutomationViewModel @Inject constructor(
             seedTemplatesIfEmpty()
             migrateLegacyTasks()
             restoreSchedules()
+        }
+        viewModelScope.launch {
+            voiceCommandCenter.commands
+                .filter { it.target == VoiceCommandTarget.AUTOMATION }
+                .collect { command ->
+                    if (voiceCommandCenter.isAcked(command.commandId)) return@collect
+                    if (voiceCommandCenter.isExpired(command)) {
+                        voiceCommandCenter.ack(command.commandId)
+                        return@collect
+                    }
+                    handleVoiceCommand(command)
+                    voiceCommandCenter.ack(command.commandId)
+                }
         }
     }
 
@@ -124,6 +142,18 @@ class AutomationViewModel @Inject constructor(
                 manualPackage = "",
                 manualDeepLink = "",
             )
+        }
+    }
+
+    /**
+     * VoiceCommandCenter 的本地自动化命令入口（未配置云模型时的兼容路径）。
+     */
+    fun handleVoiceCommand(command: GlobalVoiceCommand) {
+        val text = command.text
+        if (text.isBlank()) return
+        onInputChange(text)
+        if (command.autoParse) {
+            parse()
         }
     }
 

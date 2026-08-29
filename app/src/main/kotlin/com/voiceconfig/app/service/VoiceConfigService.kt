@@ -38,6 +38,8 @@ import com.voiceconfig.app.ai.TtsSpeaker
 import com.voiceconfig.app.ai.WakeWordDetector
 import com.voiceconfig.app.scheduler.ConditionTriggerHandler
 import com.voiceconfig.app.scheduler.TriggerRuleScheduler
+import com.voiceconfig.app.voice.VoiceCommandCenter
+import com.voiceconfig.app.voice.VoiceCommandSource
 import kotlinx.coroutines.delay
 import com.voiceconfig.core.scheduler.TaskScheduler
 import com.voiceconfig.data.local.repository.TaskRepository
@@ -68,6 +70,7 @@ class VoiceConfigService : Service() {
     @Inject lateinit var apiKeyStore: com.voiceconfig.app.ai.ApiKeyStore
     @Inject lateinit var wakeWordDetector: WakeWordDetector
     @Inject lateinit var ttsSpeaker: TtsSpeaker
+    @Inject lateinit var voiceCommandCenter: VoiceCommandCenter
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private var overlayView: View? = null
@@ -75,6 +78,7 @@ class VoiceConfigService : Service() {
     private var overlayWindowManager: WindowManager? = null
     private var globalRecognizer: SpeechRecognizer? = null
     private var globalListening = false
+    private var globalVoiceSource = VoiceCommandSource.GLOBAL_BALL
     private var globalVoiceTimeout: Runnable? = null
     private var voiceConfirmationView: View? = null
     private var voiceConfirmationParams: WindowManager.LayoutParams? = null
@@ -193,7 +197,7 @@ class VoiceConfigService : Service() {
         wakeWordDetector.start(
             listener = object : WakeWordDetector.Listener {
                 override fun onWakeWord(text: String) {
-                    startGlobalVoice()
+                    startGlobalVoice(source = VoiceCommandSource.WAKE_WORD)
                 }
 
                 override fun onError(error: Int) {
@@ -324,8 +328,9 @@ class VoiceConfigService : Service() {
         overlayWindowManager = null
     }
 
-    private fun startGlobalVoice() {
+    private fun startGlobalVoice(source: VoiceCommandSource = VoiceCommandSource.GLOBAL_BALL) {
         if (globalListening) return
+        globalVoiceSource = source
         val granted = ContextCompat.checkSelfPermission(
             this,
             android.Manifest.permission.RECORD_AUDIO,
@@ -487,9 +492,16 @@ class VoiceConfigService : Service() {
             this.text = "取消"
         }
         execute.setOnClickListener {
+            val token = java.util.UUID.randomUUID().toString()
+            voiceCommandCenter.submit(
+                text = text,
+                source = globalVoiceSource,
+                autoSend = true,
+                confirmationToken = token,
+            )
             val intent = Intent(this@VoiceConfigService, MainActivity::class.java).apply {
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
-                putExtra("global_voice_text", text)
+                putExtra("global_voice_confirmation_token", token)
             }
             dismissVoiceConfirmation()
             runCatching { ttsSpeaker.speak("好的，正在处理") }

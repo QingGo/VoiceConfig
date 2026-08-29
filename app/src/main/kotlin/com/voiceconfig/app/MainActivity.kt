@@ -118,6 +118,8 @@ import com.voiceconfig.app.ai.AsrEngineStatus
 import com.voiceconfig.app.ai.LocalAsrManager
 import com.voiceconfig.app.service.AccessibilityKeepAlive
 import com.voiceconfig.app.service.VoiceConfigService
+import com.voiceconfig.app.voice.VoiceCommandCenter
+import com.voiceconfig.app.voice.VoiceCommandSource
 import com.voiceconfig.app.ui.theme.SuccessGreen
 import com.voiceconfig.app.ui.AgentNavigation
 import com.voiceconfig.app.ui.AppDestination
@@ -150,6 +152,7 @@ class MainActivity : ComponentActivity() {
     @Inject lateinit var agentSession: AgentSession
     @Inject lateinit var shizukuCommandRunner: ShizukuCommandRunner
     @Inject lateinit var accessibilityKeepAlive: AccessibilityKeepAlive
+    @Inject lateinit var voiceCommandCenter: VoiceCommandCenter
 
     private val viewModel: MainViewModel by viewModels()
     private val profileViewModel: ProfileViewModel by viewModels()
@@ -279,7 +282,10 @@ class MainActivity : ComponentActivity() {
                             capabilityStatus = capabilityStatus,
                         )
                     } else {
-                        MainScreen(viewModel = viewModel)
+                        MainScreen(
+                            viewModel = viewModel,
+                            voiceCommandCenter = voiceCommandCenter,
+                        )
                     }
                 }
             }
@@ -300,7 +306,12 @@ class MainActivity : ComponentActivity() {
     private fun handleGlobalVoiceIntent(intent: Intent?) {
         val text = intent?.getStringExtra("global_voice_text")?.takeIf { it.isNotBlank() } ?: return
         intent.removeExtra("global_voice_text")
-        viewModel.submitGlobalVoiceCommand(text)
+        voiceCommandCenter.submit(
+            text = text,
+            source = VoiceCommandSource.GLOBAL_BALL,
+            autoSend = true,
+            confirmationToken = intent?.getStringExtra("global_voice_confirmation_token"),
+        )
     }
 
     override fun onResume() {

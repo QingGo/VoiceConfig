@@ -20,6 +20,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.remember
 import com.voiceconfig.app.ai.AsrEngineStatus
 import com.voiceconfig.app.ai.LocalAsrManager
+import com.voiceconfig.app.voice.VoiceCommandCenter
+import com.voiceconfig.app.voice.VoiceCommandSource
+import com.voiceconfig.app.voice.VoiceCommandTarget
 
 class VoiceInputController(
     val isListening: State<Boolean>,
@@ -33,7 +36,11 @@ class VoiceInputController(
 fun rememberVoiceInputController(
     context: Context,
     localAsrManager: LocalAsrManager?,
-    viewModel: MainViewModel,
+    voiceCommandCenter: VoiceCommandCenter,
+    onHomePartial: (String) -> Unit = {},
+    onAgentPartial: (String) -> Unit = {},
+    onVoiceError: (String) -> Unit = {},
+    onParse: () -> Unit = {},
     uiParsing: Boolean,
     isAgentBusy: Boolean,
 ): VoiceInputController {
@@ -61,8 +68,12 @@ fun rememberVoiceInputController(
         }
     }
 
-    var activeSpeechConsumer by remember { mutableStateOf<(String) -> Unit>({ viewModel.onInputChange(it) }) }
-    var pendingSpeechConsumer by remember { mutableStateOf<(String) -> Unit>({ viewModel.onInputChange(it) }) }
+    var activeSpeechConsumer by remember { mutableStateOf<(String) -> Unit>({
+        voiceCommandCenter.submit(it, source = VoiceCommandSource.APP_INTERNAL)
+    }) }
+    var pendingSpeechConsumer by remember { mutableStateOf<(String) -> Unit>({
+        voiceCommandCenter.submit(it, source = VoiceCommandSource.APP_INTERNAL)
+    }) }
     var pendingSpeechPartialConsumer by remember { mutableStateOf<(String) -> Unit>({}) }
     var voiceSessionCounter by remember { mutableStateOf(0L) }
 
@@ -80,9 +91,11 @@ fun rememberVoiceInputController(
     }
 
     fun startListening(
-        onResult: (String) -> Unit = { viewModel.onInputChange(it) },
+        onResult: (String) -> Unit = {
+            voiceCommandCenter.submit(it, source = VoiceCommandSource.APP_INTERNAL)
+        },
         onPartial: (String) -> Unit = {},
-        onError: (String) -> Unit = { viewModel.setParseMessage(it) },
+        onError: (String) -> Unit = onVoiceError,
     ) {
         activeSpeechConsumer = onResult
         if (asrEngineStatus == AsrEngineStatus.WARMING_UP || asrEngineStatus == AsrEngineStatus.COLD) {
@@ -181,14 +194,15 @@ fun rememberVoiceInputController(
                 voiceSessionCounter++
                 val voiceSession = "home_voice_$voiceSessionCounter"
                 pendingSpeechConsumer = { text ->
-                    viewModel.submitVoiceResult(
+                    voiceCommandCenter.submit(
                         text = text,
-                        asrEngine = if (localAsrManager?.isModelAvailable() == true) "local-asr" else "system",
-                        toAgent = false,
-                        voiceSessionId = voiceSession,
+                        source = VoiceCommandSource.APP_INTERNAL,
+                        target = null,
+                        autoSend = true,
+                        dedupKey = voiceSession,
                     )
                 }
-                pendingSpeechPartialConsumer = { viewModel.onInputChange(it) }
+                pendingSpeechPartialConsumer = onHomePartial
                 val granted = Build.VERSION.SDK_INT < Build.VERSION_CODES.M ||
                     context.checkSelfPermission(android.Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
                 if (granted) {
@@ -210,21 +224,22 @@ fun rememberVoiceInputController(
                 voiceSessionCounter++
                 val voiceSession = "agent_voice_$voiceSessionCounter"
                 pendingSpeechConsumer = { text ->
-                    viewModel.submitVoiceResult(
+                    voiceCommandCenter.submit(
                         text = text,
-                        asrEngine = if (localAsrManager?.isModelAvailable() == true) "local-asr" else "system",
-                        toAgent = true,
-                        voiceSessionId = voiceSession,
+                        source = VoiceCommandSource.APP_INTERNAL,
+                        target = VoiceCommandTarget.AGENT,
+                        autoSend = null,
+                        dedupKey = voiceSession,
                     )
                 }
-                pendingSpeechPartialConsumer = { viewModel.onAgentInputChange(it) }
+                pendingSpeechPartialConsumer = onAgentPartial
                 val granted = Build.VERSION.SDK_INT < Build.VERSION_CODES.M ||
                     context.checkSelfPermission(android.Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
                 if (granted) {
                     startListening(
                         onResult = pendingSpeechConsumer,
                         onPartial = pendingSpeechPartialConsumer,
-                        onError = { viewModel.setParseMessage(it) },
+                        onError = onVoiceError,
                     )
                 } else {
                     audioPermissionLauncher.launch(android.Manifest.permission.RECORD_AUDIO)
@@ -239,7 +254,7 @@ fun rememberVoiceInputController(
             speechRecognizer?.stopListening()
             isListening.value = false
         }
-        viewModel.submitNaturalLanguageInput()
+        onParse()
     }
 
     return VoiceInputController(

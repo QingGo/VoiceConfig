@@ -153,14 +153,6 @@ class MainViewModel @Inject constructor(
         )
     }
 
-    /** 由 Compose 层注入子 ViewModel，用于统一语音/自然语言转发。 */
-    var automationViewModel: AutomationViewModel? = null
-    var agentViewModel: AgentViewModel? = null
-
-    private var lastVoiceSessionId: String? = null
-    private var lastVoiceText: String = ""
-    private var pendingGlobalVoiceCommand: String? = null
-
     fun updateShoppingItemStatus(productId: String, status: String) {
         viewModelScope.launch {
             shoppingFeature.updateStatus(productId, status)
@@ -179,117 +171,6 @@ class MainViewModel @Inject constructor(
         }
     }
 
-    fun submitGlobalVoiceCommand(text: String) {
-        val command = text.trim()
-        if (command.isBlank()) return
-        if (apiKeyStore.deepSeekApiKey.isNotBlank()) {
-            if (agentViewModel == null) {
-                pendingGlobalVoiceCommand = command
-                return
-            }
-            agentViewModel?.onAgentInputChange(command)
-            agentViewModel?.sendAgentMessage(command)
-            agentViewModel?.clearAgentDraft()
-        } else {
-            automationViewModel?.onInputChange(command)
-            automationViewModel?.parse()
-        }
-    }
-
-    fun flushPendingGlobalVoice() {
-        val command = pendingGlobalVoiceCommand ?: return
-        pendingGlobalVoiceCommand = null
-        submitGlobalVoiceCommand(command)
-    }
-
-    fun submitNaturalLanguageInput() {
-        val text = automationViewModel?.uiState?.value?.input?.trim().orEmpty()
-        if (text.isBlank()) return
-        if (apiKeyStore.deepSeekApiKey.isNotBlank()) {
-            agentViewModel?.sendAgentMessage(text)
-            agentViewModel?.clearAgentDraft()
-        } else {
-            automationViewModel?.parse()
-        }
-    }
-
-    fun onInputChange(value: String) {
-        automationViewModel?.onInputChange(value)
-    }
-
-    fun onAgentInputChange(value: String) {
-        agentViewModel?.onAgentInputChange(value)
-    }
-
-    fun clearAgentDraft() {
-        agentViewModel?.clearAgentDraft()
-    }
-
-    fun setParseMessage(message: String) {
-        automationViewModel?.setParseMessage(message)
-    }
-
-    fun parse() {
-        automationViewModel?.parse()
-    }
-
-    /** 统一语音入口：所有 ASR 结果都应通过这里进入 Home/Agent 管道。 */
-    fun submitVoiceResult(
-        text: String,
-        asrEngine: String = "unknown",
-        language: String? = null,
-        confidence: Float? = null,
-        toAgent: Boolean = false,
-        autoParse: Boolean = true,
-        voiceSessionId: String? = null,
-    ) {
-        val normalized = text.trim()
-        if (normalized.isBlank()) return
-        if (voiceSessionId != null && voiceSessionId == lastVoiceSessionId && normalized == lastVoiceText) {
-            // 同一个语音会话的重复 final 结果，忽略，避免创建重复目标。
-            return
-        }
-        if (voiceSessionId != null) {
-            lastVoiceSessionId = voiceSessionId
-            lastVoiceText = normalized
-        }
-        val intent = VoiceIntent.fromText(text, asrEngine, language, confidence)
-        submitVoiceIntent(intent, toAgent = toAgent, autoParse = autoParse)
-    }
-
-    fun submitVoiceIntent(
-        intent: VoiceIntent,
-        toAgent: Boolean = false,
-        autoParse: Boolean = true,
-    ) {
-        if (intent.isBlank) return
-        val resolved = intent.copy(
-            intentType = if (toAgent) VoiceIntentType.AGENT else VoiceIntentType.SIMPLE_TASK,
-        )
-
-        // 第一阶段统一管道：只要配置了云模型，自然语言一律走
-        // 云 LLM + Function Calling，不再由本地解析器判断简单/复杂。
-        // 本地解析器仅作为未配置云模型时的兼容/模板回退。
-        if (!toAgent && apiKeyStore.deepSeekApiKey.isNotBlank()) {
-            agentViewModel?.onAgentInputChange(resolved.normalized)
-            agentViewModel?.sendAgentMessage(resolved.normalized)
-            agentViewModel?.clearAgentDraft()
-            return
-        }
-
-        if (toAgent) {
-            agentViewModel?.onAgentInputChange(resolved.normalized)
-            if (apiKeyStore.agentVoiceAutoSend && apiKeyStore.deepSeekApiKey.isNotBlank()) {
-                agentViewModel?.sendAgentMessage(resolved.normalized)
-                agentViewModel?.clearAgentDraft()
-            }
-        } else {
-            onInputChange(resolved.normalized)
-            if (autoParse) {
-                parse()
-            }
-        }
-    }
 }
 
 internal fun repairToolCallIds(messages: List<AgentMessageEntity>): List<AgentMessageEntity> {

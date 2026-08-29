@@ -151,6 +151,8 @@ viewModel.flushPendingGlobalVoice()
 
 ### 第一阶段：把“全局语音管道”做成正式组件
 
+> 状态：✅ 已完成（本轮实现 `VoiceCommandCenter`，MainViewModel 桥接已移除）
+
 目标：消除隐形桥接，让全局语音成为和 App 内语音完全同等的输入源。
 
 #### 要做

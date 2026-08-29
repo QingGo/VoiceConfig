@@ -103,6 +103,8 @@
 
 ## Phase 1：全局语音入口（已完成）
 
+- [x] 正式 VoiceCommandCenter / GlobalVoiceCommandBus：Hilt Singleton + SharedFlow<GlobalVoiceCommand> + 去重/超时/ack；Service 发送，Agent/Automation ViewModel 明确订阅，MainViewModel 可变桥接已移除
+- [x] 所有语音入口统一：App 内语音 / 全局悬浮球 / 唤醒词 / 调试广播均经 VoiceCommandCenter 单管道
 - [x] 系统级悬浮球基础：VoiceConfigService 在获得悬浮窗权限后显示可拖动「言」球，短按聆听、长按打开 App，位置本地记忆
 - [x] 真机校准：悬浮球改用 dp 尺寸（默认 60dp，聆听 150x64dp）；App 前台自动隐藏系统球，回到桌面后自动恢复
 - [x] 全局语音结果直接驱动 Agent：悬浮确认后开始 App 并提交 Agent，不依赖“自动发送”开关

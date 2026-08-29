@@ -22,6 +22,9 @@ import com.voiceconfig.app.agent.VoiceSession
 import com.voiceconfig.app.agent.VoiceSessionManager
 import com.voiceconfig.app.ai.ApiKeyStore
 import com.voiceconfig.app.ai.TtsSpeaker
+import com.voiceconfig.app.voice.GlobalVoiceCommand
+import com.voiceconfig.app.voice.VoiceCommandCenter
+import com.voiceconfig.app.voice.VoiceCommandTarget
 import com.voiceconfig.data.local.entity.AgentMessageEntity
 import com.voiceconfig.data.local.entity.AgentSessionEntity
 import com.voiceconfig.data.local.entity.AgentStepEntity
@@ -32,6 +35,7 @@ import javax.inject.Inject
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -57,6 +61,7 @@ class AgentViewModel @Inject constructor(
     private val taskPlanStore: TaskPlanStore,
     private val ttsSpeaker: TtsSpeaker,
     private val voiceSessionManager: VoiceSessionManager,
+    private val voiceCommandCenter: VoiceCommandCenter,
 ) : ViewModel() {
 
     private var skillBackfillStarted = false
@@ -64,6 +69,19 @@ class AgentViewModel @Inject constructor(
     init {
         viewModelScope.launch {
             backfillSkillsFromHistory()
+        }
+        viewModelScope.launch {
+            voiceCommandCenter.commands
+                .filter { it.target == VoiceCommandTarget.AGENT }
+                .collect { command ->
+                    if (voiceCommandCenter.isAcked(command.commandId)) return@collect
+                    if (voiceCommandCenter.isExpired(command)) {
+                        voiceCommandCenter.ack(command.commandId)
+                        return@collect
+                    }
+                    handleVoiceCommand(command)
+                    voiceCommandCenter.ack(command.commandId)
+                }
         }
     }
 
@@ -305,6 +323,22 @@ class AgentViewModel @Inject constructor(
 
     fun clearAgentDraft() {
         _agentDraft.value = ""
+    }
+
+    /**
+     * VoiceCommandCenter 的统一 Agent 命令入口。
+     * 每个命令在这里只会处理一次；处理完成后由调用方 ack。
+     */
+    fun handleVoiceCommand(command: GlobalVoiceCommand) {
+        val text = command.text
+        if (text.isBlank()) return
+        if (command.autoSend && apiKeyStore.deepSeekApiKey.isNotBlank()) {
+            onAgentInputChange(text)
+            sendAgentMessage(text)
+            clearAgentDraft()
+        } else {
+            onAgentInputChange(text)
+        }
     }
 
 

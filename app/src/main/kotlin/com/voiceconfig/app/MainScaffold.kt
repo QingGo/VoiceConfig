@@ -122,6 +122,9 @@ import com.voiceconfig.app.ai.AsrEngineStatus
 import com.voiceconfig.app.ai.LocalAsrManager
 import com.voiceconfig.app.service.AccessibilityKeepAlive
 import com.voiceconfig.app.service.VoiceConfigService
+import com.voiceconfig.app.voice.VoiceCommandCenter
+import com.voiceconfig.app.voice.VoiceCommandSource
+import com.voiceconfig.app.voice.VoiceCommandTarget
 import com.voiceconfig.app.ui.theme.SuccessGreen
 import com.voiceconfig.app.ui.AgentNavigation
 import com.voiceconfig.app.ui.AppRoutes
@@ -147,7 +150,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 @Composable
-fun MainScreen(viewModel: MainViewModel) {
+fun MainScreen(viewModel: MainViewModel, voiceCommandCenter: VoiceCommandCenter) {
     val sshViewModel: SshViewModel = hiltViewModel()
     val profileViewModel: ProfileViewModel = hiltViewModel()
     val automationViewModel: AutomationViewModel = hiltViewModel()
@@ -210,11 +213,13 @@ fun MainScreen(viewModel: MainViewModel) {
     LaunchedEffect(debugHomeSpeech) {
         val speech = debugHomeSpeech ?: return@LaunchedEffect
         showCreatePanel = true
-        viewModel.submitVoiceResult(
+        voiceCommandCenter.submit(
             text = speech.text,
-            asrEngine = "debug-bridge",
-            toAgent = false,
+            source = VoiceCommandSource.DEBUG_BROADCAST,
+            target = null,
+            autoSend = true,
             autoParse = speech.parse,
+            dedupKey = "debug_home_${speech.text.hashCode()}",
         )
         AgentTestBridge.clearHomeSpeech()
     }
@@ -225,11 +230,13 @@ fun MainScreen(viewModel: MainViewModel) {
                 agentViewModel.clearSelectedAgentSession()
                 agentTabIndex = AgentNavigation.TAB_CONVERSATION
             }
-            agentViewModel.onAgentInputChange(command.text)
-            if (command.send) {
-                agentViewModel.sendAgentMessage(command.text.trim())
-                agentViewModel.clearAgentDraft()
-            }
+            voiceCommandCenter.submit(
+                text = command.text,
+                source = VoiceCommandSource.DEBUG_BROADCAST,
+                target = VoiceCommandTarget.AGENT,
+                autoSend = command.send,
+                autoParse = true,
+            )
         }
         AgentTestBridge.clear()
     }
@@ -279,7 +286,21 @@ fun MainScreen(viewModel: MainViewModel) {
     val voiceController = rememberVoiceInputController(
         context = context,
         localAsrManager = localAsrManager,
-        viewModel = viewModel,
+        voiceCommandCenter = voiceCommandCenter,
+        onHomePartial = automationViewModel::onInputChange,
+        onAgentPartial = agentViewModel::onAgentInputChange,
+        onVoiceError = automationViewModel::setParseMessage,
+        onParse = {
+            val text = uiState.input.trim()
+            if (text.isNotBlank()) {
+                if (deepSeekApiKey.isNotBlank()) {
+                    agentViewModel.sendAgentMessage(text)
+                    agentViewModel.clearAgentDraft()
+                } else {
+                    automationViewModel.parse()
+                }
+            }
+        },
         uiParsing = uiState.isParsing,
         isAgentBusy = isAgentBusy,
     )
@@ -304,12 +325,6 @@ fun MainScreen(viewModel: MainViewModel) {
             launchSingleTop = true
             restoreState = true
         }
-    }
-
-    LaunchedEffect(Unit) {
-        viewModel.automationViewModel = automationViewModel
-        viewModel.agentViewModel = agentViewModel
-        viewModel.flushPendingGlobalVoice()
     }
 
     LaunchedEffect(currentRoute) {
@@ -455,7 +470,7 @@ fun MainScreen(viewModel: MainViewModel) {
                         streamText = agentStreamText,
                         reasoningText = agentReasoningText,
                         input = agentDraft,
-                        onInputChange = viewModel::onAgentInputChange,
+                        onInputChange = agentViewModel::onAgentInputChange,
                         onQuickAction = { actionText ->
                             agentViewModel.newAgentSession()
                             agentViewModel.onAgentInputChange(actionText)
