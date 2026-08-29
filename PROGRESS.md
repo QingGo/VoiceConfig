@@ -1,5 +1,7 @@
 # VoiceConfig 开发进度
 
+> 系统性战略与技术债分析见 [SYSTEM_THINKING.md](SYSTEM_THINKING.md)
+
 > 更新时间：2026-08-27
 > 依据：DESIGN.md
 
