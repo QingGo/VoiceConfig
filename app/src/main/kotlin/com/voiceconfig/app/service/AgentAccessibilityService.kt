@@ -33,6 +33,12 @@ class AgentAccessibilityService : AccessibilityService() {
     @Volatile
     private var activeRoot: AccessibilityNodeInfo? = null
 
+    override fun onCreate() {
+        super.onCreate()
+        instance = this
+        Log.i(TAG, "AgentAccessibilityService created, instance=$instance")
+    }
+
     override fun onServiceConnected() {
         super.onServiceConnected()
         instance = this
