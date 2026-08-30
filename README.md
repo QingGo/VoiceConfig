@@ -317,12 +317,12 @@ Shizuku 用于提供 shell 级能力，让“打开 App、读取 UI、输入点�
 
 ## 版本与发布
 
-- 当前版本：`0.1.1`
+- 当前版本：`0.1.2`
 - 构建产物：`app/build/outputs/apk/debug/app-debug.apk`
-- 打 Tag 自动发布：在 GitHub 推送 `v0.1.1` 格式的 tag 后，CI 会自动构建并在 GitHub Release 中附上 APK。
+- 打 Tag 自动发布：在 GitHub 推送 `v0.1.2` 格式的 tag 后，CI 会自动构建并在 GitHub Release 中附上 APK。
   ```bash
-  git tag v0.1.1
-  git push origin v0.1.1
+  git tag v0.1.2
+  git push origin v0.1.2
   ```
 
 ## 开发与测试
