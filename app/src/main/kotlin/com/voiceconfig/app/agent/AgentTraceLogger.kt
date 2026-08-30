@@ -119,6 +119,18 @@ class AgentTraceLogger @Inject constructor(
         return AgentTraceReportBuilder.build(events)
     }
 
+    fun writeReport(runId: String): String? {
+        val report = report(runId) ?: return null
+        return runCatching {
+            synchronized(lock) {
+                logDir.mkdirs()
+                val file = File(logDir, "report_${runId.sanitize()}.md")
+                file.writeText(AgentTraceReportBuilder.toMarkdown(report))
+                file.absolutePath
+            }
+        }.getOrNull()
+    }
+
     private fun JSONObject.toMap(): Map<String, Any?> = buildMap {
         keys().forEach { key ->
             put(key, opt(key))
