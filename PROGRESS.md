@@ -346,3 +346,11 @@
 
 - [x] 新增 `app/src/main/assets/flow_script_schema.json`：声明 FlowScript v1 顶层字段、步骤、动作类型、参数
 - [x] schema 包含动作类型合法值与必填字段约束，可作为外部导入/审核工具参考
+
+## FlowScript 动作扩展（2026-08-30 续）
+
+- [x] `FlowAction` 新增 `InputText(text)` 和 `Wait(ms)`
+- [x] `FlowScriptCodec` 支持新动作的 JSON 序列化/反序列化/校验
+- [x] `UiFlowExecutor` 支持执行输入文本与等待动作，文本同样支持参数模板
+- [x] `flow_script_schema.json` 同步加入 `input_text` / `wait` 动作类型和必填字段
+- [x] 新增动作 roundtrip 单测

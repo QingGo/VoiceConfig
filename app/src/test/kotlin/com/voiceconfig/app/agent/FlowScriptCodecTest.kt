@@ -60,16 +60,22 @@ class FlowScriptCodecTest {
                 FlowStep(id = "3", whenContains = listOf("c"), action = FlowAction.Back),
                 FlowStep(id = "4", whenContains = listOf("d"), action = FlowAction.DismissPopups),
                 FlowStep(id = "5", whenContains = listOf("e"), action = FlowAction.TapTextOrBack(listOf("e"))),
+                FlowStep(id = "6", whenContains = listOf("f"), action = FlowAction.InputText("你好")),
+                FlowStep(id = "7", whenContains = listOf("g"), action = FlowAction.Wait(300)),
             ),
         )
         val decoded = FlowScriptCodec.parse(FlowScriptCodec.toJsonString(script))
         assertNotNull(decoded)
-        assertEquals(5, decoded!!.steps.size)
+        assertEquals(7, decoded!!.steps.size)
         assertTrue(decoded.steps[0].action is FlowAction.TapText)
         assertTrue(decoded.steps[1].action is FlowAction.TapId)
         assertTrue(decoded.steps[2].action is FlowAction.Back)
         assertTrue(decoded.steps[3].action is FlowAction.DismissPopups)
         assertTrue(decoded.steps[4].action is FlowAction.TapTextOrBack)
+        assertTrue(decoded.steps[5].action is FlowAction.InputText)
+        assertTrue(decoded.steps[6].action is FlowAction.Wait)
+        assertEquals("你好", (decoded.steps[5].action as FlowAction.InputText).text)
+        assertEquals(300L, (decoded.steps[6].action as FlowAction.Wait).ms)
     }
 
     @Test

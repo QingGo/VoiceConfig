@@ -120,6 +120,8 @@ class UiFlowExecutor @Inject constructor(
         FlowAction.Back -> FlowAction.Back
         FlowAction.DismissPopups -> FlowAction.DismissPopups
         is FlowAction.TapTextOrBack -> FlowAction.TapTextOrBack(action.candidates.map { expandTemplate(it, params) })
+        is FlowAction.InputText -> FlowAction.InputText(expandTemplate(action.text, params))
+        is FlowAction.Wait -> action
     }
 
     private fun expandTemplate(text: String, params: Map<String, String>): String {
@@ -143,6 +145,11 @@ class UiFlowExecutor @Inject constructor(
         is FlowAction.TapTextOrBack -> {
             val tapped = uiActionLayer.tapByText(*action.candidates.toTypedArray()).ok
             if (tapped) true else uiActionLayer.back().ok
+        }
+        is FlowAction.InputText -> uiActionLayer.input(action.text).ok
+        is FlowAction.Wait -> {
+            delay(action.ms.coerceIn(50, 60_000))
+            true
         }
     }
 }

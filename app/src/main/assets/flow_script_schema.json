@@ -65,7 +65,7 @@
       "properties": {
         "type": {
           "type": "string",
-          "enum": ["tap_text", "tap_id", "back", "dismiss_popups", "tap_text_or_back"]
+          "enum": ["tap_text", "tap_id", "back", "dismiss_popups", "tap_text_or_back", "input_text", "wait"]
         },
         "candidates": {
           "type": "array",
@@ -74,7 +74,9 @@
         "resourceIds": {
           "type": "array",
           "items": { "type": "string" }
-        }
+        },
+        "text": { "type": "string" },
+        "ms": { "type": "integer", "minimum": 1 }
       },
       "allOf": [
         {
@@ -88,6 +90,14 @@
         {
           "if": { "properties": { "type": { "const": "tap_text_or_back" } } },
           "then": { "required": ["candidates"] }
+        },
+        {
+          "if": { "properties": { "type": { "const": "input_text" } } },
+          "then": { "required": ["text"] }
+        },
+        {
+          "if": { "properties": { "type": { "const": "wait" } } },
+          "then": { "required": ["ms"] }
         }
       ]
     }

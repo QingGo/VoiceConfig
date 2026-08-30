@@ -55,6 +55,8 @@ sealed class FlowAction {
     object Back : FlowAction()
     object DismissPopups : FlowAction()
     data class TapTextOrBack(val candidates: List<String>) : FlowAction()
+    data class InputText(val text: String) : FlowAction()
+    data class Wait(val ms: Long) : FlowAction()
 }
 
 data class FlowExecutionResult(

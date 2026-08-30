@@ -64,6 +64,7 @@
 - `UiFlowExecutor` 已支持 forbiddenActionTokens 安全护栏
 - FlowScript 支持脚本参数模板 `{key}`，瑞幸 drink/temperature 已参数化可由 LLM/工具覆盖
 - 新增正式 FlowScript v1 JSON Schema 文件 `app/src/main/assets/flow_script_schema.json`
+- FlowScript 动作扩展：`InputText` / `Wait` 已加入编码、校验、执行器与 JSON Schema
 - 新增 `strong_remind` 强提醒工具：全屏高优先级通知 + 震动 + 铃声，用于无 Shizuku/熄屏降级
 - `UiWaitTool` 已注册并通过真机 Mock E2E
 - UI 变更工具自动可见证据 + trace 化

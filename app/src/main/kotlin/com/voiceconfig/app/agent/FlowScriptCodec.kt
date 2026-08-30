@@ -125,6 +125,12 @@ object FlowScriptCodec {
                 is FlowAction.TapTextOrBack -> if (step.action.candidates.isEmpty()) {
                     errors += "$where tap_text_or_back 候选项不能为空"
                 }
+                is FlowAction.InputText -> if (step.action.text.isBlank()) {
+                    errors += "$where input_text 文本不能为空"
+                }
+                is FlowAction.Wait -> if (step.action.ms <= 0) {
+                    errors += "$where wait 毫秒数必须大于 0"
+                }
                 FlowAction.Back, FlowAction.DismissPopups -> Unit
             }
         }
@@ -145,6 +151,12 @@ object FlowScriptCodec {
         is FlowAction.TapTextOrBack -> JSONObject()
             .put("type", "tap_text_or_back")
             .put("candidates", stringsToArray(action.candidates))
+        is FlowAction.InputText -> JSONObject()
+            .put("type", "input_text")
+            .put("text", action.text)
+        is FlowAction.Wait -> JSONObject()
+            .put("type", "wait")
+            .put("ms", action.ms)
     }
 
     fun actionFromJson(obj: JSONObject): FlowAction? = when (obj.optString("type")) {
@@ -153,6 +165,8 @@ object FlowScriptCodec {
         "back" -> FlowAction.Back
         "dismiss_popups" -> FlowAction.DismissPopups
         "tap_text_or_back" -> FlowAction.TapTextOrBack(optStringList(obj, "candidates"))
+        "input_text" -> FlowAction.InputText(obj.optString("text"))
+        "wait" -> FlowAction.Wait(obj.optLong("ms", 500))
         else -> null
     }
 
