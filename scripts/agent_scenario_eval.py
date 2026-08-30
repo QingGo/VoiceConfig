@@ -350,6 +350,23 @@ def run_and_evaluate(serial, text, timeout=90, expected=None, pre_stop_packages=
                             )
                             result["scenarioVerified"] = False
                             result["failure_category"] = "TOOL_FAILURE"
+                        expect_failure = scenario.get("expectFailureContains")
+                        if expect_failure:
+                            msg = result.get("message") or ""
+                            if expect_failure.lower() in msg.lower():
+                                result["ok"] = True
+                                result["scenarioVerified"] = True
+                                result["failure_category"] = "EXPECTED_GUARD"
+                                result.setdefault("scenarioChecks", []).append(
+                                    {"type": "expected_failure", "expected": expect_failure, "actual": msg[:120], "ok": True}
+                                )
+                            else:
+                                result["ok"] = False
+                                result["scenarioVerified"] = False
+                                result["failure_category"] = "EXPECTED_GUARD_MISS"
+                                result.setdefault("scenarioChecks", []).append(
+                                    {"type": "expected_failure", "expected": expect_failure, "actual": msg[:120], "ok": False}
+                                )
                         if not extra.get("scenarioVerified", False):
                             result["ok"] = False
                             result["failure_category"] = "SCENARIO_VERIFY_FAIL"

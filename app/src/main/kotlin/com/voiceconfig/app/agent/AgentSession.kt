@@ -547,6 +547,39 @@ class AgentSession @Inject constructor(
                         )
                     }
                     StopDecision.DONE -> {
+                        val failedSteps = allSteps.filter { step ->
+                    !step.result.ok &&
+                        step.call in allToolCalls &&
+                        !step.result.message.contains("用户未确认敏感操作") &&
+                        !step.result.message.contains("系统安全拦截")
+                }
+                        if (failedSteps.isNotEmpty()) {
+                            val error = "执行未完成：" + failedSteps.joinToString("；") { "${it.call.tool} 失败：${it.result.message}" }
+                            setState(AgentRunState.FAILED)
+                            trace.log(runId, "run_finished", mapOf(
+                                "ok" to false,
+                                "message" to error,
+                                "tool_call_count" to allToolCalls.size,
+                                "duration_ms" to (System.currentTimeMillis() - startedAtMs),
+                                "failure_tools" to failedSteps.map { it.call.tool },
+                            ))
+                            history += AgentMessage("assistant", error)
+                            onMessage(history.last())
+                            return AgentTurnResult(
+                                ok = false,
+                                message = error,
+                                toolCalls = allToolCalls, toolResults = allToolResults.toList(),
+                                history = historySnapshot(),
+                                runId = runId,
+                                durationMs = System.currentTimeMillis() - startedAtMs,
+                                llmWaitMs = llmWaitMs,
+                                toolExecMs = toolExecMs,
+                                verifyMs = verifyMs,
+                                rounds = rounds,
+                                state = AgentRunState.FAILED,
+                                plan = currentPlan,
+                            )
+                        }
                         val commerceKeywords = listOf("下单", "支付", "购买", "订单", "结算", "确认订单", "点餐", "外卖", "购物", "买", "点一杯", "点单", "咖啡", "奶茶")
                         val isCommerceGoal = commerceKeywords.any { userText.contains(it) }
                         var cleanupNote = ""
@@ -643,6 +676,39 @@ class AgentSession @Inject constructor(
                         plan = currentPlan,
                     )
                 }
+                        val failedSteps = allSteps.filter { step ->
+                    !step.result.ok &&
+                        step.call in allToolCalls &&
+                        !step.result.message.contains("用户未确认敏感操作") &&
+                        !step.result.message.contains("系统安全拦截")
+                }
+                        if (failedSteps.isNotEmpty()) {
+                            val error = "执行未完成：" + failedSteps.joinToString("；") { "${it.call.tool} 失败：${it.result.message}" }
+                            setState(AgentRunState.FAILED)
+                            trace.log(runId, "run_finished", mapOf(
+                                "ok" to false,
+                                "message" to error,
+                                "tool_call_count" to allToolCalls.size,
+                                "duration_ms" to (System.currentTimeMillis() - startedAtMs),
+                                "failure_tools" to failedSteps.map { it.call.tool },
+                            ))
+                            history += AgentMessage("assistant", error)
+                            onMessage(history.last())
+                            return AgentTurnResult(
+                                ok = false,
+                                message = error,
+                                toolCalls = allToolCalls, toolResults = allToolResults.toList(),
+                                history = historySnapshot(),
+                                runId = runId,
+                                durationMs = System.currentTimeMillis() - startedAtMs,
+                                llmWaitMs = llmWaitMs,
+                                toolExecMs = toolExecMs,
+                                verifyMs = verifyMs,
+                                rounds = rounds,
+                                state = AgentRunState.FAILED,
+                                plan = currentPlan,
+                            )
+                        }
                 val commerceKeywords = listOf("下单", "支付", "购买", "订单", "结算", "确认订单", "点餐", "外卖", "购物", "买", "点一杯", "点单", "咖啡", "奶茶")
                 val isCommerceGoal = commerceKeywords.any { userText.contains(it) }
                 var cleanupNote = ""

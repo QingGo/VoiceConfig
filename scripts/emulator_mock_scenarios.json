@@ -49,6 +49,20 @@
     "timeout": 30,
     "requireNoFailedTools": true,
     "category": "mock-ui-assert"
+  },
+  {
+    "name": "个人微信自动化拦截（Mock LLM）",
+    "text": "微信自动化测试",
+    "timeout": 30,
+    "expectFailureContains": "个人微信",
+    "category": "mock-wechat-block"
+  },
+  {
+    "name": "企业微信未配置拦截（Mock LLM）",
+    "text": "企业微信发送",
+    "timeout": 30,
+    "expectFailureContains": "未配置企业微信",
+    "category": "mock-wecom-missing-config"
   }
 
 ]
