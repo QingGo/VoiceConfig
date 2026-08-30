@@ -38,4 +38,13 @@ class BuiltinSkillCatalogTest {
         assertTrue("wechat_send_reply" !in allSteps)
         assertTrue("wechat_open" !in allSteps)
     }
+
+    @Test
+    fun `luckin builtin uses the real device package name`() {
+        val luckin = BuiltinSkillCatalog.all().first { it.id == "builtin_luckin_order_to_payment" }
+        val openStep = luckin.steps.first { it.toolName == "open_app" }
+        assertTrue(openStep.args.contains("com.lucky.luckyclient"))
+        assertTrue(openStep.expected.contains("com.lucky.luckyclient"))
+    }
+
 }
