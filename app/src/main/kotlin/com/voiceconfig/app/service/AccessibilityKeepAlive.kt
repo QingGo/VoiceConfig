@@ -36,6 +36,20 @@ class AccessibilityKeepAlive @Inject constructor(
     var consecutiveFailures = 0
         private set
 
+    @Volatile
+    var lastSuccessAtMs: Long = 0L
+        private set
+    @Volatile
+    var lastAttemptAtMs: Long = 0L
+        private set
+    @Volatile
+    var lastError: String? = null
+        private set
+    @Volatile
+    var refreshCount: Long = 0L
+        private set
+
+
     /** 便于单测注入的连接探针；生产环境默认检查真实服务实例。 */
     @Volatile
     var instanceProbe: () -> Boolean = { AgentAccessibilityService.instance != null }
@@ -48,29 +62,34 @@ class AccessibilityKeepAlive @Inject constructor(
         consecutiveFailures = 0
         if (_state.value != AccessibilityKeepAliveState.CONNECTED) {
             _state.value = AccessibilityKeepAliveState.CONNECTED
-            Log.i(TAG, "state -> CONNECTED")
+            logI("state -> CONNECTED")
         }
     }
 
     fun markDisconnected(reason: String = "") {
         if (_state.value != AccessibilityKeepAliveState.DISCONNECTED) {
             _state.value = AccessibilityKeepAliveState.DISCONNECTED
-            Log.w(TAG, "state -> DISCONNECTED $reason")
+            logW("state -> DISCONNECTED $reason")
         }
     }
 
     fun markCrashed(reason: String) {
         _state.value = AccessibilityKeepAliveState.CRASHED
-        Log.e(TAG, "state -> CRASHED: $reason")
+        logE("state -> CRASHED: $reason")
     }
 
     /** 非挂起式刷新：检测实例、尝试写回系统设置，并更新状态机。 */
     fun refresh(): AccessibilityKeepAliveState {
+        refreshCount++
+        lastAttemptAtMs = System.currentTimeMillis()
         if (instanceProbe()) {
+            lastSuccessAtMs = System.currentTimeMillis()
+            lastError = null
             markConnected()
             return _state.value
         }
         if (!shizuku.isAvailable()) {
+            lastError = "Shizuku 不可用，无法写回无障碍开关"
             return if (_state.value == AccessibilityKeepAliveState.CRASHED) {
                 _state.value
             } else {
@@ -82,13 +101,17 @@ class AccessibilityKeepAlive @Inject constructor(
         val ok = ensureEnabled()
         return if (ok) {
             if (instanceProbe()) {
+                lastSuccessAtMs = System.currentTimeMillis()
+                lastError = null
                 markConnected()
             } else {
                 _state.value = AccessibilityKeepAliveState.CONNECTING
+                lastError = "已写回系统设置，等待无障碍服务实例连接"
             }
             _state.value
         } else {
             consecutiveFailures++
+            lastError = "write failed (${consecutiveFailures})"
             if (consecutiveFailures >= CRASH_THRESHOLD) {
                 markCrashed("${consecutiveFailures} consecutive write failures")
             } else {
@@ -105,11 +128,11 @@ class AccessibilityKeepAlive @Inject constructor(
     fun ensureEnabled(): Boolean {
         if (instanceProbe()) {
             markConnected()
-            Log.d(TAG, "ensureEnabled: already connected")
+            logD("ensureEnabled: already connected")
             return true
         }
         val shizukuAvailable = shizuku.isAvailable()
-        Log.d(TAG, "ensureEnabled: shizukuAvailable=$shizukuAvailable")
+        logD("ensureEnabled: shizukuAvailable=$shizukuAvailable")
         if (!shizukuAvailable) {
             _state.value = AccessibilityKeepAliveState.DISCONNECTED
             return false
@@ -117,7 +140,7 @@ class AccessibilityKeepAlive @Inject constructor(
         _state.value = AccessibilityKeepAliveState.CONNECTING
 
         val currentResult = shizuku.execute("settings", "get", "secure", "enabled_accessibility_services")
-        Log.d(TAG, "ensureEnabled: current=${currentResult.stdout.trim()} ok=${currentResult.ok} err=${currentResult.stderr.trim()}")
+        logD("ensureEnabled: current=${currentResult.stdout.trim()} ok=${currentResult.ok} err=${currentResult.stderr.trim()}")
         val current = currentResult.stdout.trim().removeSurrounding("\"").ifBlank { "" }
         val needsAdd = !current.contains(COMPONENT)
 
@@ -141,13 +164,18 @@ class AccessibilityKeepAlive @Inject constructor(
         if (putResult.ok) {
             // 部分设备需要把总开关也置 1。
             val enableResult = shizuku.execute("settings", "put", "secure", "accessibility_enabled", "1")
-            Log.i(TAG, "AccessibilityKeepAlive: enabled service written ok (needsAdd=$needsAdd, enableOk=${enableResult.ok}, enableErr=${enableResult.stderr.trim()})")
+            logI("AccessibilityKeepAlive: enabled service written ok (needsAdd=$needsAdd, enableOk=${enableResult.ok}, enableErr=${enableResult.stderr.trim()})")
             return true
         }
 
-        Log.w(TAG, "AccessibilityKeepAlive: failed to write secure settings: ${putResult.stderr.trim()} ok=${putResult.ok}")
+        logW("AccessibilityKeepAlive: failed to write secure settings: ${putResult.stderr.trim()} ok=${putResult.ok}")
         return false
     }
+
+    private fun logI(message: String) = runCatching { Log.i(TAG, message) }
+    private fun logW(message: String) = runCatching { Log.w(TAG, message) }
+    private fun logD(message: String) = runCatching { Log.d(TAG, message) }
+    private fun logE(message: String) = runCatching { Log.e(TAG, message) }
 
     companion object {
         private const val TAG = "AccessibilityKeepAlive"

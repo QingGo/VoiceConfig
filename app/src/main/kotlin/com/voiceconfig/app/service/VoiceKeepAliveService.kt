@@ -137,11 +137,19 @@ class VoiceKeepAliveService : Service() {
             var lastState = accessibilityKeepAlive.refresh()
             Log.i(TAG, "accessibility keep-alive initial state=$lastState")
             while (true) {
-                delay(30_000)
+                val delayMs = when (accessibilityKeepAlive.currentState()) {
+                    AccessibilityKeepAliveState.CONNECTED -> 30_000L
+                    AccessibilityKeepAliveState.CONNECTING -> 5_000L
+                    AccessibilityKeepAliveState.DISCONNECTED -> 10_000L
+                    AccessibilityKeepAliveState.CRASHED -> 5_000L
+                }
+                delay(delayMs)
                 val state = accessibilityKeepAlive.refresh()
                 if (state != lastState) {
                     Log.i(TAG, "accessibility keep-alive state changed $lastState -> $state")
                     lastState = state
+                } else if (state == AccessibilityKeepAliveState.CONNECTING || state == AccessibilityKeepAliveState.CRASHED) {
+                    Log.w(TAG, "accessibility keep-alive still $state, attempts=${accessibilityKeepAlive.refreshCount}, lastError=${accessibilityKeepAlive.lastError}")
                 }
             }
         }
