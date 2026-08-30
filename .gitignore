@@ -49,6 +49,7 @@ skills-lock.json
 # Only README screenshots are tracked; dev screenshots stay local
 screenshots/*
 !screenshots/readme_*.png
+ux_review/
 
 # Python
 __pycache__/
