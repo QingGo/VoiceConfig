@@ -86,4 +86,27 @@ class TerminalSafetyGateTest {
     }
 
 
+
+    @Test
+    fun `terminal hit includes domain matrix metadata`() {
+        val payment = TerminalSafetyGate.detect("确认支付", "买咖啡", "com.lucky.luckyclient")
+        assertEquals(TerminalSafetyGate.TerminalKind.PAYMENT, payment.kind)
+        assertEquals("支付/订单", payment.label)
+        assertTrue(payment.forbiddenActions.contains("确认支付"))
+        assertTrue(payment.humanConfirmUi.isNotEmpty())
+        assertEquals("terminal_payment", payment.traceMarker)
+
+        val send = TerminalSafetyGate.detect("确认发送", "给张三发消息", "com.tencent.wework")
+        assertEquals(TerminalSafetyGate.TerminalKind.SEND, send.kind)
+        assertEquals("消息发送", send.label)
+        assertTrue(send.forbiddenActions.contains("发送"))
+        assertTrue(send.humanConfirmUi.isNotEmpty())
+        assertEquals("terminal_send", send.traceMarker)
+
+        val remote = TerminalSafetyGate.detect("确认删除文件", "远程清理", "com.termux")
+        assertEquals(TerminalSafetyGate.TerminalKind.REMOTE_DESTRUCTIVE, remote.kind)
+        assertTrue(remote.forbiddenActions.contains("确认删除文件"))
+        assertEquals("terminal_remote_destructive", remote.traceMarker)
+    }
+
 }

@@ -80,6 +80,66 @@ object TerminalSafetyGate {
         "短信",
     )
 
+    private val DOMAINS: Map<TerminalKind, TerminalDomain> = mapOf(
+        TerminalKind.PAYMENT to TerminalDomain(
+            kind = TerminalKind.PAYMENT,
+            label = "支付/订单",
+            forbiddenActions = listOf("提交订单", "确认支付", "立即支付", "确认付款", "确认下单"),
+            humanConfirmUi = listOf("确认订单/免密支付页", "展示订单金额与收货信息", "真人点击支付"),
+            traceMarker = "terminal_payment",
+        ),
+        TerminalKind.SEND to TerminalDomain(
+            kind = TerminalKind.SEND,
+            label = "消息发送",
+            forbiddenActions = listOf("发送", "send", "确认发送"),
+            humanConfirmUi = listOf("消息输入框已填写", "展示收件人与最终内容", "真人点击发送"),
+            traceMarker = "terminal_send",
+        ),
+        TerminalKind.DELETE to TerminalDomain(
+            kind = TerminalKind.DELETE,
+            label = "删除/清空",
+            forbiddenActions = listOf("确认删除", "永久删除", "确认清空"),
+            humanConfirmUi = listOf("删除确认页", "展示将被删除的内容", "真人确认删除"),
+            traceMarker = "terminal_delete",
+        ),
+        TerminalKind.CONFIG to TerminalDomain(
+            kind = TerminalKind.CONFIG,
+            label = "配置修改",
+            forbiddenActions = listOf("确认修改", "确认覆盖", "保存更改", "确认保存"),
+            humanConfirmUi = listOf("配置变更确认页", "展示新旧配置差异", "真人确认保存"),
+            traceMarker = "terminal_config",
+        ),
+        TerminalKind.HOME_SECURITY to TerminalDomain(
+            kind = TerminalKind.HOME_SECURITY,
+            label = "智能家居安防",
+            forbiddenActions = listOf("确认撤防", "远程开门", "解锁确认", "关闭安防"),
+            humanConfirmUi = listOf("安防/门锁确认页", "展示设备与动作", "真人确认安全操作"),
+            traceMarker = "terminal_home_security",
+        ),
+        TerminalKind.REMOTE_DESTRUCTIVE to TerminalDomain(
+            kind = TerminalKind.REMOTE_DESTRUCTIVE,
+            label = "远程破坏性",
+            forbiddenActions = listOf("rm -rf", "确认删除文件", "确认覆盖文件", "确认重启", "确认关机"),
+            humanConfirmUi = listOf("远程命令确认", "展示目标路径/主机", "真人确认执行"),
+            traceMarker = "terminal_remote_destructive",
+        ),
+    )
+
+    private fun hit(kind: TerminalKind, marker: String, reason: String): TerminalHit {
+        val domain = DOMAINS[kind]
+        return TerminalHit(
+            kind = kind,
+            marker = marker,
+            reason = reason,
+            label = domain?.label ?: "",
+            forbiddenActions = domain?.forbiddenActions ?: emptyList(),
+            humanConfirmUi = domain?.humanConfirmUi ?: emptyList(),
+            traceMarker = domain?.traceMarker ?: "",
+        )
+    }
+
+    fun domainFor(kind: TerminalKind): TerminalDomain? = DOMAINS[kind]
+
     enum class TerminalKind {
         NONE,
         PAYMENT,
@@ -94,6 +154,18 @@ object TerminalSafetyGate {
         val kind: TerminalKind,
         val marker: String,
         val reason: String,
+        val label: String = "",
+        val forbiddenActions: List<String> = emptyList(),
+        val humanConfirmUi: List<String> = emptyList(),
+        val traceMarker: String = "",
+    )
+
+    data class TerminalDomain(
+        val kind: TerminalKind,
+        val label: String,
+        val forbiddenActions: List<String>,
+        val humanConfirmUi: List<String>,
+        val traceMarker: String,
     )
 
     /** 言控自身包名：在这些页面里出现“免密支付/发送”等字样只是任务描述或会话文本，不是真实终端页。 */
@@ -111,12 +183,12 @@ object TerminalSafetyGate {
         val goalText = goal.orEmpty()
 
         if (foregroundPackage == SELF_PACKAGE) {
-            return TerminalHit(TerminalKind.NONE, "", "当前前台为言控自身，忽略任务描述中的终端关键词")
+            return hit(TerminalKind.NONE, "", "当前前台为言控自身，忽略任务描述中的终端关键词")
         }
 
         val payment = PAYMENT_TERMINAL_MARKERS.firstOrNull { text.contains(it, ignoreCase = true) }
         if (payment != null) {
-            return TerminalHit(TerminalKind.PAYMENT, payment, "检测到支付/订单终端页：$payment")
+            return hit(TerminalKind.PAYMENT, payment, "检测到支付/订单终端页：$payment")
         }
 
         val sendMarker = listOf(
@@ -125,29 +197,29 @@ object TerminalSafetyGate {
             "确认发送消息",
         ).firstOrNull { text.contains(it, ignoreCase = true) }
         if (sendMarker != null) {
-            return TerminalHit(TerminalKind.SEND, sendMarker, "检测到消息发送确认页：$sendMarker")
+            return hit(TerminalKind.SEND, sendMarker, "检测到消息发送确认页：$sendMarker")
         }
 
         // “发送”按钮在很多页面都出现，只有用户目标是通信/回复时才视为终端。
         val sendButtonVisible = text.contains("发送", ignoreCase = true) || text.contains("send", ignoreCase = true)
         if (sendButtonVisible && isSendGoal(goalText)) {
-            return TerminalHit(TerminalKind.SEND, if (text.contains("send", ignoreCase = true)) "send" else "发送", "检测到发送按钮，且用户目标为消息发送")
+            return hit(TerminalKind.SEND, if (text.contains("send", ignoreCase = true)) "send" else "发送", "检测到发送按钮，且用户目标为消息发送")
         }
 
         REMOTE_DESTRUCTIVE_MARKERS.firstOrNull { text.contains(it, ignoreCase = true) }?.let {
-            return TerminalHit(TerminalKind.REMOTE_DESTRUCTIVE, it, "检测到远程破坏性操作终端：$it")
+            return hit(TerminalKind.REMOTE_DESTRUCTIVE, it, "检测到远程破坏性操作终端：$it")
         }
         DELETE_TERMINAL_MARKERS.firstOrNull { text.contains(it, ignoreCase = true) }?.let {
-            return TerminalHit(TerminalKind.DELETE, it, "检测到删除/清空确认页：$it")
+            return hit(TerminalKind.DELETE, it, "检测到删除/清空确认页：$it")
         }
         CONFIG_TERMINAL_MARKERS.firstOrNull { text.contains(it, ignoreCase = true) }?.let {
-            return TerminalHit(TerminalKind.CONFIG, it, "检测到配置修改确认页：$it")
+            return hit(TerminalKind.CONFIG, it, "检测到配置修改确认页：$it")
         }
         HOME_SECURITY_TERMINAL_MARKERS.firstOrNull { text.contains(it, ignoreCase = true) }?.let {
-            return TerminalHit(TerminalKind.HOME_SECURITY, it, "检测到智能家居安防终端：$it")
+            return hit(TerminalKind.HOME_SECURITY, it, "检测到智能家居安防终端：$it")
         }
 
-        return TerminalHit(TerminalKind.NONE, "", "")
+        return hit(TerminalKind.NONE, "", "")
     }
 
     fun isTerminal(uiEvidence: String, goal: String? = null, foregroundPackage: String? = null): Boolean =

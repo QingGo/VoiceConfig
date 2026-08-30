@@ -593,11 +593,11 @@
 ### P3：终端安全矩阵
 
 - [x] 支付 / 消息发送 / 删除 / 配置修改 / Home Assistant 安防域 / 远程破坏性命令（类型矩阵已扩展）
-- [ ] 每域定义：
+- [x] 每域定义：
   - 确认页特征
   - 禁止动作
   - 人工确认 UI
-  - trace 标记
+  - trace 标记（`terminal_gate` 事件已落地）
 
 ### P4：严格 E2E 与可观测性
 
@@ -791,6 +791,8 @@ adb shell am broadcast -a com.voiceconfig.app.DEBUG_AUTO_CONFIRM --ez enabled tr
   - 智能家居安防
   - 远程破坏性操作
 - 这些新增终端类型都会强制 `WAITING_CONFIRM`，不会自动执行。
+- 每域新增领域矩阵：确认页特征、禁止动作、人工确认 UI、trace 标记。
+- 进入终端页时会写入 `terminal_gate` trace 事件，便于审计与自动断言。
 
 ---
 

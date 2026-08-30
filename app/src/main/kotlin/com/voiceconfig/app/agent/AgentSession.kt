@@ -478,6 +478,10 @@ class AgentSession @Inject constructor(
                     "waiting" to (currentPlan?.waitingForHuman ?: ""),
                     "terminal_kind" to terminalHit.kind.name,
                     "terminal_marker" to terminalHit.marker,
+                    "terminal_label" to terminalHit.label,
+                    "terminal_forbidden_actions" to terminalHit.forbiddenActions,
+                    "terminal_human_confirm_ui" to terminalHit.humanConfirmUi,
+                    "terminal_trace_marker" to terminalHit.traceMarker,
                     "terminal_foreground_package" to (latestUiPackage ?: ""),
                     "steps_total" to (currentPlan?.steps?.size ?: 0),
                     "steps_completed" to (currentPlan?.steps?.count { it.status == TaskStepStatus.COMPLETED || it.status == TaskStepStatus.SKIPPED } ?: 0),
@@ -486,6 +490,18 @@ class AgentSession @Inject constructor(
                     StopDecision.WAIT_USER -> {
                         val reason = currentPlan?.waitingForHuman
                             ?: terminalHit.reason.ifBlank { "需要用户确认" }
+                        if (terminalHit.kind != TerminalSafetyGate.TerminalKind.NONE) {
+                            trace.log(runId, "terminal_gate", mapOf(
+                                "kind" to terminalHit.kind.name,
+                                "marker" to terminalHit.marker,
+                                "label" to terminalHit.label,
+                                "trace_marker" to terminalHit.traceMarker,
+                                "forbidden_actions" to terminalHit.forbiddenActions,
+                                "human_confirm_ui" to terminalHit.humanConfirmUi,
+                                "foreground_package" to (latestUiPackage ?: ""),
+                                "reason" to terminalHit.reason,
+                            ))
+                        }
                         val finalText = assistantContent.ifBlank { "（无文本回复）" } +
                             "\n（已暂停，等待用户确认：$reason）"
                         if (currentPlan == null) {
