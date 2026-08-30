@@ -119,12 +119,13 @@ class LuckinQuickOrderTool @Inject constructor(
             }
 
             // 商品详情：调整温度并点击“立即购买”。
-            if ((text.contains("保存口味") || text.contains("立即购买")) && used.add("detail")) {
+            if (text.contains("保存口味") || text.contains("立即购买")) {
                 val hasHot = text.contains("热") || text.contains("热饮")
                 val hasIce = text.contains("冰") || text.contains("冰饮")
-                if (temperature == "冰" && hasHot && !hasIce) {
+                if (temperature == "冰" && hasHot && !hasIce && used.add("ice")) {
                     if (uiActionLayer.tapByText("冰").ok) continue
-                } else {
+                }
+                if (used.add("buy")) {
                     if (uiActionLayer.tapByText("立即购买", "去结算", "确认").ok) continue
                 }
             }

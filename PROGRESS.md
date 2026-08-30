@@ -289,6 +289,7 @@
 - [x] 真机打开瑞幸/企业微信：`open_app` 冷启动验证通过（修复 MIUI 冷启动无障碍延迟导致的误报失败）
 - [x] 真实 LLM 瑞幸终端 E2E：当前真机 PASS（耗时 198.6s / 40 工具调用 / 停在免密支付 / 未点击支付/提交订单 / 未执行禁止动作）
 - [x] 新增 `luckin_quick_order` 快速点单宏：关闭 DeepSeek 推理后，真机可压到约 80s；调用宏后工具调用降到 5 次、约 21s（当前购物车非空，尚需清空购物车后复测全新下单）
+- [x] 清空购物车后全新下单复测：**11.7s / 3 次工具调用**，瑞幸真实点单全程由 `luckin_quick_order` 完成并停在免密支付页，未支付
 - [x] 新增 `DEBUG_THINKING` / `DEBUG_AUTO_VERIFY_MAX` 调试广播，便于真机性能调参
 - [x] 瑞幸内置 Skill / `LuckinOpenTool` 包名统一为真机实际包名 `com.lucky.luckyclient`
 - [x] 模拟器 Mock LLM E2E 14/14 通过
