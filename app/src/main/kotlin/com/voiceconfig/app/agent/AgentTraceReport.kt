@@ -26,6 +26,10 @@ data class AgentTraceReport(
     val llmErrors: Int,
     val issues: List<String>,
     val failureCategories: List<String>,
+    val totalTokens: Long = 0,
+    val promptTokens: Long = 0,
+    val completionTokens: Long = 0,
+    val requestBytes: Long = 0,
 )
 
 object AgentTraceReportBuilder {
@@ -46,6 +50,10 @@ object AgentTraceReportBuilder {
         var llmErrors = 0
         val issues = linkedSetOf<String>()
         var rounds = 0
+        var totalTokens = 0L
+        var promptTokens = 0L
+        var completionTokens = 0L
+        var requestBytes = 0L
 
         normalized.forEach { event ->
             val type = event["type"]?.toString() ?: return@forEach
@@ -60,6 +68,12 @@ object AgentTraceReportBuilder {
                     llmRounds++
                     val round = (event["round"] as? Number)?.toInt() ?: 0
                     if (round > rounds) rounds = round
+                }
+                "llm_response" -> {
+                    totalTokens += (event["total_tokens"] as? Number)?.toLong() ?: 0L
+                    promptTokens += (event["prompt_tokens"] as? Number)?.toLong() ?: 0L
+                    completionTokens += (event["completion_tokens"] as? Number)?.toLong() ?: 0L
+                    requestBytes += (event["request_bytes"] as? Number)?.toLong() ?: 0L
                 }
                 "tool_call" -> {
                     val tool = event["tool"]?.toString().orEmpty()
@@ -112,6 +126,10 @@ object AgentTraceReportBuilder {
             llmErrors = llmErrors,
             issues = issues.toList(),
             failureCategories = failureCategories,
+            totalTokens = totalTokens,
+            promptTokens = promptTokens,
+            completionTokens = completionTokens,
+            requestBytes = requestBytes,
         )
     }
 
@@ -152,6 +170,7 @@ object AgentTraceReportBuilder {
         appendLine("- 工具序列：${report.toolSequence.joinToString(" → ")}")
         appendLine("- 截图：${report.screenshotCount}，自动验证：${report.verificationCount}")
         appendLine("- 安全拦截：${report.safetyBlocks}，LLM 错误：${report.llmErrors}")
+        appendLine("- Token：prompt=${report.promptTokens}，completion=${report.completionTokens}，total=${report.totalTokens}；请求体≈${report.requestBytes} bytes")
         if (report.failureCategories.isNotEmpty()) {
             appendLine("- 失败类别：${report.failureCategories.joinToString(" / ")}")
         }

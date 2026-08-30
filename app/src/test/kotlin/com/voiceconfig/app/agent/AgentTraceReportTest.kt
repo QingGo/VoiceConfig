@@ -71,4 +71,21 @@ class AgentTraceReportTest {
         assertTrue(report.failureCategories.contains("ACCESSIBILITY"))
         assertTrue(report.failureCategories.contains("TOOL_FAILURE"))
     }
+
+    @Test
+    fun `aggregates token metrics from llm responses`() {
+        val report = AgentTraceReportBuilder.build(
+            listOf(
+                mapOf("type" to "run_start", "runId" to "run_5", "userText" to "统计"),
+                mapOf("type" to "llm_response", "prompt_tokens" to 10, "completion_tokens" to 5, "total_tokens" to 15, "request_bytes" to 100),
+                mapOf("type" to "llm_response", "prompt_tokens" to 20, "completion_tokens" to 8, "total_tokens" to 28, "request_bytes" to 200),
+                mapOf("type" to "run_finished", "ok" to true, "duration_ms" to 10, "message" to "完成"),
+            ),
+        )
+        assertEquals(30, report.promptTokens)
+        assertEquals(13, report.completionTokens)
+        assertEquals(43, report.totalTokens)
+        assertEquals(300, report.requestBytes)
+    }
+
 }
