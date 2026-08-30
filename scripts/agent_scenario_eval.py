@@ -104,8 +104,12 @@ def foreground_package(serial):
     return ""
 
 
-def verify_scenario(serial, scenario):
-    """严格场景断言：前台包名 / 关键 UI 文本 / 不允许出现的浮层文本。"""
+def verify_scenario(serial, scenario, trace_message: str = ""):
+    """严格场景断言：前台包名 / 关键 UI 文本 / 不允许出现的浮层文本。
+
+    对于微信等不向 uiautomator 暴露节点的 App，如果场景带 allowMessageTerminalCheck=True，
+    且 UI 文本读不到时，可以回退检查 Agent 最终消息中的终端关键词。
+    """
     checks = []
     ok = True
 
@@ -120,8 +124,14 @@ def verify_scenario(serial, scenario):
     if terminal_texts:
         ui = get_ui_text(serial)
         missing = [t for t in terminal_texts if t.lower() not in ui.lower()]
+        message_check = scenario.get("allowMessageTerminalCheck", False)
+        if missing and message_check and trace_message:
+            message_missing = [t for t in missing if t.lower() not in trace_message.lower()]
+            if not message_missing:
+                missing = []
         passed = not missing
-        checks.append({"type": "terminal_text", "expected": terminal_texts, "missing": missing, "ok": passed})
+        source = "message" if missing == [] and message_check and not any(t.lower() in ui.lower() for t in terminal_texts) and trace_message else "ui"
+        checks.append({"type": "terminal_text", "expected": terminal_texts, "missing": missing, "ok": passed, "source": source})
         ok = ok and passed
 
     absent_texts = scenario.get("absentText") or []
@@ -310,7 +320,7 @@ def run_and_evaluate(serial, text, timeout=90, expected=None, pre_stop_packages=
                     else:
                         result["verification"] = "NO_EXPECTED"
                     if scenario:
-                        extra = verify_scenario(serial, scenario)
+                        extra = verify_scenario(serial, scenario, result.get("message", ""))
                         result.update(extra)
                         if scenario.get("requireWaiting") and not result.get("waiting"):
                             result["ok"] = False

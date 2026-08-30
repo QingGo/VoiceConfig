@@ -50,6 +50,10 @@ class ReadUiTool @Inject constructor(
             val msg = lastUiMessage ?: return null
             val ageMs = System.currentTimeMillis() - lastUiAtMs
             if (ageMs > STALE_MAX_AGE_MS) return null
+            // 如果已经切换到另一个 App，不能再返回旧 App 的快照，否则会严重误导模型。
+            val lastPkg = (lastUiData ?: emptyMap())["foregroundPackage"] as? String
+            val currentPkg = currentForegroundPackage()
+            if (lastPkg != null && currentPkg != null && lastPkg != currentPkg) return null
             val staleData = (lastUiData ?: emptyMap()) + mapOf("stale" to true)
             return ToolResult.success(
                 "UI 读取失败，返回 ${ageMs / 1000}s 前的上一次成功界面快照（可能已过期，请谨慎使用）：" + "\n" + "$msg",

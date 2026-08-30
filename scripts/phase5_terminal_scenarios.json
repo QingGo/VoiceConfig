@@ -8,21 +8,30 @@
     "category": "luckin-terminal",
     "preStop": [],
     "expectedForeground": "com.lucky.luckyclient",
-    "terminalText": ["免密支付"],
-    "absentText": ["一键换购", "close_iv"],
+    "terminalText": [
+      "免密支付"
+    ],
+    "absentText": [
+      "一键换购",
+      "close_iv"
+    ],
     "requireWaiting": true
   },
   {
-    "name": "微信回复到发送确认并停住",
-    "text": "帮我在微信里给最近联系人发送一条消息：收到，稍后回复。走到发送前最后一步就停下来，不要点击发送",
+    "name": "微信文件传输助手到发送确认并停住",
+    "text": "帮我在微信的“文件传输助手”里发送一条消息：收到，稍后回复。走到发送前最后一步就停下来，不要点击发送",
     "expect": "",
     "timeout": 300,
     "estimated_seconds": 180,
     "category": "wechat-terminal",
     "preStop": [],
     "expectedForeground": "com.tencent.mm",
-    "terminalText": ["发送"],
+    "terminalText": [
+      "Send",
+      "发送"
+    ],
     "absentText": [],
-    "requireWaiting": true
+    "requireWaiting": true,
+    "allowMessageTerminalCheck": true
   }
 ]

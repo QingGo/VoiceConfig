@@ -463,8 +463,13 @@ class AgentSession @Inject constructor(
                     return AgentTurnResult(ok = false, message = error, toolCalls = allToolCalls, toolResults = allToolResults.toList(), history = historySnapshot(), runId = runId)
                 }
                 val currentPlan = taskPlanStore.snapshot()
-                val stopDecision = stopVerifier.evaluate(currentPlan, latestUiEvidence, latestUiPackage)
-                val terminalHit = TerminalSafetyGate.detect(latestUiEvidence, currentPlan?.goal, latestUiPackage)
+                // 部分 App（如微信）不向无障碍暴露可读节点，模型只能从截图看到 Send/发送。
+                // 这里把模型最后文本也纳入终端证据；终端只会触发等待用户，不会执行任何操作，因此仍是安全方向。
+                val combinedEvidence = listOf(latestUiEvidence, assistantContent)
+                    .filter { it.isNotBlank() }
+                    .joinToString("\n")
+                val stopDecision = stopVerifier.evaluate(currentPlan, combinedEvidence, latestUiPackage)
+                val terminalHit = TerminalSafetyGate.detect(combinedEvidence, currentPlan?.goal, latestUiPackage)
                 trace.log(runId, "stop_verifier", mapOf(
                     "round" to round,
                     "decision" to stopDecision.name,
@@ -1210,6 +1215,10 @@ class AgentSession @Inject constructor(
             - 在确认订单/结算/支付页上，如果存在“换购/加购/免密支付/优惠”等浮层或弹窗，并且有 X/关闭按钮，应先调用 dismiss_popups 或 tap_text 关闭这个浮层，然后再结束；这属于清理页面，不等于提交订单。
             - 忽略无关的营销活动、优惠券领取、弹窗引导，除非用户明确要求。
             - 在聊天输入框中输入完成后，优先使用 press_key {"key":"enter"} 发送；如果无效再点击界面上的发送按钮。
+            - 如果 read_ui/get_screen_state 因微信等 App 不暴露无障碍节点而失败，应改用 read_screen 看图，再按网格数字代表的原始屏幕坐标调用 tap 操作，不要因为 read_ui 失败就放弃。
+            - 输入文字后必须用 read_screen 核对输入框是否真的出现了文字；如果 input_text 返回成功但截图仍为空，不要当作成功，尝试点击输入框下方的剪贴板候选词（通常是你要输入的整句），或长按输入框后选择“粘贴”。
+            - 在聊天发送前最后一步，确认消息已显示在输入框中即可停止；不要点击“发送”或按回车发送。
+            - 如果聊天输入框已显示目标消息且屏幕上出现 Send/发送按钮，必须调用 wait_user 暂停并说明“已停在发送前最后一步”，绝不能直接回复“已完成”。
             - 完成用户目标后，用简短中文总结结果。
             - 只有实际收到过屏幕截图（包括自动验证截图）时，才可以说“从截图/画面中看到”；没有截图时只能基于 UI 树和工具结果描述，不得声称看过截图。
             - 不要编造工具执行结果或截图内容。

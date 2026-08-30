@@ -29,6 +29,7 @@ object TerminalSafetyGate {
         "发送消息确认",
         "确认发送消息",
         "发送",
+        "send",
     )
 
     /** 目标文本中的通信意图，用于降低“发送”误判。 */
@@ -88,8 +89,9 @@ object TerminalSafetyGate {
         }
 
         // “发送”按钮在很多页面都出现，只有用户目标是通信/回复时才视为终端。
-        if (text.contains("发送", ignoreCase = true) && isSendGoal(goalText)) {
-            return TerminalHit(TerminalKind.SEND, "发送", "检测到发送按钮，且用户目标为消息发送")
+        val sendButtonVisible = text.contains("发送", ignoreCase = true) || text.contains("send", ignoreCase = true)
+        if (sendButtonVisible && isSendGoal(goalText)) {
+            return TerminalHit(TerminalKind.SEND, if (text.contains("send", ignoreCase = true)) "send" else "发送", "检测到发送按钮，且用户目标为消息发送")
         }
 
         return TerminalHit(TerminalKind.NONE, "", "")

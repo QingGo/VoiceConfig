@@ -58,6 +58,17 @@ class TerminalSafetyGateTest {
     }
 
     @Test
+    fun `detects english send button for wechat terminal`() {
+        assertTrue(
+            TerminalSafetyGate.isTerminal(
+                "输入框已填入消息，下方有 Send 按钮",
+                "微信发送消息",
+                "com.tencent.mm",
+            ),
+        )
+    }
+
+    @Test
     fun `still detects terminal keywords for external app foreground`() {
         val hit = TerminalSafetyGate.detect(
             "确认订单 免密支付",

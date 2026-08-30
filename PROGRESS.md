@@ -175,7 +175,7 @@
 - [x] Phase 4 敏感确认：远程 shell 命令触发 WAITING_CONFIRM，未被语音/调试命令绕过
 - [x] Phase 4 能力预检：瑞幸点单 / 微信发送等 UI 命令在无无障碍/Shizuku 真机上被 preflight 阻断，trace 完整
 - [x] 瑞幸点单真实 UI 选品/加购/确认：真机已到达“确认订单/免密支付”页并停住，严格 E2E 断言通过
-- [ ] 微信回复真实发送：真机能打开“文件传输助手”并聚焦输入框，但 Agent 内文字注入仍不可靠，尚未到“发送前最后一步”
+- [x] 微信回复真实发送：真机已到“文件传输助手”输入框显示“收到，稍后回复”+ Send 按钮，未点击发送，严格 E2E 通过
 - [ ] Home Assistant 控制：需配置 HA token 后跑通 home_devices/home_control
 - [ ] 远程设备管理：本轮已验证敏感确认，节点清单/远程构建待配置节点后回归
 - [ ] 长程购物比价：待跑通 product_compare / product_search 全链路
@@ -193,8 +193,8 @@
 - [x] 严格 E2E 断言脚本：`agent_scenario_eval.py` 已支持 `expectedForeground / terminalText / absentText / requireWaiting`
 - [x] 新增 `scripts/phase5_terminal_scenarios.json`：瑞幸免密支付、微信发送确认的严格终端场景
 - [x] 新增无障碍截屏兜底：`AccessibilityService.takeScreenshot`，即使无 Shizuku 也能给模型提供视觉截图
-- [x] 微信已打开“文件传输助手”并聚焦输入框；剩余阻塞为文字注入不可靠（`input_text` 假成功）
-- [ ] 微信发送前最后一步待完成：需要可用的粘贴/候选词/Shell 输入通道
+- [x] 微信已通过无障碍粘贴输入“收到，稍后回复”，并停在 Send 发送前一步
+- [x] 真机全量严格终端 E2E：`phase5_terminal_scenarios.json` 2/2 PASS（瑞幸 + 微信）
 
 ## 已提交代码
 

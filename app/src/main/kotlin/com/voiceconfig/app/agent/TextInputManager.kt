@@ -36,8 +36,8 @@ class TextInputManager @Inject constructor(
     private val prefs: SharedPreferences = context.getSharedPreferences("voice_config", Context.MODE_PRIVATE)
 
     private val strategies: List<TextInputStrategy> = listOf(
-        AccessibilitySetTextStrategy(accessibilityKeepAlive),
         AccessibilityPasteStrategy(),
+        AccessibilitySetTextStrategy(accessibilityKeepAlive),
         ClipboardKeyeventStrategy(shizuku),
         ShizukuShellStrategy(shizuku),
     )
