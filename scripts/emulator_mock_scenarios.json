@@ -35,6 +35,20 @@
     "text": "检查弹窗",
     "timeout": 30,
     "category": "mock-dismiss-popups"
+  },
+  {
+    "name": "返回键（Mock LLM）",
+    "text": "返回测试",
+    "timeout": 30,
+    "requireNoFailedTools": true,
+    "category": "mock-press-back"
+  },
+  {
+    "name": "UI 断言不存在（Mock LLM）",
+    "text": "断言测试",
+    "timeout": 30,
+    "requireNoFailedTools": true,
+    "category": "mock-ui-assert"
   }
 
 ]

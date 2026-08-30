@@ -343,6 +343,13 @@ def run_and_evaluate(serial, text, timeout=90, expected=None, pre_stop_packages=
                             )
                             result["scenarioVerified"] = False
                             result["failure_category"] = "SCENARIO_VERIFY_FAIL"
+                        if scenario.get("requireNoFailedTools") and result.get("failed_tools"):
+                            result["ok"] = False
+                            result.setdefault("scenarioChecks", []).append(
+                                {"type": "no_failed_tools", "expected": True, "actual": result.get("failed_tools"), "ok": False}
+                            )
+                            result["scenarioVerified"] = False
+                            result["failure_category"] = "TOOL_FAILURE"
                         if not extra.get("scenarioVerified", False):
                             result["ok"] = False
                             result["failure_category"] = "SCENARIO_VERIFY_FAIL"

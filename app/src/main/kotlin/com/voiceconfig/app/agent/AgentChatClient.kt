@@ -442,6 +442,14 @@ open class AgentChatClient @Inject constructor(
                 call("c1", "wait_user", """{"reason":"测试：等待用户确认"}"""),
                 done("已停在等待确认，等待用户操作"),
             )
+            text.contains("返回测试") || text.contains("按返回键") -> listOf(
+                call("c1", "press_key", """{"key":"back"}"""),
+                done("返回键测试完成"),
+            )
+            text.contains("断言测试") -> listOf(
+                call("c1", "ui_assert", """{"action":"not_visible","text":"不存在的文本XYZ123"}"""),
+                done("断言测试完成"),
+            )
             text.contains("截图") || text.contains("截屏") || text.contains("屏幕") -> listOf(
                 call("c1", "read_screen", "{}"),
                 done("截图完成"),
