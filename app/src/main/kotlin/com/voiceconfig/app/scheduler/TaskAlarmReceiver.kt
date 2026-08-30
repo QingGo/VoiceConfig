@@ -7,6 +7,7 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.os.Build
+import android.os.PowerManager
 import com.voiceconfig.app.MainActivity
 import com.voiceconfig.app.service.VoiceKeepAliveService
 import androidx.core.app.NotificationCompat
@@ -17,6 +18,7 @@ import com.voiceconfig.app.agent.AgentStepStatus
 import com.voiceconfig.app.agent.AgentStepUi
 import com.voiceconfig.app.agent.AgentSession
 import com.voiceconfig.app.agent.AgentSkillStore
+import com.voiceconfig.app.agent.StrongReminderTool
 import com.voiceconfig.app.agent.AgentVerificationPolicy
 import com.voiceconfig.app.ai.ApiKeyStore
 import com.voiceconfig.core.executor.ExecutionEngine
@@ -49,6 +51,7 @@ class TaskAlarmReceiver : BroadcastReceiver() {
     @Inject lateinit var agentSkillStore: AgentSkillStore
     @Inject lateinit var apiKeyStore: ApiKeyStore
     @Inject lateinit var agentCapabilityInspector: AgentCapabilityInspector
+    @Inject lateinit var strongReminderTool: StrongReminderTool
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
@@ -114,6 +117,7 @@ class TaskAlarmReceiver : BroadcastReceiver() {
                 )
                 if (task.actionType == ActionType.AGENT) {
                     notifyAgentFinished(context, task, result)
+                    maybeStrongRemindOnScreenOff(context, task, result)
                 }
                 if (task.schedule.type != com.voiceconfig.core.model.ScheduleSpec.ScheduleType.ONCE) {
                     val nextRun = nextRunCalculator.nextRunAfter(task.schedule)
@@ -207,6 +211,31 @@ class TaskAlarmReceiver : BroadcastReceiver() {
                 errorCode = "WAITING_HUMAN",
             )
             else -> ExecutionResult.success(ExecutionMode.AGENT).copy(message = result.message)
+        }
+    }
+
+
+    private suspend fun maybeStrongRemindOnScreenOff(
+        context: Context,
+        task: com.voiceconfig.core.model.Task,
+        result: ExecutionResult,
+    ) {
+        if (task.actionType != ActionType.AGENT) return
+        val needsAttention = result.status == ExecutionStatus.FAILED ||
+            result.status == ExecutionStatus.WAITING_HUMAN
+        if (!needsAttention) return
+        val powerManager = context.getSystemService(Context.POWER_SERVICE) as? PowerManager
+        if (powerManager == null || powerManager.isInteractive) return
+        runCatching {
+            strongReminderTool.execute(
+                mapOf(
+                    "title" to "言控任务需要你",
+                    "content" to (result.message ?: task.rawText).take(120),
+                    "fullScreen" to true,
+                    "vibrate" to true,
+                    "sound" to true,
+                ),
+            )
         }
     }
 

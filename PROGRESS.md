@@ -330,4 +330,4 @@
 - [x] 支持参数 `fullScreen / vibrate / sound`，默认全开
 - [x] 通知使用 `CATEGORY_ALARM` + 公共可见性 + 全屏 Intent，锁屏也能提醒
 - [x] 保留普通 `notify`，强提醒作为无 Shizuku 熄屏降级通道
-- [ ] 定时任务失败自动降级为强提醒（需用户点亮后继续/确认）
+- [x] 定时任务失败/等待确认且屏幕熄灭时，自动发送 strong_remind 强提醒（用户点亮后继续/确认）
