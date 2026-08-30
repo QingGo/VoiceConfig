@@ -18,12 +18,18 @@
 - 真机瑞幸、微信严格终端 E2E
 - 速度优化：截图裁剪、截图瘦身、视觉预算、Completion Check 降次、`task_plan` 容错
 - 微信风控保护：默认禁用个人微信 UI 自动化
-- 企业微信官方 API 发送工具
-- `AccessibilityKeepAlive` 状态机
+- 企业微信官方 API 发送工具 + 设置页凭证测试
+- `AccessibilityKeepAlive` 状态机 + 自适应重试 + 锁屏恢复
 - Mock LLM 离线验证通道 + 模拟器 E2E 套件
-- UI 工具收敛：Tap / TapText / Swipe / PressKey / DismissPopups
-- 可见证据：`input_text` 自动验证 + `read_screen` 回退
-- 终端矩阵扩展：删除 / 配置 / 安防 / 远程破坏性
+- UI 工具收敛：Tap / TapText / Swipe / PressKey / DismissPopups / ReadUiTool
+- 浮层规则化：PROMO / PERMISSION / FUNCTIONAL_PICKER / TERMINAL_CONFIRM
+- 内置 4 条 APPROVED Skill，并在设置页展示
+- Skill 相关性算法：按标签 / 适用场景提升命中
+- Agent 系统提示强化：优先参考 Skill、使用 `ui_assert`、可见证据规则
+- TraceReport：失败分类 / Token / 请求体 / Markdown 导出
+- 企业微信 CLI 脚本：`scripts/wecom_send_test.py`
+- 模拟器场景从 4 个扩展到 11 个，覆盖更多安全与工具路径
+- 智能家居 / 树莓派 / 百褶帘 / 海信空调改造方向调研
 
 ### 踩过的坑
 
@@ -39,53 +45,58 @@
 - 敏感确认无超时，曾出现 29 分钟空档
 - 模型反复读屏、任务计划步骤找不到导致死循环
 - 重装 APK 后模拟器无障碍设置被重置
+- **模拟器 force-stop 会让 Accessibility 设置被清空**，导致首次 2/4 通过；已改为先启动 App、再写回设置、并保持 App 进程
+- **无 Shizuku 时 `dismiss_popups` 在“没有弹窗”时误报失败**；已修复为成功
+- **真实工具失败被模型“完成”掩盖**：
+  - 企业微信未配置、Home Assistant 未配置时，工具失败但 Agent 仍可能回复“完成”
+  - 已修复为强制 FAILED 并显示失败原因
+- **自动验证的辅助 `read_ui` 失败被误判为真实工具失败**；已排除
+- **用户拒绝敏感确认 / 安全硬拦截不能作为真实工具失败**；已排除
+- 测试文件追加到类外导致 JUnit InvalidTestClass；已修正（开发过程坑）
 
 ### 已完成部分
 
 - 真机严格 E2E：瑞幸停在免密支付 + 微信停在 Send 前
-- 模拟器 Mock E2E：4/4 通过
-- `AccessibilityKeepAlive` 状态机基础版
+- `AccessibilityKeepAlive` 状态机基础版 + 自适应重试 + 健康指标 + `USER_PRESENT` 解锁恢复
 - `WechatRiskGuard` 默认禁用个人微信自动化
-- 设置页：微信小号风险模式 + 企业微信 API 配置
-- `wecom_send_message` 官方 API 工具
-- `UiActionLayer` 主要 UI 工具收敛
-- `input_text` 可见证据回退
-- 终端安全矩阵扩展
-- 截图从 600KB+ 降到 114KB～181KB
-- 单测：速度、风控、终端矩阵、可见证据、任务计划等
+- 设置页：微信小号风险模式 + 企业微信 API 配置 + 凭证测试按钮
+- `wecom_send_message` 官方 API 工具 + `scripts/wecom_send_test.py`
+- `ReadUiTool` 完全收敛到 `UiActionLayer`
+- 浮层分类扩展到权限弹窗和终端确认页
+- `DismissPopupsTool` 无 Shizuku 无弹窗时返回成功
+- `coordinateFallback=true` 标记
+- 内置 4 条 APPROVED Skill，设置页展示
+- Skill 相关性算法与系统提示强化
+- `ui_assert` 写入系统提示
+- TraceReport：耗时 / 工具序列 / 截图 / 验证 / 安全拦截 / LLM 错误 / Token / 请求体 / 失败分类 / Markdown 导出
+- 模拟器 Mock LLM E2E：**11/11 通过**
+- 真实工具失败强制 FAILED 并暴露失败原因
+- 企业微信 / Home Assistant 未配置时明确失败
+- 个人微信自动化模拟器验证被安全拦截
+- 智能家居 / 树莓派方向完成调研并更新战略文档
 
 ### 新发现的问题
 
 - 个人微信自动化不可作为产品路径，否则有账号风控/封号风险
 - 微信类不可读 UI 仍依赖视觉 + 模型文本回退，证据不够强
-- `ReadUiTool` 已收敛到 `UiActionLayer`；`DismissPopupsTool / PressKeyTool / InputTextTool` 也已走统一层
-- 截图虽然变小，但真机耗时基线还未重新测量
+- `ReadUiTool` 已收敛，但 `tap` / `tap_text` / `swipe` 还没有全部开启自动可见证据
+- 真机耗时基线还未重新测量
 - 模拟器 Mock 不能替代真机 MIUI / 锁屏 / 离线验证
-- 企业微信 API 还没有真实测试号联调
-- 官方 API 工具缺少凭证安全存储、权限最小化、调用审计
-- 已内置 4 条 APPROVED Skill，但模型仍未强制 Skill 驱动
+- 企业微信 / Home Assistant / 树莓派 / 海信空调 / 百褶帘均无真实联调
+- Skill 驱动仍只是“prompt 参考”，还不是确定性执行器
+- 低成本 DIY 智能家居不能作为稳定产品能力承诺
+- 官方 API 缺少凭证安全存储、权限最小化、调用审计
+- 本地 KWS/ASR 1 小时 soak、低功耗回归仍缺失
 
 ### 计划要完成的部分
 
-- P0：真机设备矩阵、无障碍自愈、锁屏/离线、企业微信真实联调
-- P1：`ReadUiTool` 已收敛、浮层规则化已扩展权限/终端分类；全量可见证据待补齐
-- P2：已沉淀 4 条内置 APPROVED Skill；下一步改为 Skill 驱动执行
-- P3：终端安全矩阵每域补 UI 特征、人工确认、trace
-- P4：自动 trace 报告、真机耗时基线、失败自动分类
-- P5：本地语音 1 小时 soak、低功耗回归、语音端到端
-- P6：稳定后再扩展更多能力
-
----
-
-### 0.1 本轮模拟器/执行层后续增量
-- `ReadUiTool` 已收敛到 `UiActionLayer`；浮层新增权限/终端确认分类。
-- 新增 4 条内置 APPROVED Skill，并在设置页展示。
-- `AccessibilityKeepAlive` 增加自适应重试、健康指标、解锁恢复。
-- 模拟器回归从 4/4 扩展到 11/11，新增等待确认/弹窗/返回键/UI 断言/微信风控/企业微信与 HA 未配置。
-- 修复真实工具失败被“完成”掩盖的问题：现在会强制 FAILED 并显示失败原因。
-- TraceReport 支持失败分类、Token、请求体，并可导出 Markdown。
-- 新增企业微信 API 凭证测试按钮与 CLI 脚本。
-- 智能家居/树莓派方向完成调研，但真实 HA/海信空调/窗帘/SSH 尚未联调。
+- P0：真机设备矩阵、无障碍自愈、锁屏/离线、企业微信真实联调、真实 HA/树莓派/智能家居联调
+- P1：`tap` / `tap_text` / `swipe` 可见证据、完整自动断言矩阵、每域终端特征与人工确认 UI
+- P2：从“Skill 参考”升级为“Skill 确定性执行器”
+- P3：终端安全矩阵补全 UI 特征、禁止动作、人工确认、trace 标记
+- P4：真机耗时基线 + 自动 trace 报告 + 真机/模拟器双跑
+- P5：本地语音 1 小时 soak、低功耗回归、语音 → Agent → TTS 端到端
+- P6：稳定后再扩展更多 App / 智能家居 / 远程 / 购物能力
 
 ## 1. 本 Session 目标
 
