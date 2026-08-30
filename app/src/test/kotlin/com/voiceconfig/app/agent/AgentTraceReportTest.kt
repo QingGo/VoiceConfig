@@ -57,4 +57,18 @@ class AgentTraceReportTest {
         assertTrue(md.contains("远程验证"))
         assertTrue(md.contains("2000ms"))
     }
+
+
+    @Test
+    fun `classifies failure categories`() {
+        val report = AgentTraceReportBuilder.build(
+            listOf(
+                mapOf("type" to "run_start", "runId" to "run_4", "userText" to "打开应用"),
+                mapOf("type" to "tool_result", "tool" to "input_text", "ok" to false, "message" to "缺少无障碍服务"),
+                mapOf("type" to "run_finished", "ok" to false, "duration_ms" to 500, "message" to "缺少无障碍服务"),
+            ),
+        )
+        assertTrue(report.failureCategories.contains("ACCESSIBILITY"))
+        assertTrue(report.failureCategories.contains("TOOL_FAILURE"))
+    }
 }

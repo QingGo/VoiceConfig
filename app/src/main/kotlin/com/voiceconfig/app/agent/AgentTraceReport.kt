@@ -25,6 +25,7 @@ data class AgentTraceReport(
     val llmRounds: Int,
     val llmErrors: Int,
     val issues: List<String>,
+    val failureCategories: List<String>,
 )
 
 object AgentTraceReportBuilder {
@@ -92,6 +93,7 @@ object AgentTraceReportBuilder {
         if (!ok && issues.isEmpty() && message.isNotBlank()) {
             issues += message.take(120)
         }
+        val failureCategories = classify(ok, issues.toList(), message, safetyBlocks, llmErrors, toolResultCount)
         return AgentTraceReport(
             runId = normalized.firstOrNull { it["type"] == "run_start" }?.get("runId")?.toString()
                 ?: normalized.firstOrNull()?.get("runId")?.toString().orEmpty(),
@@ -109,7 +111,33 @@ object AgentTraceReportBuilder {
             llmRounds = llmRounds,
             llmErrors = llmErrors,
             issues = issues.toList(),
+            failureCategories = failureCategories,
         )
+    }
+
+    private fun classify(
+        ok: Boolean,
+        issues: List<String>,
+        message: String,
+        safetyBlocks: Int,
+        llmErrors: Int,
+        failedToolResults: Int,
+    ): List<String> {
+        if (ok) return emptyList()
+        val cats = linkedSetOf<String>()
+        val text = (issues.joinToString(" ") + " " + message).lowercase()
+        if ("无障碍" in text || "shizuku" in text) cats += "ACCESSIBILITY"
+        if ("权限" in text || "permission" in text) cats += "PERMISSION"
+        if ("安全拦截" in text || "硬阻断" in text || safetyBlocks > 0) cats += "SAFETY_BLOCK"
+        if (llmErrors > 0 || "llm 错误" in text) cats += "LLM_ERROR"
+        if ("工具失败" in text || failedToolResults > 0) cats += "TOOL_FAILURE"
+        if ("验证未通过" in text) cats += "VERIFICATION"
+        if ("感知循环" in text || "视觉预算" in text || "重复" in text) cats += "REPEAT_LOOP"
+        if ("超时" in text) cats += "TIMEOUT"
+        if ("未配置" in text || "api" in text || "凭证" in text) cats += "PLATFORM_CONFIG"
+        if ("计划未完成" in text) cats += "PLAN_INCOMPLETE"
+        if (cats.isEmpty()) cats += "UNKNOWN"
+        return cats.toList()
     }
 
     fun toMarkdown(report: AgentTraceReport): String = buildString {
@@ -124,6 +152,9 @@ object AgentTraceReportBuilder {
         appendLine("- 工具序列：${report.toolSequence.joinToString(" → ")}")
         appendLine("- 截图：${report.screenshotCount}，自动验证：${report.verificationCount}")
         appendLine("- 安全拦截：${report.safetyBlocks}，LLM 错误：${report.llmErrors}")
+        if (report.failureCategories.isNotEmpty()) {
+            appendLine("- 失败类别：${report.failureCategories.joinToString(" / ")}")
+        }
         if (report.issues.isNotEmpty()) {
             appendLine("- 问题：")
             report.issues.take(10).forEach { appendLine("  - $it") }
