@@ -1,7 +1,8 @@
 # VoiceConfig Session Recap
 
 > 记录时间：2026-08-30
-> 适用设备：`192.168.31.106:37459`（M2102K1C / Android 14 / 1440x3200）
+> 当前真机：`192.168.31.111:39865`（M2102K1C / Android 14 / 1440x3200）
+> 历史真机：`192.168.31.106:37459`（文中历史章节仍保留）
 > 关联文档：[SYSTEM_THINKING.md](SYSTEM_THINKING.md)、[STRATEGIC_REVIEW.md](STRATEGIC_REVIEW.md)、[PROGRESS.md](PROGRESS.md)
 
 ---
