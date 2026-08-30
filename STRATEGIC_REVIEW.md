@@ -163,6 +163,11 @@ VoiceConfig 的终极目标不是“做一个会聊天、会读屏的 App”，�
   - `DEBUG_THINKING / DEBUG_AUTO_VERIFY_MAX` 方便真机调参；
   - 生产应通过设置页/能力状态统一管理，不能只有 adb 调试口。
 
+- **熄屏定时任务缺少唤醒/解锁通道**：
+  - 真机实测：熄屏 + 仅无障碍时，`open_app` 尝试打开企业微信但无法验证前台，运行失败；
+  - 原因：无障碍不能操作灭屏界面；无 Shizuku 时只能走 `context.startActivity`，受后台启动限制且没有 `PowerManager.wakeup` / 解锁步骤；
+  - 需要明确策略：有 Shizuku 时使用 `am start + keyevent 224(+dismiss-keyguard)`；无 Shizuku 时降级为高优先级通知/全屏提醒，等待用户点亮后继续。
+
 ## 2.17 从“会跑”到“可持续”的关键转变
 
 - 之前：每次都是“LLM 自由探索 → 偶然成功 → 记录 Skill 文本”。
