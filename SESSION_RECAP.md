@@ -28,7 +28,7 @@
 - Agent 系统提示强化：优先参考 Skill、使用 `ui_assert`、可见证据规则
 - TraceReport：失败分类 / Token / 请求体 / Markdown 导出
 - 企业微信 CLI 脚本：`scripts/wecom_send_test.py`
-- 模拟器场景从 4 个扩展到 13 个，覆盖更多安全与工具路径
+- 场景从 4 个扩展到 14 个（模拟器/真机共用），覆盖更多安全与工具路径
 - 智能家居 / 树莓派 / 百褶帘 / 海信空调改造方向调研
 
 ### 踩过的坑
@@ -69,7 +69,7 @@
 - Skill 相关性算法与系统提示强化
 - `ui_assert` 写入系统提示
 - TraceReport：耗时 / 工具序列 / 截图 / 验证 / 安全拦截 / LLM 错误 / Token / 请求体 / 失败分类 / Markdown 导出
-- 模拟器 Mock LLM E2E：**13/13 通过**
+- 模拟器/真机 Mock LLM E2E：**14/14 通过**
 - 真实工具失败强制 FAILED 并暴露失败原因
 - 企业微信 / Home Assistant 未配置时明确失败
 - 个人微信自动化模拟器验证被安全拦截

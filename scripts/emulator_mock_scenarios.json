@@ -86,5 +86,12 @@
     "requireNoFailedTools": true,
     "requireAutoVerify": true,
     "category": "mock-swipe-auto-verify"
+  },
+  {
+    "name": "UI 等待可见（Mock LLM）",
+    "text": "等待元素测试",
+    "timeout": 30,
+    "requireNoFailedTools": true,
+    "category": "mock-ui-wait"
   }
 ]

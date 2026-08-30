@@ -450,6 +450,10 @@ open class AgentChatClient @Inject constructor(
                 call("c1", "ui_assert", """{"action":"not_visible","text":"不存在的文本XYZ123"}"""),
                 done("断言测试完成"),
             )
+            text.contains("等待元素") || text.contains("UI等待") -> listOf(
+                call("c1", "ui_wait", """{"text":"首页/对话","timeoutMs":2000}"""),
+                done("UI等待测试完成"),
+            )
             text.contains("点击可见证据") || text.contains("点击测试") -> listOf(
                 call("c1", "tap_text", """{"text":"首页/对话"}"""),
                 done("点击可见证据测试完成"),

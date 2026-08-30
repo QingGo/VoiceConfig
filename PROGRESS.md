@@ -273,7 +273,7 @@
 - product_compare 购物比较工具
 - Agent 结果 TTS
 
-## 最新模拟器/执行层推进（2026-08-30）
+## 最新真机/模拟器执行层推进（2026-08-30）
 
 - [x] `ReadUiTool` 完全收敛到 `UiActionLayer`
 - [x] 浮层分类扩展到权限弹窗和终端确认页
@@ -282,6 +282,9 @@
 - [x] TraceReport 支持耗时/工具序列/截图/Token/失败分类/Markdown 导出
 - [x] 企业微信 API 凭证测试按钮 + CLI 脚本
 - [x] Agent 真实工具失败不再被“完成”掩盖
-- [x] 模拟器 Mock LLM E2E 13/13 通过
+- [x] 真机 `192.168.31.111:39865` 已连接、安装最新 APK、无障碍已绑定
+- [x] 真机 Mock LLM E2E **14/14 通过**（含自动可见证据、`ui_wait`、安全/配置缺失守卫）
+- [x] 真机单步耗时基线（Mock LLM）：read_ui ~0.6s / tap_text+验证 ~0.8s / swipe+验证 ~0.6s / ui_wait ~0.4s / open_app+验证 ~1.6s
+- [x] 模拟器 Mock LLM E2E 14/14 通过
 - [ ] 真实 Home Assistant / 海信空调 / 百褶帘 / 树莓派 SSH 联调
 - [ ] 低成本 DIY 智能家居固化为可验证的 ESPHome/Skill 路径
