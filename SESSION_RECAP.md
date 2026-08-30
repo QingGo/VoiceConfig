@@ -706,6 +706,14 @@ adb shell am broadcast -a com.voiceconfig.app.DEBUG_AUTO_CONFIRM --ez enabled tr
 
 ---
 
+## 7.11 可见证据闭环（2026-08-30）
+
+- `input_text` 已纳入自动验证。
+- 自动验证优先 `read_ui`；当微信等 App 不暴露无障碍节点导致失败时，自动降级 `read_screen` 截图，保留可见证据。
+- 单测覆盖：UI 读取失败 → 截图验证回退。
+
+---
+
 ## 8. 后续不做什么
 
 - 不新增“听起来很酷但不可验证”的功能

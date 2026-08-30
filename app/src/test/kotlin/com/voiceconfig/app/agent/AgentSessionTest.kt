@@ -430,4 +430,52 @@ class AgentSessionTest {
     }
 
 
+    @Test
+    fun `auto verification falls back to screenshot when read ui fails`() = runBlocking {
+        var uiExecutions = 0
+        var screenExecutions = 0
+        val uiTool = object : AgentTool {
+            override val name: String = "read_ui"
+            override val description: String = "ui"
+            override suspend fun execute(args: Map<String, Any?>): ToolResult {
+                uiExecutions++
+                return ToolResult.failure("read_ui 需要 Shizuku 授权或开启无障碍服务")
+            }
+        }
+        val screenTool = object : AgentTool {
+            override val name: String = "read_screen"
+            override val description: String = "screen"
+            override suspend fun execute(args: Map<String, Any?>): ToolResult {
+                screenExecutions++
+                return ToolResult.success("ok", mapOf("image_base64" to "img"))
+            }
+        }
+        val inputTool = object : AgentTool {
+            override val name: String = "input_text"
+            override val description: String = "input"
+            override val metadata: AgentToolMetadata
+                get() = AgentToolMetadata(risk = ToolRisk.MEDIUM, mutatesUi = true, requiresAutoVerify = true)
+            override suspend fun execute(args: Map<String, Any?>): ToolResult =
+                ToolResult.success("typed", emptyMap())
+        }
+        val registry = ToolRegistry().register(inputTool).register(uiTool).register(screenTool)
+        val client = FakeToolChatClient(
+            listOf(
+                AgentChatResponse(content = null, reasoningContent = null, toolCalls = listOf(AgentToolCall("call1", "input_text", "{}"))),
+                AgentChatResponse(content = "完成", reasoningContent = null, toolCalls = emptyList()),
+            ),
+        )
+        val session = AgentSession(registry, client, NoOpTrace, TaskPlanStore(InMemoryTaskPlanPersistence()), InMemoryAgentRunLedger()).apply {
+            argumentParser = { emptyMap() }
+        }
+        val result = session.send(
+            "输入文字",
+            verifyPolicy = AgentVerificationPolicy(enabled = true, maxPerRun = 1, minIntervalMs = 0),
+        )
+        assertTrue(result.ok)
+        assertEquals(1, uiExecutions)
+        assertEquals(1, screenExecutions)
+    }
+
+
 }

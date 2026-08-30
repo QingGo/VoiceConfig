@@ -203,7 +203,7 @@ object AgentToolMetadataRegistry {
             group = ToolGroup.PHONE,
             risk = ToolRisk.MEDIUM,
             mutatesUi = true,
-            requiresAutoVerify = false,
+            requiresAutoVerify = true,
             needsShizuku = true,
         ),
         "swipe" to AgentToolMetadata(

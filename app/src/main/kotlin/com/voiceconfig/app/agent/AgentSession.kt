@@ -1027,7 +1027,12 @@ class AgentSession @Inject constructor(
                             startedAtElapsedMs = verifyStartElapsedMs,
                         ),
                     )
-                    val verify = runCatching { toolRegistry.get(verifyToolName)?.execute(emptyMap()) }.getOrNull()
+                    var verify = runCatching { toolRegistry.get(verifyToolName)?.execute(emptyMap()) }.getOrNull()
+                    if (verify?.ok != true && verifyToolName == "read_ui") {
+                        // 某些 App（如微信）不暴露可读 UI，自动验证失败时降级为截图证据。
+                        val screenVerify = runCatching { toolRegistry.get("read_screen")?.execute(emptyMap()) }.getOrNull()
+                        if (screenVerify?.ok == true) verify = screenVerify
+                    }
                     val verifyDurationMs = System.currentTimeMillis() - verifyStartMs
                     val verifyImage = verify?.data?.get("image_base64") as? String
                     if (verify?.ok == true && !verifyImage.isNullOrBlank()) {
