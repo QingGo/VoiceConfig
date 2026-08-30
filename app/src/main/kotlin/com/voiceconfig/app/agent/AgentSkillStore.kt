@@ -41,6 +41,7 @@ class AgentSkillStore @Inject constructor(
     init {
         _skills.value = load()
         _auditLogs.value = loadAudit()
+        seedBuiltinSkillsIfNeeded()
     }
 
     fun observeSkills(): StateFlow<List<AgentSkill>> = _skills
@@ -48,6 +49,23 @@ class AgentSkillStore @Inject constructor(
     fun all(): List<AgentSkill> = _skills.value
 
     fun observeAuditLogs(): StateFlow<List<AgentSkillAudit>> = _auditLogs
+
+    private fun seedBuiltinSkillsIfNeeded() {
+        if (prefs.getBoolean(KEY_BUILTIN_SEEDED, false)) return
+        val now = System.currentTimeMillis()
+        val existing = load()
+        val missing = BuiltinSkillCatalog.all(now).filter { seed ->
+            existing.none { it.id == seed.id }
+        }
+        if (missing.isNotEmpty()) {
+            save(existing + missing)
+            missing.forEach { seed ->
+                appendAudit(seed.id, "seed", "内置技能：${seed.name}")
+            }
+        }
+        prefs.edit().putBoolean(KEY_BUILTIN_SEEDED, true).apply()
+    }
+
 
     /**
      * 兼容旧接口：只保存工具名和参数，不校验验证证据。
@@ -690,6 +708,7 @@ class AgentSkillStore @Inject constructor(
 
     private companion object {
         const val KEY_SKILLS = "skills"
+        const val KEY_BUILTIN_SEEDED = "builtin_skills_seeded_v1"
         const val KEY_AUDIT = "skill_audit"
     }
 }
