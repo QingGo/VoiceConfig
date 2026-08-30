@@ -576,7 +576,7 @@
 - [x] 所有 UI 工具统一走 `UiActionLayer`
   - 已包括 `DismissPopupsTool / ReadUiTool / PressKeyTool / InputTextTool`
 - [x] 输入/点击等 UI 变更工具已纳入自动可见证据：`tap` / `tap_text` / `swipe` / `press_key` / `input_text`
-- [ ] `ui_assert / ui_wait` 纳入模型常规验证路径
+- [x] `ui_assert / ui_wait` 已作为确定性感知/等待工具纳入模型工具集
 - [x] 浮层规则化：
   - `PROMO(AD) / PERMISSION / FUNCTIONAL_PICKER / TERMINAL_CONFIRM`
 - [x] 坐标仅作为最后兜底，并明确返回 `coordinateFallback=true` 标记

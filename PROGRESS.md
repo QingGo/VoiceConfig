@@ -186,6 +186,7 @@
 - [x] `UiActionLayer`：统一 `tapById / tapByText / tapByDesc / tapCenter / swipe / back / input / waitFor / assertVisible / assertNotVisible`
 - [x] `TapTool / TapTextTool / SwipeTool` 已收敛到 `UiActionLayer`
 - [x] `UiAssertTool`：确定性 `visible / not_visible / wait_for` 断言，已注册进核心工具集
+- [x] `UiWaitTool`：显式 `wait_for` 等待工具，与 `ui_assert` 同源并已注册
 - [x] `TerminalSafetyGate`：识别确认订单 / 免密支付 / 提交订单 / 消息发送确认页
 - [x] `StopVerifier` 终端页强制 `WAITING_CONFIRM`，不再判为未完成 / DONE
 - [x] 单测覆盖：TerminalSafetyGateTest、TaskPlanTest 终端页、UiAssertToolTest

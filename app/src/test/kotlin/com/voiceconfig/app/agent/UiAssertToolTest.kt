@@ -14,4 +14,13 @@ class UiAssertToolTest {
         assertFalse(result.ok)
         assertTrue(result.message.contains("resourceId/text/desc"))
     }
+
+    @Test
+    fun `ui wait requires a selector and defaults to wait action`() = runBlocking {
+        val tool = UiWaitTool(UiActionLayer(ShizukuCommandRunner()))
+        val result = tool.execute(emptyMap())
+        assertFalse(result.ok)
+        assertTrue(result.message.contains("resourceId/text/desc"))
+    }
+
 }

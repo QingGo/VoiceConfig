@@ -171,6 +171,12 @@ object AgentToolMetadataRegistry {
             risk = ToolRisk.READ_ONLY,
             needsShizuku = false,
         ),
+        "ui_wait" to AgentToolMetadata(
+            category = "感知",
+            group = ToolGroup.CORE,
+            risk = ToolRisk.READ_ONLY,
+            needsShizuku = false,
+        ),
         "task_plan" to AgentToolMetadata(
             category = "计划",
             group = ToolGroup.CORE,

@@ -16,6 +16,8 @@ class AgentToolsetTest {
             assertEquals("$name should be CORE", ToolGroup.CORE, AgentToolMetadataRegistry.of(name).group)
         }
         assertEquals(ToolGroup.CORE, AgentToolMetadataRegistry.of("ui_assert").group)
+        assertEquals(ToolGroup.CORE, AgentToolMetadataRegistry.of("ui_wait").group)
+        assertEquals(ToolRisk.READ_ONLY, AgentToolMetadataRegistry.of("ui_wait").risk)
     }
 
     @Test

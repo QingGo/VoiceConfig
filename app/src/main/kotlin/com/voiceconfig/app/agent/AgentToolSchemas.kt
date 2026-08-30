@@ -60,6 +60,12 @@ object AgentToolSchemas {
             "desc" to string("目标 content-desc"),
             "timeoutMs" to integer("wait_for 的等待超时毫秒，默认 5000"),
         )
+        "ui_wait" -> objectSchema(
+            "resourceId" to string("目标资源 id，例如 com.lucky.luckyclient:id/close_iv"),
+            "text" to string("目标文字"),
+            "desc" to string("目标 content-desc"),
+            "timeoutMs" to integer("等待超时毫秒，默认 5000"),
+        )
         "task_plan" -> objectSchema(
             "action" to string("create/update/wait_user/get"),
             "goal" to string("目标描述，create 时必填"),
