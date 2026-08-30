@@ -238,6 +238,17 @@
   - 微信自动化：被风控守卫硬拦截，耗时 <1s
   - 企业微信发送工具：成功注册并可调用，缺配置时明确失败
 
+## 执行层收敛与终端矩阵扩展（2026-08-30）
+
+- [x] `PressKeyTool` 改为统一走 `UiActionLayer`，新增 `home()` / `keycode()`
+- [x] `TerminalSafetyGate` 扩展终端类型：
+  - `DELETE`
+  - `CONFIG`
+  - `HOME_SECURITY`
+  - `REMOTE_DESTRUCTIVE`
+- [x] 单测覆盖删除/配置/安防/远程破坏性终端识别
+- [ ] 真机/模拟器分别验证这些新终端停止点
+
 ## 已提交代码
 
 - 安全四级与审计

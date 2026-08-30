@@ -32,6 +32,42 @@ object TerminalSafetyGate {
         "send",
     )
 
+    /** 删除/清空类终端页面标识。 */
+    val DELETE_TERMINAL_MARKERS = listOf(
+        "确认删除",
+        "删除确认",
+        "永久删除",
+        "确认清空",
+        "清空确认",
+    )
+
+    /** 配置修改类终端页面标识。 */
+    val CONFIG_TERMINAL_MARKERS = listOf(
+        "确认修改",
+        "确认覆盖",
+        "保存更改",
+        "确认保存",
+    )
+
+    /** 智能家居安防域终端页面标识。 */
+    val HOME_SECURITY_TERMINAL_MARKERS = listOf(
+        "确认撤防",
+        "确认解除",
+        "关闭安防",
+        "远程开门",
+        "确认开门",
+        "解锁确认",
+    )
+
+    /** 远程破坏性操作终端页面/命令标识。 */
+    val REMOTE_DESTRUCTIVE_MARKERS = listOf(
+        "确认删除文件",
+        "确认覆盖文件",
+        "rm -rf",
+        "确认重启",
+        "确认关机",
+    )
+
     /** 目标文本中的通信意图，用于降低“发送”误判。 */
     private val SEND_GOAL_MARKERS = listOf(
         "微信",
@@ -48,6 +84,10 @@ object TerminalSafetyGate {
         NONE,
         PAYMENT,
         SEND,
+        DELETE,
+        CONFIG,
+        HOME_SECURITY,
+        REMOTE_DESTRUCTIVE,
     }
 
     data class TerminalHit(
@@ -92,6 +132,19 @@ object TerminalSafetyGate {
         val sendButtonVisible = text.contains("发送", ignoreCase = true) || text.contains("send", ignoreCase = true)
         if (sendButtonVisible && isSendGoal(goalText)) {
             return TerminalHit(TerminalKind.SEND, if (text.contains("send", ignoreCase = true)) "send" else "发送", "检测到发送按钮，且用户目标为消息发送")
+        }
+
+        REMOTE_DESTRUCTIVE_MARKERS.firstOrNull { text.contains(it, ignoreCase = true) }?.let {
+            return TerminalHit(TerminalKind.REMOTE_DESTRUCTIVE, it, "检测到远程破坏性操作终端：$it")
+        }
+        DELETE_TERMINAL_MARKERS.firstOrNull { text.contains(it, ignoreCase = true) }?.let {
+            return TerminalHit(TerminalKind.DELETE, it, "检测到删除/清空确认页：$it")
+        }
+        CONFIG_TERMINAL_MARKERS.firstOrNull { text.contains(it, ignoreCase = true) }?.let {
+            return TerminalHit(TerminalKind.CONFIG, it, "检测到配置修改确认页：$it")
+        }
+        HOME_SECURITY_TERMINAL_MARKERS.firstOrNull { text.contains(it, ignoreCase = true) }?.let {
+            return TerminalHit(TerminalKind.HOME_SECURITY, it, "检测到智能家居安防终端：$it")
         }
 
         return TerminalHit(TerminalKind.NONE, "", "")

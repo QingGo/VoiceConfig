@@ -694,6 +694,18 @@ adb shell am broadcast -a com.voiceconfig.app.DEBUG_AUTO_CONFIRM --ez enabled tr
 
 ---
 
+## 7.10 执行层收敛与终端矩阵扩展（2026-08-30）
+
+- `PressKeyTool` 已收敛到 `UiActionLayer`，减少重复无障碍/Shizuku 分支。
+- `TerminalSafetyGate` 从支付/发送扩展到：
+  - 删除/清空
+  - 配置修改/覆盖
+  - 智能家居安防
+  - 远程破坏性操作
+- 这些新增终端类型都会强制 `WAITING_CONFIRM`，不会自动执行。
+
+---
+
 ## 8. 后续不做什么
 
 - 不新增“听起来很酷但不可验证”的功能

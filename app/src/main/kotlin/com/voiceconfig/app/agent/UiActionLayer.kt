@@ -134,6 +134,36 @@ class UiActionLayer @Inject constructor(
         }
     }
 
+    /** Home 键。 */
+    fun home(): UiActionResult {
+        if (AgentAccessibilityService.pressHome() == true) {
+            return UiActionResult.success("已通过无障碍发送 Home 键", mapOf("source" to "accessibility"))
+        }
+        if (!shizuku.isAvailable()) {
+            return UiActionResult.failure("无法发送 Home 键：需要无障碍服务或 Shizuku")
+        }
+        val result = shizuku.execute("input", "keyevent", "3")
+        return if (result.ok) {
+            UiActionResult.success("已发送 Home 键", mapOf("source" to "shizuku"))
+        } else {
+            UiActionResult.failure("Home 失败：${result.output}")
+        }
+    }
+
+    /** 通用按键码。 */
+    fun keycode(code: Int): UiActionResult {
+        if (code < 0) return UiActionResult.failure("keycode 不能为负数")
+        if (!shizuku.isAvailable()) {
+            return UiActionResult.failure("无法发送按键 $code：需要 Shizuku")
+        }
+        val result = shizuku.execute("input", "keyevent", code.toString())
+        return if (result.ok) {
+            UiActionResult.success("已发送按键 $code", mapOf("keycode" to code, "source" to "shizuku"))
+        } else {
+            UiActionResult.failure("按键失败：${result.output}")
+        }
+    }
+
     /** 输入文本（复用 TextInputManager 的能力，但这里保持原语简洁）。 */
     suspend fun input(text: String): UiActionResult {
         if (text.isBlank()) return UiActionResult.failure("文本不能为空")

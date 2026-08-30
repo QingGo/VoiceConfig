@@ -77,4 +77,13 @@ class TerminalSafetyGateTest {
         )
         assertEquals(TerminalSafetyGate.TerminalKind.PAYMENT, hit.kind)
     }
+    @Test
+    fun `detects delete config home security and remote destructive terminals`() {
+        assertEquals(TerminalSafetyGate.TerminalKind.DELETE, TerminalSafetyGate.detect("确认删除？").kind)
+        assertEquals(TerminalSafetyGate.TerminalKind.CONFIG, TerminalSafetyGate.detect("确认覆盖此文件？").kind)
+        assertEquals(TerminalSafetyGate.TerminalKind.HOME_SECURITY, TerminalSafetyGate.detect("确认撤防？").kind)
+        assertEquals(TerminalSafetyGate.TerminalKind.REMOTE_DESTRUCTIVE, TerminalSafetyGate.detect("确认删除文件？").kind)
+    }
+
+
 }
