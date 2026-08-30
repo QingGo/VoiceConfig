@@ -11,9 +11,11 @@ object BuiltinFlowScripts {
     val luckinStandardIce: FlowScript = FlowScript(
         id = "builtin_luckin_standard_ice",
         name = "瑞幸标准冰美式到免密支付",
+        description = "打开瑞幸，按标准路径选择冰美式并停在免密支付/确认订单页，绝不自动支付。",
         openPackage = "com.lucky.luckyclient",
         terminalMarkers = listOf("免密支付", "确认订单"),
         maxIterations = 18,
+        forbiddenActionTokens = listOf("pay", "confirm_payment", "send", "delete"),
         steps = listOf(
             FlowStep(
                 id = "update",
@@ -69,4 +71,6 @@ object BuiltinFlowScripts {
             ),
         ),
     )
+
+    val all: List<FlowScript> = listOf(luckinStandardIce)
 }

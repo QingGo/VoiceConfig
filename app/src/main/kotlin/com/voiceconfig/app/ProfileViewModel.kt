@@ -6,6 +6,9 @@ import com.voiceconfig.app.ai.ApiKeyStore
 import com.voiceconfig.app.agent.WechatRiskGuard
 import com.voiceconfig.app.agent.AgentSkill
 import com.voiceconfig.app.agent.AgentSkillStore
+import com.voiceconfig.app.agent.FlowScript
+import com.voiceconfig.app.agent.FlowScriptStatus
+import com.voiceconfig.app.agent.FlowScriptStore
 import com.voiceconfig.app.agent.WecomSendMessageTool
 import com.voiceconfig.app.home.HomeAssistantDevice
 import com.voiceconfig.data.local.entity.AiDebugLogEntity
@@ -26,6 +29,7 @@ class ProfileViewModel @Inject constructor(
     private val aiDebugLogRepository: AiDebugLogRepository,
     private val wecomSendMessageTool: WecomSendMessageTool,
     private val agentSkillStore: AgentSkillStore,
+    private val flowScriptStore: FlowScriptStore,
 ) : ViewModel() {
 
 
@@ -94,6 +98,7 @@ class ProfileViewModel @Inject constructor(
     val wecomTestMessage: StateFlow<String?> = _wecomTestMessage.asStateFlow()
 
     val agentSkills: StateFlow<List<AgentSkill>> = agentSkillStore.skills
+    val flowScripts: StateFlow<List<FlowScript>> = flowScriptStore.flows
 
     private val _agentAutoVerifyEnabled = MutableStateFlow(apiKeyStore.agentAutoVerifyEnabled)
     val agentAutoVerifyEnabled: StateFlow<Boolean> = _agentAutoVerifyEnabled.asStateFlow()
@@ -225,6 +230,25 @@ class ProfileViewModel @Inject constructor(
         apiKeyStore.agentAutoVerifyEnabled = enabled
         _agentAutoVerifyEnabled.value = enabled
     }
+
+    fun approveFlowScript(id: String) {
+        flowScriptStore.approve(id)
+    }
+
+    fun rejectFlowScript(id: String) {
+        flowScriptStore.reject(id)
+    }
+
+    fun setFlowScriptEnabled(id: String, enabled: Boolean) {
+        flowScriptStore.setEnabled(id, enabled)
+    }
+
+    fun deleteFlowScript(id: String) {
+        flowScriptStore.delete(id)
+    }
+
+    fun importFlowScriptJson(json: String): Boolean =
+        flowScriptStore.importJson(json) != null
 
     fun setAgentMaxAutoVerifies(value: Int) {
         apiKeyStore.agentMaxAutoVerifies = value

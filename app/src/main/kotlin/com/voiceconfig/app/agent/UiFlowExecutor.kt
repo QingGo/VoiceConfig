@@ -68,6 +68,18 @@ class UiFlowExecutor @Inject constructor(
                 candidate.id !in used && matches(candidate, text)
             } ?: continue
 
+            // 安全护栏：如果脚本步骤标记了禁止动作 token，引擎直接拒绝执行。
+            if (step.label.isNotBlank() && script.forbiddenActionTokens.any {
+                    it.equals(step.label, ignoreCase = true)
+                }
+            ) {
+                return FlowExecutionResult(
+                    ok = false,
+                    message = "FlowScript 触发了禁止动作（${step.label}），已安全停止。",
+                    summary = text.take(600),
+                )
+            }
+
             val actionOk = executeAction(step.action)
             if (actionOk && step.once) {
                 used += step.id

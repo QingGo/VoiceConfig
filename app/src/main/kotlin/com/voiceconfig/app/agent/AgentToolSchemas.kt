@@ -256,6 +256,9 @@ object AgentToolSchemas {
             "drink" to string("可选，饮品名称；默认标准美式"),
             "temperature" to string("可选，冷热；默认冰"),
         )
+        "run_flow_script" -> objectSchema(
+            "scriptId" to string("已审核启用的 FlowScript ID"),
+        )
         "luckin_prepare_order" -> objectSchema(
             "store" to string("门店名称或位置"),
             "drink" to string("饮品名称，如：冰美式/生椰拿铁"),

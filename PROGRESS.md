@@ -307,3 +307,17 @@
 - [ ] 无 Shizuku 熄屏任务默认降级：高优先级通知/全屏提醒 → 用户点亮 → Agent 继续
 - [ ] 在能力状态中增加“执行模式”：Ambient（无障碍亮屏）/ Assist（Shizuku/root）/ Notify（无 Shizuku 熄屏提醒）
 - [ ] 增加 `VIBRATE` 权限和震动/铃声全屏提醒工具
+
+## FlowScript 平台化（2026-08-30 续）
+
+- [x] `FlowScript` 增加 `schemaVersion / version / description / status / source / enabled / forbiddenActionTokens`
+- [x] `FlowScriptCodec`：统一 JSON 格式 `voiceconfig-flow-script`，支持导入/导出/parse/validate
+- [x] `FlowScriptStorage` 抽象 + SharedPreferences 实现；`FlowScriptStore` 管理内置 + 自定义脚本
+- [x] 外部导入脚本默认 `PENDING + disabled`，必须人工审核通过后才可执行
+- [x] `FlowScriptStore` 内置脚本保护：不可删除、不可停用、不可覆盖
+- [x] `UiFlowExecutor` 增加禁止动作 token 护栏：步骤 label 命中 `forbiddenActionTokens` 时拒绝执行
+- [x] 新增通用工具 `run_flow_script`：按 `scriptId` 执行已审核启用的 FlowScript，并注册 metadata/schema
+- [x] 设置页新增 `FlowScriptSettingsSection`：列出内置/自定义流程、审核/拒绝/启停/删除/导入/复制导出
+- [x] 新增 `FlowScriptCodecTest` / `FlowScriptStoreTest`：roundtrip、校验、导入审核、内置保护、导出
+- [x] 全量 JVM 单测通过
+- [ ] 真机 golden 回归：连续 5/5 跑通瑞幸 FlowScript

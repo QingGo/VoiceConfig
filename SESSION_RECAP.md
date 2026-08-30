@@ -59,6 +59,9 @@
   - 全部停在免密支付页，未支付，严格断言通过
 - `FlowScript` / `UiFlowExecutor` / `BuiltinFlowScripts` 已落地
 - `LuckinQuickOrderTool` 降为薄适配层
+- FlowScript 已升级为 JSON 可导入导出/版本化/校验平台；`FlowScriptStore` + `FlowScriptCodec` 已实现
+- 新增 `run_flow_script` 通用工具与设置页 FlowScript 审核/导入/导出管理
+- `UiFlowExecutor` 已支持 forbiddenActionTokens 安全护栏
 - `UiWaitTool` 已注册并通过真机 Mock E2E
 - UI 变更工具自动可见证据 + trace 化
 - `TerminalSafetyGate` 每域矩阵 + `terminal_gate` trace
@@ -73,7 +76,7 @@
 
 ### 新发现的问题
 
-- FlowScript 仍是 Kotlin 数据，未 JSON 化/版本化/可导入
+- FlowScript 已 JSON 化/版本化/可导入，但仍缺少正式 JSON Schema 文件与多域脚本
 - FlowScript 目前只有瑞幸，未验证其他域
 - 宏未处理“购物车残留/前置条件”通用校验
 - 关闭思维链换速度可能降低异常页面鲁棒性

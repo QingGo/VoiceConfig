@@ -334,6 +334,13 @@ object AgentToolMetadataRegistry {
             mutatesUi = true,
             requiresAutoVerify = false,
         ),
+        "run_flow_script" to AgentToolMetadata(
+            category = "流程技能",
+            group = ToolGroup.APP_SKILL,
+            risk = ToolRisk.MEDIUM,
+            mutatesUi = true,
+            requiresAutoVerify = false,
+        ),
         "wechat_draft_reply" to AgentToolMetadata(
             category = "通信技能",
             group = ToolGroup.APP_SKILL,

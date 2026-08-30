@@ -105,6 +105,7 @@ fun SettingsScreen(
     val wecomSecret by profileViewModel.wecomSecret.collectAsState()
     val wecomTestMessage by profileViewModel.wecomTestMessage.collectAsState()
     val agentSkills by profileViewModel.agentSkills.collectAsState()
+    val flowScripts by profileViewModel.flowScripts.collectAsState()
     val homeAssistantBaseUrl by profileViewModel.homeAssistantBaseUrl.collectAsState()
     val homeAssistantToken by profileViewModel.homeAssistantToken.collectAsState()
     val homeAssistantConfigured by profileViewModel.homeAssistantConfigured.collectAsState()
@@ -299,6 +300,16 @@ fun SettingsScreen(
 
                 item {
                     BuiltinSkillsSettingsSection(skills = agentSkills)
+                }
+                item {
+                    FlowScriptSettingsSection(
+                        scripts = flowScripts,
+                        onApprove = profileViewModel::approveFlowScript,
+                        onReject = profileViewModel::rejectFlowScript,
+                        onSetEnabled = profileViewModel::setFlowScriptEnabled,
+                        onDelete = profileViewModel::deleteFlowScript,
+                        onImportJson = profileViewModel::importFlowScriptJson,
+                    )
                 }
 
                 item {

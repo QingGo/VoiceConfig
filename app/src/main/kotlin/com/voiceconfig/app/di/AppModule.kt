@@ -85,6 +85,13 @@ object AppModule {
             .build()
 
     @Provides
+    @Singleton
+    fun provideFlowScriptStorage(
+        @ApplicationContext context: Context,
+    ): com.voiceconfig.app.agent.FlowScriptStorage =
+        com.voiceconfig.app.agent.SharedPreferencesFlowScriptStorage(context)
+
+    @Provides
     fun provideTaskDao(database: VoiceConfigDatabase): TaskDao = database.taskDao()
 
     @Provides
@@ -326,6 +333,7 @@ object AppModule {
         luckinPrepareOrderTool: com.voiceconfig.app.agent.LuckinPrepareOrderTool,
         luckinOpenTool: com.voiceconfig.app.agent.LuckinOpenTool,
         luckinQuickOrderTool: com.voiceconfig.app.agent.LuckinQuickOrderTool,
+        flowScriptTool: com.voiceconfig.app.agent.FlowScriptTool,
         wechatDraftReplyTool: com.voiceconfig.app.agent.WechatDraftReplyTool,
         wechatOpenTool: com.voiceconfig.app.agent.WechatOpenTool,
         weworkOpenTool: com.voiceconfig.app.agent.WeworkOpenTool,
@@ -384,6 +392,7 @@ object AppModule {
         luckinPrepareOrderTool = luckinPrepareOrderTool,
         luckinOpenTool = luckinOpenTool,
         luckinQuickOrderTool = luckinQuickOrderTool,
+        flowScriptTool = flowScriptTool,
         wechatDraftReplyTool = wechatDraftReplyTool,
         wechatOpenTool = wechatOpenTool,
         weworkOpenTool = weworkOpenTool,
