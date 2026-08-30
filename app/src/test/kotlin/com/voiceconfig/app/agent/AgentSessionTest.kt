@@ -478,4 +478,33 @@ class AgentSessionTest {
     }
 
 
+
+    @Test
+    fun `real tool failure makes run failed and surface cause`() = runBlocking {
+        val failTool = object : AgentTool {
+            override val name: String = "fail_tool"
+            override val description: String = "fail"
+            override suspend fun execute(args: Map<String, Any?>): ToolResult =
+                ToolResult.failure("硬件失败：无法完成")
+        }
+        val registry = ToolRegistry().register(failTool)
+        val client = FakeToolChatClient(
+            listOf(
+                AgentChatResponse(
+                    content = null,
+                    reasoningContent = null,
+                    toolCalls = listOf(AgentToolCall("c1", "fail_tool", "{}")),
+                ),
+                AgentChatResponse(content = "完成", reasoningContent = null, toolCalls = emptyList()),
+            ),
+        )
+        val session = AgentSession(registry, client, NoOpTrace, TaskPlanStore(InMemoryTaskPlanPersistence()), InMemoryAgentRunLedger()).apply {
+            argumentParser = { emptyMap() }
+        }
+        val result = session.send("执行会失败的工具")
+        assertFalse(result.ok)
+        assertTrue(result.message.contains("硬件失败"))
+        assertEquals(AgentRunState.FAILED, result.state)
+    }
+
 }
