@@ -266,6 +266,12 @@ object AgentToolSchemas {
             "humanConfirmed" to string("必须 true，表示已经过用户确认"),
         )
         "wework_open" -> objectSchema()
+        "wecom_send_message" -> objectSchema(
+            "toUser" to string("企业微信成员 UserID，多个用 | 分隔，可选"),
+            "toParty" to string("部门 ID，多个用 | 分隔，可选"),
+            "toTag" to string("标签 ID，多个用 | 分隔，可选"),
+            "content" to string("要发送的文本消息内容"),
+        )
         "remote_project_inspect" -> objectSchema(
             "host" to string("节点名或 IP，可省略"),
             "path" to string("远程项目根目录绝对路径"),

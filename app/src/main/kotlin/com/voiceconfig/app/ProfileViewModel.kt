@@ -3,6 +3,7 @@ package com.voiceconfig.app
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.voiceconfig.app.ai.ApiKeyStore
+import com.voiceconfig.app.agent.WechatRiskGuard
 import com.voiceconfig.app.home.HomeAssistantDevice
 import com.voiceconfig.data.local.entity.AiDebugLogEntity
 import com.voiceconfig.data.local.repository.AiDebugLogRepository
@@ -71,6 +72,18 @@ class ProfileViewModel @Inject constructor(
 
     private val _agentAutoConfirmSensitiveActions = MutableStateFlow(apiKeyStore.agentAutoConfirmSensitiveActions)
     val agentAutoConfirmSensitiveActions: StateFlow<Boolean> = _agentAutoConfirmSensitiveActions.asStateFlow()
+
+    private val _wechatUiAutomationEnabled = MutableStateFlow(apiKeyStore.wechatUiAutomationEnabled)
+    val wechatUiAutomationEnabled: StateFlow<Boolean> = _wechatUiAutomationEnabled.asStateFlow()
+
+    private val _wecomCorpId = MutableStateFlow(apiKeyStore.wecomCorpId)
+    val wecomCorpId: StateFlow<String> = _wecomCorpId.asStateFlow()
+
+    private val _wecomAgentId = MutableStateFlow(apiKeyStore.wecomAgentId)
+    val wecomAgentId: StateFlow<String> = _wecomAgentId.asStateFlow()
+
+    private val _wecomSecret = MutableStateFlow(apiKeyStore.wecomSecret)
+    val wecomSecret: StateFlow<String> = _wecomSecret.asStateFlow()
 
     private val _agentAutoVerifyEnabled = MutableStateFlow(apiKeyStore.agentAutoVerifyEnabled)
     val agentAutoVerifyEnabled: StateFlow<Boolean> = _agentAutoVerifyEnabled.asStateFlow()
@@ -164,6 +177,27 @@ class ProfileViewModel @Inject constructor(
     fun setAgentAutoConfirmSensitiveActions(enabled: Boolean) {
         apiKeyStore.agentAutoConfirmSensitiveActions = enabled
         _agentAutoConfirmSensitiveActions.value = enabled
+    }
+
+    fun setWechatUiAutomationEnabled(enabled: Boolean) {
+        apiKeyStore.wechatUiAutomationEnabled = enabled
+        WechatRiskGuard.setAutomationAllowed(enabled)
+        _wechatUiAutomationEnabled.value = enabled
+    }
+
+    fun setWecomCorpId(value: String) {
+        apiKeyStore.wecomCorpId = value.trim()
+        _wecomCorpId.value = apiKeyStore.wecomCorpId
+    }
+
+    fun setWecomAgentId(value: String) {
+        apiKeyStore.wecomAgentId = value.trim()
+        _wecomAgentId.value = apiKeyStore.wecomAgentId
+    }
+
+    fun setWecomSecret(value: String) {
+        apiKeyStore.wecomSecret = value.trim()
+        _wecomSecret.value = apiKeyStore.wecomSecret
     }
 
     fun setAgentAutoVerifyEnabled(enabled: Boolean) {

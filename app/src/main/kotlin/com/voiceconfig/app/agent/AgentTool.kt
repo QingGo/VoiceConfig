@@ -353,6 +353,12 @@ object AgentToolMetadataRegistry {
             mutatesUi = true,
             requiresAutoVerify = true,
         ),
+        "wecom_send_message" to AgentToolMetadata(
+            category = "通信技能",
+            group = ToolGroup.APP_SKILL,
+            risk = ToolRisk.HIGH,
+            sensitive = true,
+        ),
         "file_write" to AgentToolMetadata(
             category = "文件",
             group = ToolGroup.DEBUG,

@@ -99,6 +99,10 @@ fun SettingsScreen(
     val agentAutoConfirmSensitiveActions by profileViewModel.agentAutoConfirmSensitiveActions.collectAsState()
     val agentAutoVerifyEnabled by profileViewModel.agentAutoVerifyEnabled.collectAsState()
     val agentMaxAutoVerifies by profileViewModel.agentMaxAutoVerifies.collectAsState()
+    val wechatUiAutomationEnabled by profileViewModel.wechatUiAutomationEnabled.collectAsState()
+    val wecomCorpId by profileViewModel.wecomCorpId.collectAsState()
+    val wecomAgentId by profileViewModel.wecomAgentId.collectAsState()
+    val wecomSecret by profileViewModel.wecomSecret.collectAsState()
     val homeAssistantBaseUrl by profileViewModel.homeAssistantBaseUrl.collectAsState()
     val homeAssistantToken by profileViewModel.homeAssistantToken.collectAsState()
     val homeAssistantConfigured by profileViewModel.homeAssistantConfigured.collectAsState()
@@ -273,6 +277,19 @@ fun SettingsScreen(
                         onAutoVerifyChange = profileViewModel::setAgentAutoVerifyEnabled,
                         maxAutoVerifies = agentMaxAutoVerifies,
                         onMaxAutoVerifiesChange = profileViewModel::setAgentMaxAutoVerifies,
+                    )
+                }
+
+                item {
+                    EnterpriseWechatSettingsSection(
+                        wechatAutomationEnabled = wechatUiAutomationEnabled,
+                        onWechatAutomationChange = profileViewModel::setWechatUiAutomationEnabled,
+                        wecomCorpId = wecomCorpId,
+                        onWecomCorpIdChange = profileViewModel::setWecomCorpId,
+                        wecomAgentId = wecomAgentId,
+                        onWecomAgentIdChange = profileViewModel::setWecomAgentId,
+                        wecomSecret = wecomSecret,
+                        onWecomSecretChange = profileViewModel::setWecomSecret,
                     )
                 }
 

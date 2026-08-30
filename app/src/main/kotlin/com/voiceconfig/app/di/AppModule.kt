@@ -327,6 +327,7 @@ object AppModule {
         wechatDraftReplyTool: com.voiceconfig.app.agent.WechatDraftReplyTool,
         wechatOpenTool: com.voiceconfig.app.agent.WechatOpenTool,
         weworkOpenTool: com.voiceconfig.app.agent.WeworkOpenTool,
+        wecomSendMessageTool: com.voiceconfig.app.agent.WecomSendMessageTool,
         wechatReadMessagesTool: com.voiceconfig.app.agent.WechatReadMessagesTool,
         wechatSendReplyTool: com.voiceconfig.app.agent.WechatSendReplyTool,
     ): CoreAgentPlugin = CoreAgentPlugin(
@@ -382,6 +383,7 @@ object AppModule {
         wechatDraftReplyTool = wechatDraftReplyTool,
         wechatOpenTool = wechatOpenTool,
         weworkOpenTool = weworkOpenTool,
+        wecomSendMessageTool = wecomSendMessageTool,
         wechatReadMessagesTool = wechatReadMessagesTool,
         wechatSendReplyTool = wechatSendReplyTool,
     )

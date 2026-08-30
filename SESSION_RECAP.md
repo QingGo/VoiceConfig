@@ -659,6 +659,21 @@ imported_logs/real_device_agent_trace.log
 
 ---
 
+## 7.8 企业微信官方 API 与设置页落地（2026-08-30）
+
+为替代个人微信自动化，新增合规发送通道：
+
+- 新工具 `wecom_send_message`：
+  - 通过企业微信官方 API 给成员/部门/标签发送应用消息
+  - 需要配置 CorpId / AgentId / Secret
+  - 工具元数据标记为 `HIGH / sensitive`，仍会进入敏感确认流程
+- 新设置页 `EnterpriseWechatSettingsSection`：
+  - 个人微信“小号风险模式”开关（默认关）
+  - 企业微信 API 三要素配置
+- 个人微信仍默认禁用；企业微信走官方 API 可作为产品化自动发送路径
+
+---
+
 ## 8. 后续不做什么
 
 - 不新增“听起来很酷但不可验证”的功能

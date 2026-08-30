@@ -64,6 +64,7 @@ class CoreAgentPlugin @Inject constructor(
     private val wechatDraftReplyTool: WechatDraftReplyTool,
     private val wechatOpenTool: WechatOpenTool,
     private val weworkOpenTool: WeworkOpenTool,
+    private val wecomSendMessageTool: WecomSendMessageTool,
     private val wechatReadMessagesTool: WechatReadMessagesTool,
     private val wechatSendReplyTool: WechatSendReplyTool,
 ) : AgentPlugin {
@@ -125,6 +126,7 @@ class CoreAgentPlugin @Inject constructor(
         wechatDraftReplyTool,
         wechatOpenTool,
         weworkOpenTool,
+        wecomSendMessageTool,
         wechatReadMessagesTool,
         wechatSendReplyTool,
     )
