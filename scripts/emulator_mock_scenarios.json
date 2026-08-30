@@ -63,6 +63,13 @@
     "timeout": 30,
     "expectFailureContains": "未配置企业微信",
     "category": "mock-wecom-missing-config"
+  },
+  {
+    "name": "Home Assistant 未配置拦截（Mock LLM）",
+    "text": "家庭设备",
+    "timeout": 30,
+    "expectFailureContains": "未配置 Home Assistant",
+    "category": "mock-home-missing-config"
   }
 
 ]
