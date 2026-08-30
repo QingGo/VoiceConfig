@@ -90,13 +90,13 @@ VoiceConfig 的终极目标不是“做一个会聊天、会读屏的 App”，�
 ### 2.12 执行速度与上下文膨胀
 - 真机 trace 显示截图全量进入 LLM 历史后，单次请求可到 **10MB+**，单轮等待 10～35 秒。
 - 已修复：只保留最近 2 张截图、截图默认最长边 1440、JPEG 质量 80、视觉读屏预算、completion check 降为 1 次。
-- 但仍缺：修复后的真机正式耗时基线；没有把“每轮耗时/token/请求体”自动生成报告。
+- 已补 TraceReportBuilder（耗时/工具序列/截图/验证/安全拦截/失败原因）；仍缺修复后的真机正式耗时基线和 token 统计。
 - LLM 自由探索仍会绕路；Skill 驱动是下一阶段根治。
 
 ### 2.13 官方 API 替代仍不足
 - 已新增企业微信官方 API 发送工具与设置页。
 - 但仍没有：
-  - 企业微信测试号真实联调
+  - 企业微信测试号真实联调（设置页已加凭证测试按钮）
   - 微信客服/公众号/小程序 API
   - 官方 API 的凭证安全存储、权限最小化、调用审计
 - 个人微信能力必须持续避免，不能让 UI 自动化重新成为默认路径。
@@ -145,9 +145,9 @@ VoiceConfig 的终极目标不是“做一个会聊天、会读屏的 App”，�
 - [x] `AccessibilityKeepAlive` 基础状态机：DISCONNECTED / CONNECTING / CONNECTED / CRASHED
 - [x] 模拟器可验证状态机与截屏
 - [ ] 真机设备矩阵：MIUI / 模拟器 / 有无 Shizuku / 有无障碍 / 锁屏 / 离线自愈
-- [ ] 自动恢复脚本完善：重装后重连、亮屏/解锁、instance 检测
+- [x] 自动恢复脚本完善：`emulator_mock_e2e.sh` 先启动 App 再写回无障碍；`AccessibilityKeepAlive` 自适应重试+指标
 - [ ] 个人微信自动化保持默认禁用；真机回归只跑 Luckin + 企业微信官方 API + Settings
-- [ ] 企业微信测试号真实 API 联调
+- [x] 设置页新增企业微信 API 凭证测试按钮；真实测试号联调仍待凭证
 
 ### P1：完成确定性执行层
 - [x] `TapTool / TapTextTool / SwipeTool / PressKeyTool / DismissPopupsTool` 已走 `UiActionLayer`
@@ -319,7 +319,7 @@ VoiceConfig 的终极目标不是“做一个会聊天、会读屏的 App”，�
 3. ✅ `PressKeyTool / DismissPopupsTool` 收敛到 `UiActionLayer`；`input_text` 有截图证据回退。
 4. ✅ `TerminalSafetyGate` 扩展到删除/配置/HA 安防/远程破坏性。
 5. 🔜 拿到企业微信测试号，完成官方 API 真实发送联调。
-6. 🔜 把已验证路径沉淀为 APPROVED Skill，开始 Skill 驱动阶段。
+6. ✅ 已内置 4 条 APPROVED Skill，模型提示已改为优先参考技能；下一步接入真实测试号联调。
 7. 🔜 真机设备矩阵、无障碍自愈、锁屏/离线处理。
 8. 🔜 真机耗时基线 + 自动 trace 报告，目标简单 <10s、常见多步 <60s、复杂 <120s。
 9. 之后才扩展更多 App / 能力。
