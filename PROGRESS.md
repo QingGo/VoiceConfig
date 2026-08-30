@@ -354,3 +354,10 @@
 - [x] `UiFlowExecutor` 支持执行输入文本与等待动作，文本同样支持参数模板
 - [x] `flow_script_schema.json` 同步加入 `input_text` / `wait` 动作类型和必填字段
 - [x] 新增动作 roundtrip 单测
+
+## 执行模式定义（2026-08-30 续）
+
+- [x] 新增 `AgentExecutionMode`：`ASSIST / AMBIENT / NOTIFY`
+- [x] `AgentCapabilitySnapshot` 增加 `executionMode` 派生属性
+- [x] `CapabilityStatus` 映射并展示执行模式：Assist / Shizuku、Ambient / 无障碍、Notify / 强提醒
+- [x] 新增执行模式映射单测

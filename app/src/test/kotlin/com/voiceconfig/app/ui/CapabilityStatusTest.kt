@@ -1,6 +1,8 @@
 package com.voiceconfig.app.ui
 
 import com.voiceconfig.app.agent.AgentCapabilitySnapshot
+import com.voiceconfig.app.agent.AgentExecutionMode
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -49,4 +51,32 @@ class CapabilityStatusTest {
         assertFalse(status.accessibility)
         assertFalse(status.homeAssistant)
     }
+    @Test
+    fun `execution mode follows available channels`() {
+        val assist = CapabilityStatusMapper.from(
+            snapshot = ready,
+            homeAssistantConfigured = false,
+            remoteNodeCount = 0,
+            wakeWordEnabled = false,
+        )
+        assertEquals(AgentExecutionMode.ASSIST, assist.executionMode)
+
+        val ambient = CapabilityStatusMapper.from(
+            snapshot = ready.copy(shizukuAvailable = false, accessibilityEnabled = true),
+            homeAssistantConfigured = false,
+            remoteNodeCount = 0,
+            wakeWordEnabled = false,
+        )
+        assertEquals(AgentExecutionMode.AMBIENT, ambient.executionMode)
+
+        val notify = CapabilityStatusMapper.from(
+            snapshot = ready.copy(shizukuAvailable = false, accessibilityEnabled = false),
+            homeAssistantConfigured = false,
+            remoteNodeCount = 0,
+            wakeWordEnabled = false,
+        )
+        assertEquals(AgentExecutionMode.NOTIFY, notify.executionMode)
+    }
+
+
 }

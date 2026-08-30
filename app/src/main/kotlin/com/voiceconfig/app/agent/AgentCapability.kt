@@ -12,6 +12,19 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
+ * 执行模式：描述当前设备可用的自动执行通道。
+ *
+ * - ASSIST：Shizuku/root 可用，可可靠唤醒、熄屏打开 App；
+ * - AMBIENT：仅无障碍可用，亮屏可操作但熄屏不可靠；
+ * - NOTIFY：无可靠 UI 通道，优先强提醒/人工点亮后继续。
+ */
+enum class AgentExecutionMode {
+    ASSIST,
+    AMBIENT,
+    NOTIFY,
+}
+
+/**
  * 统一能力快照。
  *
  * 目的：在执行任何 Agent 任务前，先确定性检测“我们有哪些执行通道”，
@@ -34,6 +47,13 @@ data class AgentCapabilitySnapshot(
 
     val canRunAgent: Boolean
         get() = cloudLlmAvailable
+
+    val executionMode: AgentExecutionMode
+        get() = when {
+            shizukuAvailable -> AgentExecutionMode.ASSIST
+            accessibilityEnabled -> AgentExecutionMode.AMBIENT
+            else -> AgentExecutionMode.NOTIFY
+        }
 
     fun summary(): String = buildString {
         append("Shizuku=").append(if (shizukuAvailable) "Y" else "N")
