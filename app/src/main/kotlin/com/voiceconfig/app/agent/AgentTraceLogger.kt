@@ -20,6 +20,7 @@ interface AgentTrace {
     fun saveScreenshot(runId: String, base64: String, label: String): String
     fun saveScreenshot(base64: String, label: String): String = saveScreenshot("local", base64, label)
     fun readRun(runId: String): List<Map<String, Any?>> = emptyList()
+    fun report(runId: String): AgentTraceReport? = null
 }
 
 /**
@@ -110,6 +111,12 @@ class AgentTraceLogger @Inject constructor(
             }
         }
         result
+    }
+
+    override fun report(runId: String): AgentTraceReport? {
+        val events = readRun(runId)
+        if (events.isEmpty()) return null
+        return AgentTraceReportBuilder.build(events)
     }
 
     private fun JSONObject.toMap(): Map<String, Any?> = buildMap {
