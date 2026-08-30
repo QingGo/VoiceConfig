@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
@@ -34,6 +35,8 @@ fun EnterpriseWechatSettingsSection(
     onWecomAgentIdChange: (String) -> Unit,
     wecomSecret: String,
     onWecomSecretChange: (String) -> Unit,
+    wecomTestMessage: String?,
+    onTestWecom: () -> Unit,
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -93,6 +96,23 @@ fun EnterpriseWechatSettingsSection(
                 visualTransformation = PasswordVisualTransformation(),
                 modifier = Modifier.fillMaxWidth(),
             )
+            Button(
+                onClick = onTestWecom,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text("测试企业微信 API 凭证")
+            }
+            wecomTestMessage?.let { message ->
+                Text(
+                    message,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = if (message.contains("失败") || message.contains("请检查")) {
+                        MaterialTheme.colorScheme.error
+                    } else {
+                        MaterialTheme.colorScheme.primary
+                    },
+                )
+            }
         }
     }
 }

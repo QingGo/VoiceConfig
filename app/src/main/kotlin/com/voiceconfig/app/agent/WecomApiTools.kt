@@ -84,6 +84,26 @@ class WecomSendMessageTool @Inject constructor(
         )
     }
 
+    /** 仅校验企业微信 CorpId/Secret 是否能获取 access_token，不发送任何消息。 */
+    suspend fun verifyCredentials(): ToolResult {
+        val corpId = apiKeyStore.wecomCorpId
+        val agentId = apiKeyStore.wecomAgentId
+        val secret = apiKeyStore.wecomSecret
+        if (corpId.isBlank() || agentId.isBlank() || secret.isBlank()) {
+            return ToolResult.failure("未配置企业微信 API，请在设置中填写 CorpId / AgentId / Secret")
+        }
+        val token = getAccessToken(corpId, secret)
+        return if (token != null) {
+            ToolResult.success(
+                "企业微信 API 凭证验证通过（CorpId/AgentId/Secret 有效）",
+                mapOf("valid" to true, "tokenLength" to token.length, "source" to "wecom_verify"),
+            )
+        } else {
+            ToolResult.failure("企业微信 API 凭证验证失败，请检查 CorpId/Secret/网络")
+        }
+    }
+
+
     private val tokenLock = Any()
     private var cachedToken: String? = null
     private var cachedTokenCorpId: String = ""

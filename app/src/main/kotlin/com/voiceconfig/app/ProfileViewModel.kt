@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.voiceconfig.app.ai.ApiKeyStore
 import com.voiceconfig.app.agent.WechatRiskGuard
+import com.voiceconfig.app.agent.WecomSendMessageTool
 import com.voiceconfig.app.home.HomeAssistantDevice
 import com.voiceconfig.data.local.entity.AiDebugLogEntity
 import com.voiceconfig.data.local.repository.AiDebugLogRepository
@@ -21,6 +22,7 @@ class ProfileViewModel @Inject constructor(
     private val apiKeyStore: ApiKeyStore,
     private val homeAssistantFeature: HomeAssistantFeature,
     private val aiDebugLogRepository: AiDebugLogRepository,
+    private val wecomSendMessageTool: WecomSendMessageTool,
 ) : ViewModel() {
 
 
@@ -84,6 +86,9 @@ class ProfileViewModel @Inject constructor(
 
     private val _wecomSecret = MutableStateFlow(apiKeyStore.wecomSecret)
     val wecomSecret: StateFlow<String> = _wecomSecret.asStateFlow()
+
+    private val _wecomTestMessage = MutableStateFlow<String?>(null)
+    val wecomTestMessage: StateFlow<String?> = _wecomTestMessage.asStateFlow()
 
     private val _agentAutoVerifyEnabled = MutableStateFlow(apiKeyStore.agentAutoVerifyEnabled)
     val agentAutoVerifyEnabled: StateFlow<Boolean> = _agentAutoVerifyEnabled.asStateFlow()
@@ -198,6 +203,17 @@ class ProfileViewModel @Inject constructor(
     fun setWecomSecret(value: String) {
         apiKeyStore.wecomSecret = value.trim()
         _wecomSecret.value = apiKeyStore.wecomSecret
+    }
+
+    fun testWecomConnection() {
+        viewModelScope.launch {
+            val result = wecomSendMessageTool.verifyCredentials()
+            _wecomTestMessage.value = result.message
+        }
+    }
+
+    fun clearWecomTestMessage() {
+        _wecomTestMessage.value = null
     }
 
     fun setAgentAutoVerifyEnabled(enabled: Boolean) {
