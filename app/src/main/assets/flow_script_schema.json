@@ -1,0 +1,95 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://voiceconfig.local/schemas/flow-script-v1.json",
+  "title": "VoiceConfig FlowScript v1",
+  "type": "object",
+  "required": ["format", "schemaVersion", "id", "name", "steps"],
+  "properties": {
+    "format": { "const": "voiceconfig-flow-script" },
+    "schemaVersion": { "type": "integer", "minimum": 1 },
+    "version": { "type": "integer", "minimum": 1 },
+    "id": { "type": "string", "minLength": 1 },
+    "name": { "type": "string", "minLength": 1 },
+    "description": { "type": "string" },
+    "parameters": {
+      "type": "object",
+      "additionalProperties": { "type": "string" }
+    },
+    "openPackage": { "type": ["string", "null"] },
+    "status": {
+      "type": "string",
+      "enum": ["APPROVED", "PENDING", "REJECTED", "DISABLED"]
+    },
+    "enabled": { "type": "boolean" },
+    "source": { "type": "string" },
+    "terminalMarkers": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "maxIterations": { "type": "integer", "minimum": 1 },
+    "forbiddenActionTokens": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "steps": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/definitions/step" }
+    },
+    "createdAtMs": { "type": "integer" },
+    "updatedAtMs": { "type": "integer" }
+  },
+  "definitions": {
+    "step": {
+      "type": "object",
+      "required": ["id", "action"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "name": { "type": "string" },
+        "label": { "type": "string" },
+        "whenContains": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "whenNotContains": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "once": { "type": "boolean" },
+        "action": { "$ref": "#/definitions/action" }
+      }
+    },
+    "action": {
+      "type": "object",
+      "required": ["type"],
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["tap_text", "tap_id", "back", "dismiss_popups", "tap_text_or_back"]
+        },
+        "candidates": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "resourceIds": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "type": { "const": "tap_text" } } },
+          "then": { "required": ["candidates"] }
+        },
+        {
+          "if": { "properties": { "type": { "const": "tap_id" } } },
+          "then": { "required": ["resourceIds"] }
+        },
+        {
+          "if": { "properties": { "type": { "const": "tap_text_or_back" } } },
+          "then": { "required": ["candidates"] }
+        }
+      ]
+    }
+  }
+}

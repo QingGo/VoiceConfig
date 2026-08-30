@@ -341,3 +341,8 @@
 - [x] `run_flow_script` 支持 `params` JSON 字符串覆盖脚本参数
 - [x] 新增参数 roundtrip 单测
 - [x] 全量 JVM 单测通过
+
+## FlowScript JSON Schema 文件（2026-08-30 续）
+
+- [x] 新增 `app/src/main/assets/flow_script_schema.json`：声明 FlowScript v1 顶层字段、步骤、动作类型、参数
+- [x] schema 包含动作类型合法值与必填字段约束，可作为外部导入/审核工具参考
