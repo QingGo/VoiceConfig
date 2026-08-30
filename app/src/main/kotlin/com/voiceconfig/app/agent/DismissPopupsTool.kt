@@ -87,6 +87,23 @@ class DismissPopupsTool @Inject constructor(
                     )
                 }
 
+                OverlayDetector.OverlayKind.PERMISSION_OVERLAY -> {
+                    val evidence = analysis.evidence.joinToString("；")
+                    return ToolResult.success(
+                        "当前是系统权限弹窗，不会自动关闭；请按任务需要选择允许/仅在使用期间允许。$evidence",
+                        mapOf("kind" to "permission_overlay", "actions" to actions),
+                    )
+                }
+
+                OverlayDetector.OverlayKind.TERMINAL_CONFIRM -> {
+                    val evidence = analysis.evidence.joinToString("；")
+                    return ToolResult.success(
+                        "当前是终端确认页/操作（支付/发送/删除/配置等），不会自动关闭；请调用 wait_user 停在最后一步等真人确认。$evidence",
+                        mapOf("kind" to "terminal_confirm", "actions" to actions),
+                    )
+                }
+
+
                 OverlayDetector.OverlayKind.PROMO_OVERLAY -> {
                     if (analysis.candidates.isNotEmpty()) {
                         val candidate = analysis.candidates.firstOrNull { candidate ->

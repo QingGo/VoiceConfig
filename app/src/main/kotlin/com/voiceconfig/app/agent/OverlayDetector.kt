@@ -15,6 +15,8 @@ object OverlayDetector {
         NONE,
         PROMO_OVERLAY,
         FUNCTIONAL_PICKER,
+        PERMISSION_OVERLAY,
+        TERMINAL_CONFIRM,
     }
 
     data class DismissCandidate(
@@ -41,6 +43,28 @@ object OverlayDetector {
         "营销", "红包", "弹窗", "立即更新", "马上更新", "新版本",
         "限时", "促销", "推荐", "惊喜", "会员", "邀请",
     )
+
+    private val permissionTexts = listOf(
+        "权限", "允许", "拒绝", "仅在使用期间允许", "仅在使用应用时允许",
+        "始终允许", "使用应用时允许", "相机", "定位", "通知", "存储",
+        "麦克风", "通讯录", "照片", "文件", "电话", "传感器",
+    )
+
+    private val terminalTexts = listOf(
+        "支付", "付款", "确认支付", "立即支付", "提交订单", "确认订单",
+        "去支付", "购买", "下单", "免密支付", "发送", "确认发送", "删除",
+        "确认删除", "格式化", "清除数据", "恢复出厂", "解除绑定", "退出登录",
+        "关机", "重启", "修改配置", "保存配置", "提交", "确认",
+    )
+
+    private val allowActionTexts = listOf(
+        "允许", "仅在使用期间允许", "仅在使用应用时允许", "始终允许", "使用应用时允许",
+    )
+
+    private val denyActionTexts = listOf(
+        "拒绝", "不允许", "禁止", "取消",
+    )
+
 
     fun analyze(nodes: List<UiDumpParser.UiNode>): OverlayAnalysis {
         val evidence = mutableListOf<String>()
@@ -70,31 +94,54 @@ object OverlayDetector {
             || promoNodes.any { it.text.contains("立即更新") || it.text.contains("马上更新") }
             || nodes.any { it.resourceId.lowercase().contains("webview_dialog") && candidates.isNotEmpty() }
 
-        // 功能性选择层：有多个可点击的文本选项，且没有明显营销/更新信号。
+        val allText = nodes.map { (it.text + " " + it.contentDesc).lowercase() }.joinToString(" ")
+
+        // 系统权限弹窗：不能关闭，应选择“允许/仅在使用期间允许”。
+        val hasPermissionSignal = permissionTexts.any { allText.contains(it.lowercase()) } &&
+            (dialogLike.isNotEmpty() || allowActionTexts.any { allText.contains(it.lowercase()) } || denyActionTexts.any { allText.contains(it.lowercase()) })
+
+        // 终端确认（支付/发送/删除/配置/远程破坏性）：只能停在确认页等真人。
+        val hasTerminalSignal = terminalTexts.any { allText.contains(it.lowercase()) }
+
+        // 通用“可关闭浮层”：即使没有典型 dialog/promo 文案，只要存在明显 X/关闭图标，
+        // 也优先视为需要关闭的额外浮层（例如确认订单页的换购/免密浮层）。
+        val hasCloseableOverlay = dismissNodes.any { isCloseIcon(it) }
+
+        // 功能性选择层：有多个可点击文本选项，且没有明显营销/更新/权限/终端信号。
         val clickableOptionRows = nodes.filter { node ->
             node.clickable && node.text.isNotBlank()
         }
-        val functionalPicker = dialogLike.isNotEmpty() && clickableOptionRows.size >= 2 && !hasPromoSignal
-
-        // 通用“可关闭浮层”：即使没有典型 dialog/promo 文案，只要存在明显的 X/关闭图标，
-        // 也视为需要关闭的浮层（例如确认订单页的换购/免密浮层）。
-        val hasCloseableOverlay = dismissNodes.any { isCloseIcon(it) }
+        val functionalPicker = dialogLike.isNotEmpty() &&
+            clickableOptionRows.size >= 2 &&
+            !hasPromoSignal &&
+            !hasPermissionSignal &&
+            !hasTerminalSignal &&
+            !hasCloseableOverlay
 
         return when {
+            hasPermissionSignal -> OverlayAnalysis(
+                kind = OverlayKind.PERMISSION_OVERLAY,
+                candidates = candidates,
+                evidence = evidence + "检测到系统权限弹窗，任务需要时应选择允许/仅在使用期间允许，不要关闭",
+            )
+            hasCloseableOverlay || hasPromoSignal -> OverlayAnalysis(
+                kind = OverlayKind.PROMO_OVERLAY,
+                candidates = candidates,
+                evidence = evidence + if (hasCloseableOverlay) "检测到可关闭浮层（存在关闭图标/按钮）" else "检测到需要关闭的营销/更新/广告弹窗",
+            )
             functionalPicker -> OverlayAnalysis(
                 kind = OverlayKind.FUNCTIONAL_PICKER,
                 candidates = candidates,
                 evidence = evidence + "检测到功能性选择层（含多个可选项），不应自动关闭",
             )
-            hasPromoSignal || hasCloseableOverlay -> OverlayAnalysis(
-                kind = OverlayKind.PROMO_OVERLAY,
+            hasTerminalSignal -> OverlayAnalysis(
+                kind = OverlayKind.TERMINAL_CONFIRM,
                 candidates = candidates,
-                evidence = evidence + if (hasCloseableOverlay) "检测到可关闭浮层（存在关闭图标/按钮）" else "检测到需要关闭的营销/更新/广告弹窗",
+                evidence = evidence + "检测到终端确认页/操作（支付/发送/删除/配置等），不应关闭，应调用 wait_user 停在最后一步",
             )
             else -> OverlayAnalysis(OverlayKind.NONE, emptyList(), evidence)
         }
     }
-
     fun isDismissCandidate(node: UiDumpParser.UiNode): Boolean {
         val text = (node.text + " " + node.contentDesc).trim().lowercase()
         if (dismissTexts.any { text == it.lowercase() || text.contains(it.lowercase()) }) return true
