@@ -5,6 +5,12 @@ set -euo pipefail
 export MSYS_NO_PATHCONV=1
 SERIAL="${1:-emulator-5554}"
 PYTHON="${PYTHON:-python}"
+
+# 尽量把无障碍服务写回并等待连接，模拟器上可直接设置。
+adb -s "$SERIAL" shell settings put secure   enabled_accessibility_services   com.voiceconfig.app/com.voiceconfig.app.service.AgentAccessibilityService || true
+adb -s "$SERIAL" shell settings put secure accessibility_enabled 1 || true
+sleep 2
+
 "$PYTHON" "$(dirname "$0")/agent_scenario_eval.py" \
   --serial "$SERIAL" \
   suite \
