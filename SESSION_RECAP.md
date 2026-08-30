@@ -77,6 +77,16 @@
 
 ---
 
+### 0.1 本轮模拟器/执行层后续增量
+- `ReadUiTool` 已收敛到 `UiActionLayer`；浮层新增权限/终端确认分类。
+- 新增 4 条内置 APPROVED Skill，并在设置页展示。
+- `AccessibilityKeepAlive` 增加自适应重试、健康指标、解锁恢复。
+- 模拟器回归从 4/4 扩展到 11/11，新增等待确认/弹窗/返回键/UI 断言/微信风控/企业微信与 HA 未配置。
+- 修复真实工具失败被“完成”掩盖的问题：现在会强制 FAILED 并显示失败原因。
+- TraceReport 支持失败分类、Token、请求体，并可导出 Markdown。
+- 新增企业微信 API 凭证测试按钮与 CLI 脚本。
+- 智能家居/树莓派方向完成调研，但真实 HA/海信空调/窗帘/SSH 尚未联调。
+
 ## 1. 本 Session 目标
 
 把 VoiceConfig 从“能听能说”推进到：

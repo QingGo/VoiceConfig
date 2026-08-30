@@ -267,3 +267,16 @@
 - Home Assistant 桥与 home_devices/home_control
 - product_compare 购物比较工具
 - Agent 结果 TTS
+
+## 最新模拟器/执行层推进（2026-08-30）
+
+- [x] `ReadUiTool` 完全收敛到 `UiActionLayer`
+- [x] 浮层分类扩展到权限弹窗和终端确认页
+- [x] 内置 4 条 APPROVED Skill，设置页展示技能清单
+- [x] `AccessibilityKeepAlive` 自适应重试 + 锁屏恢复
+- [x] TraceReport 支持耗时/工具序列/截图/Token/失败分类/Markdown 导出
+- [x] 企业微信 API 凭证测试按钮 + CLI 脚本
+- [x] Agent 真实工具失败不再被“完成”掩盖
+- [x] 模拟器 Mock LLM E2E 11/11 通过
+- [ ] 真实 Home Assistant / 海信空调 / 百褶帘 / 树莓派 SSH 联调
+- [ ] 低成本 DIY 智能家居固化为可验证的 ESPHome/Skill 路径
