@@ -610,7 +610,7 @@
   - 自动可见证据（`requireAutoVerify`）
 - [x] trace 自动报告：
   - 路径 / 耗时 / 失败原因 / 截图 / 证据（`AgentTraceReportBuilder`；token/真机基线待补）
-- [ ] 真机 + 模拟器双跑
+- [x] 真机 + 模拟器双跑（Mock LLM E2E 14/14：`scripts/dual_device_mock_e2e.sh`）
 - [ ] 失败自动归类
 
 ### P5：本地语音与长期稳定性
