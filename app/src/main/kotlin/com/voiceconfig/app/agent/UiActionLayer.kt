@@ -225,6 +225,259 @@ class UiActionLayer @Inject constructor(
         }
         return UiActionResult.failure("断言失败：${selector.describe()} 仍然可见", mapOf("selector" to selector.toMap(), "visible" to true, "bounds" to node.bounds, "text" to node.text, "resourceId" to node.resourceId))
     }
+    /** 读取当前 UI 树，返回统一快照（UI 摘要、节点、弹窗分析、来源、耗时）。 */
+    suspend fun readUi(
+        maxNodes: Int = 120,
+        maxChars: Int = 4000,
+    ): UiReadResult {
+        val timingMs = linkedMapOf<String, Long>()
+        val totalStartMs = System.currentTimeMillis()
+        val maxN = maxNodes.coerceIn(10, 500)
+        val maxC = maxChars.coerceIn(500, 20_000)
+
+        // 优先使用无障碍服务：不需要 uiautomator dump，速度快很多。
+        val a11yStartMs = System.currentTimeMillis()
+        val a11ySnapshots = AgentAccessibilityService.currentNodes()
+        timingMs["a11y_read_ms"] = System.currentTimeMillis() - a11yStartMs
+        val foreground = currentForegroundPackage()
+        val a11yMatchesForeground = a11ySnapshots.isNotEmpty() &&
+            (foreground == null || a11ySnapshots.any { it.packageName == foreground })
+        if (a11yMatchesForeground) {
+            val uiNodes = a11ySnapshots.map { it.toUiNode() }
+            val summary = UiDumpParser.summarizeNodes(uiNodes, maxN, maxC)
+            val overlay = OverlayDetector.analyze(uiNodes)
+            timingMs["total_ms"] = System.currentTimeMillis() - totalStartMs
+            return UiReadResult(
+                ok = true,
+                message = "已通过无障碍服务读取当前界面：\n$summary${overlayNote(overlay)}",
+                summary = summary,
+                nodes = uiNodes,
+                source = "accessibility",
+                foregroundPackage = foreground,
+                overlay = overlay,
+                timingMs = timingMs,
+            )
+        }
+
+        // 无 Shizuku 时只保留无障碍文本兜底。
+        if (!shizuku.isAvailable()) {
+            val a11y = AgentAccessibilityService.currentSnapshot()
+            if (!a11y.isNullOrBlank()) {
+                timingMs["total_ms"] = System.currentTimeMillis() - totalStartMs
+                return UiReadResult(
+                    ok = true,
+                    message = "已通过无障碍服务读取当前界面：\n$a11y",
+                    summary = a11y,
+                    nodes = emptyList(),
+                    source = "accessibility",
+                    foregroundPackage = foreground,
+                    overlay = null,
+                    timingMs = timingMs,
+                )
+            }
+            timingMs["total_ms"] = System.currentTimeMillis() - totalStartMs
+            return UiReadResult(
+                ok = false,
+                message = "read_ui 需要 Shizuku 授权或开启无障碍服务",
+                error = "read_ui 需要 Shizuku 授权或开启无障碍服务",
+                foregroundPackage = foreground,
+                timingMs = timingMs,
+            )
+        }
+
+        // Shizuku uiautomator dump 路径。
+        val dumpFile = "/data/local/tmp/voiceconfig_ui.xml"
+        val dumpStartMs = System.currentTimeMillis()
+        val dump = shizuku.execute("uiautomator", "dump", dumpFile)
+        timingMs["dump_cmd_ms"] = System.currentTimeMillis() - dumpStartMs
+        if (!dump.ok) {
+            delay(300)
+            val retryNodes = AgentAccessibilityService.currentNodes()
+            if (retryNodes.isNotEmpty()) {
+                val uiNodes = retryNodes.map { it.toUiNode() }
+                val summary = UiDumpParser.summarizeNodes(uiNodes, maxN, maxC)
+                val overlay = OverlayDetector.analyze(uiNodes)
+                timingMs["total_ms"] = System.currentTimeMillis() - totalStartMs
+                return UiReadResult(
+                    ok = true,
+                    message = "已通过无障碍服务读取当前界面（重试成功）\n$summary${overlayNote(overlay)}",
+                    summary = summary,
+                    nodes = uiNodes,
+                    source = "accessibility",
+                    foregroundPackage = currentForegroundPackage(),
+                    overlay = overlay,
+                    timingMs = timingMs,
+                )
+            }
+            val a11y = AgentAccessibilityService.currentSnapshot()
+            if (!a11y.isNullOrBlank()) {
+                timingMs["total_ms"] = System.currentTimeMillis() - totalStartMs
+                return UiReadResult(
+                    ok = true,
+                    message = "已通过无障碍服务读取当前界面（uiautomator dump 失败）:\n$a11y",
+                    summary = a11y,
+                    nodes = emptyList(),
+                    source = "accessibility",
+                    foregroundPackage = currentForegroundPackage(),
+                    overlay = null,
+                    timingMs = timingMs,
+                )
+            }
+            timingMs["total_ms"] = System.currentTimeMillis() - totalStartMs
+            return UiReadResult(
+                ok = false,
+                message = "UI 层级获取失败：${dump.stderr.trim().ifBlank { "exit=${dump.exitCode}" }}",
+                error = "UI 层级获取失败：${dump.stderr.trim().ifBlank { "exit=${dump.exitCode}" }}",
+                foregroundPackage = currentForegroundPackage(),
+                timingMs = timingMs,
+            )
+        }
+
+        // 解析 dump 实际路径并读取 XML。
+        val dumpOutput = dump.stdout + "\n" + dump.stderr
+        val dumpedPath = Regex("""dumped to:\s*(\S+)""", RegexOption.IGNORE_CASE)
+            .find(dumpOutput)?.groupValues?.getOrNull(1) ?: dumpFile
+        val catStartMs = System.currentTimeMillis()
+        val cat = shizuku.execute("cat", dumpedPath)
+        val xml = if (cat.ok && cat.stdout.isNotBlank()) cat.stdout else {
+            val fallback = shizuku.execute("cat", "/sdcard/window_dump.xml")
+            if (!fallback.ok || fallback.stdout.isBlank()) {
+                delay(300)
+                val retryNodes = AgentAccessibilityService.currentNodes()
+                if (retryNodes.isNotEmpty()) {
+                    val uiNodes = retryNodes.map { it.toUiNode() }
+                    val summary = UiDumpParser.summarizeNodes(uiNodes, maxN, maxC)
+                    val overlay = OverlayDetector.analyze(uiNodes)
+                    timingMs["total_ms"] = System.currentTimeMillis() - totalStartMs
+                    return UiReadResult(
+                        ok = true,
+                        message = "已通过无障碍服务读取当前界面（无法读取 UI 文件，重试成功）\n$summary${overlayNote(overlay)}",
+                        summary = summary,
+                        nodes = uiNodes,
+                        source = "accessibility",
+                        foregroundPackage = currentForegroundPackage(),
+                        overlay = overlay,
+                        timingMs = timingMs,
+                    )
+                }
+                val a11y = AgentAccessibilityService.currentSnapshot()
+                if (!a11y.isNullOrBlank()) {
+                    timingMs["total_ms"] = System.currentTimeMillis() - totalStartMs
+                    return UiReadResult(
+                        ok = true,
+                        message = "已通过无障碍服务读取当前界面（无法读取 UI 文件）:\n$a11y",
+                        summary = a11y,
+                        nodes = emptyList(),
+                        source = "accessibility",
+                        foregroundPackage = currentForegroundPackage(),
+                        overlay = null,
+                        timingMs = timingMs,
+                    )
+                }
+                timingMs["total_ms"] = System.currentTimeMillis() - totalStartMs
+                return UiReadResult(
+                    ok = false,
+                    message = "无法读取 UI 文件：${cat.stderr} ${fallback.stderr}",
+                    error = "无法读取 UI 文件：${cat.stderr} ${fallback.stderr}",
+                    foregroundPackage = currentForegroundPackage(),
+                    timingMs = timingMs,
+                )
+            }
+            fallback.stdout
+        }
+        timingMs["cat_xml_ms"] = System.currentTimeMillis() - catStartMs
+
+        // 防止 uiautomator dump 返回上一个窗口/旧 App 的 UI 树。
+        var finalXml = xml
+        repeat(2) { attempt ->
+            val currentPackage = currentForegroundPackage()
+            val dumpedPackage = Regex("""package="([^"]+)"""").find(finalXml)?.groupValues?.get(1)
+            if (currentPackage == null || dumpedPackage == null || currentPackage == dumpedPackage) {
+                return@repeat
+            }
+            if (attempt == 0) {
+                delay(400)
+                finalXml = dumpUiXml(dumpedPath) ?: finalXml
+            }
+        }
+        val foreStartMs = System.currentTimeMillis()
+        val currentPackageFinal = currentForegroundPackage()
+        val dumpedPackageFinal = Regex("""package="([^"]+)"""").find(finalXml)?.groupValues?.get(1)
+        timingMs["foreground_verify_ms"] = System.currentTimeMillis() - foreStartMs
+        if (currentPackageFinal != null && dumpedPackageFinal != null && currentPackageFinal != dumpedPackageFinal) {
+            val a11y = AgentAccessibilityService.currentSnapshot()
+            if (!a11y.isNullOrBlank()) {
+                timingMs["total_ms"] = System.currentTimeMillis() - totalStartMs
+                return UiReadResult(
+                    ok = true,
+                    message = "已通过无障碍服务读取当前界面（uiautomator 窗口不一致）：\n$a11y",
+                    summary = a11y,
+                    nodes = emptyList(),
+                    source = "accessibility",
+                    foregroundPackage = currentPackageFinal,
+                    overlay = null,
+                    timingMs = timingMs,
+                )
+            }
+            timingMs["total_ms"] = System.currentTimeMillis() - totalStartMs
+            return UiReadResult(
+                ok = false,
+                message = "UI 树与当前前台窗口不一致：dump=$dumpedPackageFinal foreground=$currentPackageFinal，请改用 read_screen 或重试",
+                error = "UI 树与当前前台窗口不一致：dump=$dumpedPackageFinal foreground=$currentPackageFinal，请改用 read_screen 或重试",
+                foregroundPackage = currentPackageFinal,
+                timingMs = timingMs,
+            )
+        }
+
+        val parseStartMs = System.currentTimeMillis()
+        val allNodes = UiDumpParser.parse(finalXml)
+        val summary = UiDumpParser.summarize(finalXml, maxN, maxC)
+        val nodes = allNodes.filter { it.enabled && (it.hasLabel || it.clickable || it.focusable) }.take(maxN)
+        val overlay = OverlayDetector.analyze(allNodes)
+        timingMs["parse_ms"] = System.currentTimeMillis() - parseStartMs
+        timingMs["total_ms"] = System.currentTimeMillis() - totalStartMs
+        return UiReadResult(
+            ok = true,
+            message = summary + overlayNote(overlay),
+            summary = summary,
+            nodes = nodes,
+            source = "uiautomator",
+            foregroundPackage = currentPackageFinal,
+            overlay = overlay,
+            timingMs = timingMs,
+        )
+    }
+
+    /** 当前前台包名（优先无障碍，其次 Shizuku dumpsys）。 */
+    fun currentForegroundPackage(): String? {
+        AgentAccessibilityService.currentPackageName()?.let { return it }
+        if (!shizuku.isAvailable()) return null
+        val result = shizuku.execute("dumpsys", "activity", "activities")
+        if (!result.ok) return null
+        val match = Regex("""topResumedActivity=.*?\s([A-Za-z0-9_.]+)/""")
+            .find(result.stdout)
+            ?: Regex("""mResumedActivity=.*?\s([A-Za-z0-9_.]+)/""")
+                .find(result.stdout)
+        return match?.groupValues?.getOrNull(1)
+    }
+
+    private fun overlayNote(overlay: OverlayDetector.OverlayAnalysis?): String = when (overlay?.kind) {
+        OverlayDetector.OverlayKind.PROMO_OVERLAY -> "\n注意：检测到营销/更新/广告弹窗，建议调用 dismiss_popups 关闭，不要用 tap 猜坐标。"
+        OverlayDetector.OverlayKind.FUNCTIONAL_PICKER -> "\n注意：检测到功能性选择层（门店/商品等），请使用 tap_text 选择目标，不要关闭它。"
+        OverlayDetector.OverlayKind.PERMISSION_OVERLAY -> "\n注意：检测到系统权限弹窗，任务需要时选择“允许/仅在使用期间允许”，不要点击拒绝或关闭。"
+        OverlayDetector.OverlayKind.TERMINAL_CONFIRM -> "\n注意：检测到终端确认页（支付/发送/删除/配置等），不要 dismiss，请调用 wait_user 停在最后一步等待真人确认。"
+        else -> ""
+    }
+
+    private fun dumpUiXml(dumpedPath: String?): String? {
+        val path = dumpedPath ?: return null
+        val cat = shizuku.execute("cat", path)
+        if (cat.ok && cat.stdout.isNotBlank()) return cat.stdout
+        val fallback = shizuku.execute("cat", "/sdcard/window_dump.xml")
+        return if (fallback.ok && fallback.stdout.isNotBlank()) fallback.stdout else null
+    }
+
+
 
     // ------------------------------------------------------------------
     // Internal
@@ -345,3 +598,30 @@ data class UiActionResult(
             UiActionResult(false, message, data)
     }
 }
+
+/** UiActionLayer 的统一 UI 树读取结果。 */
+data class UiReadResult(
+    val ok: Boolean,
+    val message: String,
+    val summary: String = "",
+    val nodes: List<UiDumpParser.UiNode> = emptyList(),
+    val source: String = "",
+    val foregroundPackage: String? = null,
+    val overlay: OverlayDetector.OverlayAnalysis? = null,
+    val timingMs: Map<String, Long> = emptyMap(),
+    val stale: Boolean = false,
+    val error: String? = null,
+)
+
+private fun com.voiceconfig.app.service.AccessibilityUiSnapshot.toUiNode(): UiDumpParser.UiNode =
+    UiDumpParser.UiNode(
+        text = text,
+        contentDesc = contentDesc,
+        resourceId = resourceId,
+        className = className,
+        bounds = bounds,
+        clickable = clickable,
+        focusable = focusable,
+        enabled = true,
+    )
+
