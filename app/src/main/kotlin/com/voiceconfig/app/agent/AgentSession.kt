@@ -1207,9 +1207,9 @@ class AgentSession @Inject constructor(
         } else {
             buildString {
                 appendLine()
-                appendLine("历史成功路径参考（仅作参考，必须结合当前界面重新验证）：")
+                appendLine("推荐技能（已审核，仅作参考；必须结合当前界面重新验证）：")
                 skills.forEachIndexed { index, skill ->
-                    appendLine("${index + 1}. 技能：${skill.name}")
+                    appendLine("${index + 1}. 推荐技能：${skill.name}")
                     if (skill.description.isNotBlank()) appendLine("   说明：${skill.description}")
                     if (skill.whenToUse.isNotBlank()) appendLine("   适用：${skill.whenToUse}")
                     if (skill.requiredCapabilities.isNotEmpty()) {
