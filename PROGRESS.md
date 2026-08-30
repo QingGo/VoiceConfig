@@ -227,7 +227,7 @@
 
 ## 模拟器 Mock LLM 验证通道（2026-08-30）
 
-- [x] `AgentChatClient` 支持 Mock LLM 模式，无需 API Key 即可跑 Agent 流程
+- [x] `AgentChatClient` 支持 Mock LLM 模式，无需 API Key 即可跑 Agent 流程（模拟器 10/10）
 - [x] 调试广播 `DEBUG_MOCK_LLM`：开启/关闭 mock
 - [x] 调试广播 `DEBUG_AUTO_CONFIRM`：自动化验证敏感工具时临时同意
 - [x] 模拟器已验证：
