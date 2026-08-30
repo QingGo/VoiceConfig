@@ -18,6 +18,7 @@ class AgentTraceReportTest {
             mapOf("type" to "tool_result", "tool" to "tap_text", "ok" to true),
             mapOf("type" to "image_seen", "tool" to "read_screen"),
             mapOf("type" to "auto_verify", "tool" to "input_text"),
+            mapOf("type" to "terminal_gate", "kind" to "PAYMENT", "marker" to "免密支付"),
             mapOf("type" to "run_finished", "ok" to true, "waiting" to true, "duration_ms" to 5_000, "message" to "已停在支付前"),
         )
         val report = AgentTraceReportBuilder.build(events)
@@ -29,6 +30,7 @@ class AgentTraceReportTest {
         assertEquals(listOf("open_app", "tap_text"), report.toolSequence)
         assertEquals(1, report.screenshotCount)
         assertEquals(1, report.verificationCount)
+        assertEquals(1, report.terminalGates)
         assertEquals(1, report.llmRounds)
     }
 
@@ -56,6 +58,7 @@ class AgentTraceReportTest {
         val md = AgentTraceReportBuilder.toMarkdown(report)
         assertTrue(md.contains("远程验证"))
         assertTrue(md.contains("2000ms"))
+        assertTrue(md.contains("终端安全门：0"))
     }
 
 

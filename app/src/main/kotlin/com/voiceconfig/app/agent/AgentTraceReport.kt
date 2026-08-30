@@ -22,6 +22,7 @@ data class AgentTraceReport(
     val screenshotCount: Int,
     val verificationCount: Int,
     val safetyBlocks: Int,
+    val terminalGates: Int = 0,
     val llmRounds: Int,
     val llmErrors: Int,
     val issues: List<String>,
@@ -47,6 +48,7 @@ object AgentTraceReportBuilder {
         var screenshotCount = 0
         var verificationCount = 0
         var safetyBlocks = 0
+        var terminalGates = 0
         var llmErrors = 0
         val issues = linkedSetOf<String>()
         var rounds = 0
@@ -87,6 +89,7 @@ object AgentTraceReportBuilder {
                 }
                 "image_seen" -> screenshotCount++
                 "auto_verify" -> verificationCount++
+                "terminal_gate" -> terminalGates++
                 "safety_blocked" -> {
                     safetyBlocks++
                     issues += "安全拦截：${event["tool"]} ${event["reason"]?.toString().orEmpty().take(80)}"
@@ -122,6 +125,7 @@ object AgentTraceReportBuilder {
             screenshotCount = screenshotCount,
             verificationCount = verificationCount,
             safetyBlocks = safetyBlocks,
+            terminalGates = terminalGates,
             llmRounds = llmRounds,
             llmErrors = llmErrors,
             issues = issues.toList(),
@@ -169,7 +173,7 @@ object AgentTraceReportBuilder {
         appendLine("- 工具调用：${report.toolCalls}")
         appendLine("- 工具序列：${report.toolSequence.joinToString(" → ")}")
         appendLine("- 截图：${report.screenshotCount}，自动验证：${report.verificationCount}")
-        appendLine("- 安全拦截：${report.safetyBlocks}，LLM 错误：${report.llmErrors}")
+        appendLine("- 安全拦截：${report.safetyBlocks}，终端安全门：${report.terminalGates}，LLM 错误：${report.llmErrors}")
         appendLine("- Token：prompt=${report.promptTokens}，completion=${report.completionTokens}，total=${report.totalTokens}；请求体≈${report.requestBytes} bytes")
         if (report.failureCategories.isNotEmpty()) {
             appendLine("- 失败类别：${report.failureCategories.joinToString(" / ")}")
