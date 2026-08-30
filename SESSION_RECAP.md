@@ -32,6 +32,22 @@
 - 新增 `scripts/real_device_setup.sh`、`scripts/dual_device_mock_e2e.sh`、`scripts/real_app_open_scenarios.json`
 - 熄屏 + 仅无障碍定时打开企业微信实测
 - 系统性思考：终极目标 / 技术债 / 借鉴项目 / 冲突规避 / 计划
+- **FlowScript 平台化**：
+  - JSON 格式、schema、版本、校验、导入导出
+  - `FlowScriptStore` + 审核状态
+  - `run_flow_script` 通用工具
+  - 设置页 FlowScript 管理
+- **FlowScript 参数化与动作扩展**：
+  - 参数模板 `{key}`
+  - `InputText` / `Wait` 动作
+- **熄屏降级**：
+  - `strong_remind` 全屏震动铃声提醒
+  - 定时任务熄屏失败/等待时自动强提醒
+  - `ASSIST / AMBIENT / NOTIFY` 执行模式
+- **可观测与测试**：
+  - `FlowExecutionResult` 耗时/迭代数
+  - 静态 golden 校验
+  - 正式 JSON Schema 文件
 
 ### 踩过的坑
 
@@ -47,6 +63,11 @@
 - 自动验证 `read_ui` 失败/Screenshot 降级路径在真机熄屏时拿不到前台窗口
 - 临时测试日志写到 `/tmp` 在 Windows/Git Bash 与 Python 路径不一致，导致读取失败
 - 在 Python 脚本中把大段 trace 当结果打印会撑爆输出；应只提取关键字段
+- FlowScript 平台开发中：
+  - `BuiltinFlowScripts.all` 如果在 `luckin` 之前初始化会报未初始化，必须放在脚本定义之后
+  - JSON 导入必须避免自定义脚本与内置脚本 id 冲突，否则 `get()` 会先命中内置
+  - UI 中插入代码块容易出现缩进/换行错误，必须 compile 验证
+  - Kotlin 正则转义与中文编码在 Windows 环境下容易踩坑
 
 ### 已完成部分
 
@@ -59,16 +80,22 @@
   - 全部停在免密支付页，未支付，严格断言通过
 - `FlowScript` / `UiFlowExecutor` / `BuiltinFlowScripts` 已落地
 - `LuckinQuickOrderTool` 降为薄适配层
-- FlowScript 已升级为 JSON 可导入导出/版本化/校验平台；`FlowScriptStore` + `FlowScriptCodec` 已实现
-- 新增 `run_flow_script` 通用工具与设置页 FlowScript 审核/导入/导出管理
-- `UiFlowExecutor` 已支持 forbiddenActionTokens 安全护栏
-- FlowScript 支持脚本参数模板 `{key}`，瑞幸 drink/temperature 已参数化可由 LLM/工具覆盖
-- 新增正式 FlowScript v1 JSON Schema 文件 `app/src/main/assets/flow_script_schema.json`
-- FlowScript 动作扩展：`InputText` / `Wait` 已加入编码、校验、执行器与 JSON Schema
-- 新增 `strong_remind` 强提醒工具：全屏高优先级通知 + 震动 + 铃声，用于无 Shizuku/熄屏降级
-- 新增执行模式 `ASSIST / AMBIENT / NOTIFY`，能力状态与 UI 摘要已展示
-- 新增 FlowScript 静态 golden 校验：内置脚本 validate/roundtrip/参数占位符完整性
-- FlowScript 执行结果回传 `elapsedMs` / `iterations`，便于性能预算与回归
+- FlowScript 已升级为 JSON 可导入导出/版本化/校验平台：
+  - `FlowScriptCodec`
+  - `FlowScriptStore`
+  - 导入默认 PENDING + disabled，内置脚本保护
+  - `run_flow_script` 通用工具
+- 设置页 FlowScript 管理：审核、拒绝、启停、删除、导入、复制导出
+- FlowScript 参数模板 `{key}`，瑞幸 drink/temperature 已参数化
+- FlowScript 动作扩展：`InputText` / `Wait`
+- 正式 FlowScript v1 JSON Schema 文件
+- `UiFlowExecutor` forbiddenActionTokens 安全护栏
+- `FlowExecutionResult` 耗时/迭代数回传
+- `FlowScriptGoldenTest` 静态 golden
+- `strong_remind` 强提醒工具：全屏 + 震动 + 铃声
+- 定时任务熄屏失败/等待时自动强提醒
+- `ASSIST / AMBIENT / NOTIFY` 执行模式
+- `VIBRATE` 权限
 - `UiWaitTool` 已注册并通过真机 Mock E2E
 - UI 变更工具自动可见证据 + trace 化
 - `TerminalSafetyGate` 每域矩阵 + `terminal_gate` trace
@@ -81,51 +108,61 @@
 - 新增真机准备脚本、双跑脚本、真机 App 打开场景
 - JVM 全量单测通过
 
-### 新发现的问题
+### 未完成 / 待继续
 
-- FlowScript 已 JSON 化/版本化/可导入，但仍缺少正式 JSON Schema 文件与多域脚本
-- FlowScript 目前只有瑞幸，未验证其他域
-- 宏未处理“购物车残留/前置条件”通用校验
-- 关闭思维链换速度可能降低异常页面鲁棒性
-- 熄屏 + 仅无障碍无法可靠自动打开 App
-- 强提醒与熄屏自动降级已接入，但仍需用户点亮后“继续执行”闭环
-- Shizuku 权限会因重启/断网/无线调试关闭而丢失，不能作为消费级依赖
-- 企业微信、HA、树莓派、智能家居仍未真实联调
-- 官方 API 凭证安全存储/最小权限/审计仍缺失
-- 个人微信自动化仍是合规红线
-- 本地 KWS/ASR、低功耗、锁屏回归仍未完成
+- 瑞幸 FlowScript 真机 golden：连续 5/5
+- FlowScript 第二个真实域：企业微信官方 API / HA / 远程等
+- 从成功 trace 自动生成候选 FlowScript
+- FlowScript 版本迁移、回滚、差异对比、运行历史/成功率
+- 用户级参数默认值（门店、饮品、设备、主机）
+- 调度器按 `ASSIST / AMBIENT / NOTIFY` 主动路由
+- 用户点亮后自动恢复原任务并继续执行
+- 每个 FlowScript 的终端人工确认 UI 统一组件
+- 全量自动化断言矩阵与性能预算自动判定
+- 企业微信真实测试号联调
+- 真实 Home Assistant / 树莓派 / 海信空调 / 百褶帘联调
+- 凭证安全存储/最小权限/审计
+- 本地 KWS/ASR 1 小时 soak
+- 低功耗 / 灭屏 / 亮屏回归
+- 语音 → Agent → TTS 端到端验收
 
-### 计划要完成的部分
+### 未来计划
 
-- P0：把 FlowScript 升级为平台
-  - JSON Schema / 版本 / 校验 / 导入导出
-  - FlowScript 设置页管理与审核
-  - 真机 golden 回归（连续 5/5）
-- P1：用 FlowScript 扩展到多域
-  - 企业微信官方 API
-  - Home Assistant 设备控制
-  - 远程项目 build/test/verify
-  - 日历/提醒/购物等
-- P2：安全数据化
-  - FlowScript `forbiddenActions` 由引擎统一强制
-  - 终端人工确认 UI
-  - 不可逆操作永远不可自动确认
-- P3：无 Shizuku 熄屏策略
-  - 强提醒模式：闹钟铃声 + 震动 + 全屏通知
-  - 通知/提醒降级通道
-  - 用户点亮后继续执行
-- P4：可观测与回归
-  - 每个 FlowScript 性能预算
-  - 失败自动分类 / 修复建议
-  - 真机 + 模拟器双跑自动化
-- P5：本地语音与长期稳定性
-  - KWS/ASR 1h soak
-  - 低功耗 / 灭屏 / 亮屏回归
-  - 语音 → Agent → TTS 端到端
-- P6：真实联调
-  - 企业微信真实凭证
-  - HA / 树莓派 / 海信空调 / 百褶帘
-  - 凭证安全存储与审计
+#### P0：真机 golden + 多域证明
+1. 瑞幸 FlowScript 真机连续 **5/5**
+2. 用同一套 FlowScript 标准接入第二个真实域
+3. 建立每个 FlowScript 的运行历史、成功率、失败分类
+
+#### P1：FlowScript 生命周期
+1. 从成功 trace 自动生成候选脚本
+2. 版本迁移 / 回滚 / 差异对比
+3. CLI / 自动化导入审核
+4. 用户级参数默认值
+
+#### P2：调度与降级
+1. 执行模式主动路由
+2. `WAITING_USER_WAKE` 续跑状态机
+3. 无 Shizuku 熄屏任务默认走 Notify + 用户点亮续跑
+
+#### P3：安全证据链
+1. 每个 FlowScript 终端人工确认 UI
+2. 禁止动作 + 最终动作未执行作为强制 trace 断言
+3. 不可逆操作永远人工完成
+
+#### P4：可观测与回归
+1. 每个 FlowScript 性能预算
+2. 真机 + 模拟器自动双跑
+3. 失败自动分类与修复建议
+
+#### P5：本地语音与长期稳定
+1. KWS/ASR 1 小时 soak
+2. 低电量/灭屏/亮屏回归
+3. 语音 → Agent → TTS 端到端
+
+#### P6：真实联调
+1. 企业微信测试号
+2. HA / 树莓派 / 海信空调 / 百褶帘
+3. 凭证安全与审计
 
 ## 1. 本 Session 目标
 
