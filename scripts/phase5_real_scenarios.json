@@ -13,7 +13,9 @@
     "expect": "",
     "timeout": 90,
     "estimated_seconds": 30,
-    "category": "open-wechat"
+    "category": "open-wechat",
+    "enabled": false,
+    "skipReason": "个人微信自动化默认关闭，避免账号风控"
   },
   {
     "name": "打开企业微信（真实前台验证）",

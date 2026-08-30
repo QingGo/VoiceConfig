@@ -32,6 +32,8 @@
     ],
     "absentText": [],
     "requireWaiting": true,
-    "allowMessageTerminalCheck": true
+    "allowMessageTerminalCheck": true,
+    "enabled": false,
+    "skipReason": "个人微信自动化默认关闭，避免账号风控；请改用企业微信官方API或专属小号人工验证"
   }
 ]

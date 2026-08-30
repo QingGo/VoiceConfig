@@ -13,6 +13,7 @@ import android.net.wifi.WifiManager
 import android.os.BatteryManager
 import android.os.Build
 import android.os.IBinder
+import android.util.Log
 import androidx.core.app.NotificationCompat
 import com.voiceconfig.app.MainActivity
 import com.voiceconfig.app.R
@@ -133,10 +134,15 @@ class VoiceKeepAliveService : Service() {
     private fun startAccessibilityKeepAliveLoop() {
         scope.launch {
             delay(2_000)
-            accessibilityKeepAlive.ensureEnabled()
+            var lastState = accessibilityKeepAlive.refresh()
+            Log.i(TAG, "accessibility keep-alive initial state=$lastState")
             while (true) {
                 delay(30_000)
-                accessibilityKeepAlive.ensureEnabled()
+                val state = accessibilityKeepAlive.refresh()
+                if (state != lastState) {
+                    Log.i(TAG, "accessibility keep-alive state changed $lastState -> $state")
+                    lastState = state
+                }
             }
         }
     }
@@ -226,6 +232,7 @@ class VoiceKeepAliveService : Service() {
     }
 
     companion object {
+        private const val TAG = "VoiceKeepAliveService"
         private const val CHANNEL_ID = "voice_config_keep_alive"
         private const val NOTIFICATION_ID = 1001
         const val ACTION_HIDE_GLOBAL_BALL = "com.voiceconfig.app.action.HIDE_GLOBAL_BALL"

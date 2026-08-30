@@ -96,4 +96,41 @@ class AgentSafetyTest {
         assertFalse(decision.blocked)
     }
 
+    @Test
+    fun `personal wechat automation is blocked by default`() {
+        WechatRiskGuard.setAutomationAllowed(false)
+        try {
+            val open = safety.decide("wechat_open", emptyMap())
+            assertTrue(open.blocked)
+            assertTrue(open.requiresConfirmation)
+
+            val genericOpen = safety.decide("open_app", mapOf("package" to "com.tencent.mm"))
+            assertTrue(genericOpen.blocked)
+
+            val tapInWechat = safety.decide("tap", mapOf("x" to 1, "y" to 2), foregroundPackage = "com.tencent.mm")
+            assertTrue(tapInWechat.blocked)
+
+            val readInWechat = safety.decide("read_screen", emptyMap(), foregroundPackage = "com.tencent.mm")
+            assertTrue(readInWechat.blocked)
+
+            val wework = safety.decide("wework_open", emptyMap(), foregroundPackage = "com.tencent.wework")
+            assertFalse(wework.blocked)
+        } finally {
+            WechatRiskGuard.setAutomationAllowed(false)
+        }
+    }
+
+    @Test
+    fun `personal wechat automation can be enabled for explicit test accounts`() {
+        WechatRiskGuard.setAutomationAllowed(true)
+        try {
+            val open = safety.decide("wechat_open", emptyMap())
+            assertFalse(open.blocked)
+            assertFalse(open.requiresConfirmation)
+        } finally {
+            WechatRiskGuard.setAutomationAllowed(false)
+        }
+    }
+
+
 }

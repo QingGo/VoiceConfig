@@ -22,6 +22,7 @@ import com.voiceconfig.app.agent.TaskPlan
 import com.voiceconfig.app.agent.TaskPlanStore
 import com.voiceconfig.app.agent.VoiceSession
 import com.voiceconfig.app.agent.VoiceSessionManager
+import com.voiceconfig.app.agent.WechatRiskGuard
 import com.voiceconfig.app.ai.ApiKeyStore
 import com.voiceconfig.app.ai.TtsSpeaker
 import com.voiceconfig.app.voice.GlobalVoiceCommand
@@ -71,6 +72,7 @@ class AgentViewModel @Inject constructor(
     private var skillBackfillStarted = false
 
     init {
+        WechatRiskGuard.setAutomationAllowed(apiKeyStore.wechatUiAutomationEnabled)
         viewModelScope.launch {
             backfillSkillsFromHistory()
         }

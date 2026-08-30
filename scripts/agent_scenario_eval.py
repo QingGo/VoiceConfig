@@ -385,6 +385,9 @@ def main():
         stop_default = tuple(p for p in (args.stop_packages or "").split(",") if p.strip())
         results = []
         for sc in scenarios:
+            if sc.get("enabled") is False:
+                print(f"==> [SKIPPED] {sc.get('name', sc['text'])} (enabled=false)")
+                continue
             print(f"==> {sc.get('name', sc['text'])}")
             pre_stop = tuple(sc.get("preStop", [])) or stop_default
             result = run_and_evaluate(args.serial, sc["text"], sc.get("timeout", args.timeout), sc.get("expect"), pre_stop, scenario=sc)

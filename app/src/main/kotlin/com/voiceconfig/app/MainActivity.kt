@@ -25,6 +25,7 @@ import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
+import androidx.lifecycle.lifecycleScope
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.compose.foundation.Image
@@ -114,9 +115,11 @@ import com.voiceconfig.app.agent.AgentSession
 import com.voiceconfig.app.agent.ShizukuCommandRunner
 import com.voiceconfig.app.agent.TaskPlan
 import com.voiceconfig.app.ai.InstalledAppProvider
+import com.voiceconfig.app.ai.ApiKeyStore
 import com.voiceconfig.app.ai.AsrEngineStatus
 import com.voiceconfig.app.ai.LocalAsrManager
 import com.voiceconfig.app.service.AccessibilityKeepAlive
+import com.voiceconfig.app.agent.WechatRiskGuard
 import com.voiceconfig.app.service.VoiceKeepAliveService
 import com.voiceconfig.app.voice.VoiceCommandCenter
 import com.voiceconfig.app.voice.VoiceCommandSource
@@ -151,6 +154,7 @@ class MainActivity : ComponentActivity() {
     @Inject lateinit var installedAppProvider: InstalledAppProvider
     @Inject lateinit var agentSession: AgentSession
     @Inject lateinit var shizukuCommandRunner: ShizukuCommandRunner
+    @Inject lateinit var apiKeyStore: ApiKeyStore
     @Inject lateinit var accessibilityKeepAlive: AccessibilityKeepAlive
     @Inject lateinit var voiceCommandCenter: VoiceCommandCenter
 
@@ -171,6 +175,35 @@ class MainActivity : ComponentActivity() {
         override fun onReceive(context: Context?, intent: Intent?) {
             val enabled = intent?.getBooleanExtra("enabled", false) ?: false
             shizukuCommandRunner.debugForceUnavailable = enabled
+        }
+    }
+
+    private val debugAccessibilityStateReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            val enable = intent?.getBooleanExtra("enable", false) ?: false
+            if (enable) accessibilityKeepAlive.ensureEnabled()
+            val state = accessibilityKeepAlive.refresh()
+            android.util.Log.i("AccessibilityDebug", "state=$state failures=${accessibilityKeepAlive.lastFailureCount()}")
+        }
+    }
+
+    private val debugScreenshotReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            lifecycleScope.launch {
+                val start = System.currentTimeMillis()
+                val b64 = com.voiceconfig.app.service.AgentAccessibilityService.captureScreenshot()
+                val elapsed = System.currentTimeMillis() - start
+                android.util.Log.i("AccessibilityDebug", "screenshot len=${b64?.length} elapsedMs=$elapsed")
+            }
+        }
+    }
+
+    private val debugWechatRiskReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            val allowed = intent?.getBooleanExtra("allowed", false) ?: false
+            apiKeyStore.wechatUiAutomationEnabled = allowed
+            WechatRiskGuard.setAutomationAllowed(allowed)
+            android.util.Log.i("WechatRiskGuard", "automationAllowed=$allowed persisted=${apiKeyStore.wechatUiAutomationEnabled}")
         }
     }
 
@@ -248,6 +281,21 @@ class MainActivity : ComponentActivity() {
                     Context.RECEIVER_EXPORTED,
                 )
                 registerReceiver(
+                    debugAccessibilityStateReceiver,
+                    IntentFilter("com.voiceconfig.app.DEBUG_ACCESSIBILITY_STATE"),
+                    Context.RECEIVER_EXPORTED,
+                )
+                registerReceiver(
+                    debugScreenshotReceiver,
+                    IntentFilter("com.voiceconfig.app.DEBUG_ACCESSIBILITY_SCREENSHOT"),
+                    Context.RECEIVER_EXPORTED,
+                )
+                registerReceiver(
+                    debugWechatRiskReceiver,
+                    IntentFilter("com.voiceconfig.app.DEBUG_WECHAT_RISK"),
+                    Context.RECEIVER_EXPORTED,
+                )
+                registerReceiver(
                     debugAsrFileReceiver,
                     IntentFilter("com.voiceconfig.app.DEBUG_ASR_FILE"),
                     Context.RECEIVER_EXPORTED,
@@ -257,6 +305,9 @@ class MainActivity : ComponentActivity() {
                 registerReceiver(debugAsrReceiver, IntentFilter("com.voiceconfig.app.DEBUG_ASR_RESULT"))
                 registerReceiver(debugTaskPlanReceiver, IntentFilter("com.voiceconfig.app.DEBUG_TASKPLAN_ACTION"))
                 registerReceiver(debugForceNoShizukuReceiver, IntentFilter("com.voiceconfig.app.DEBUG_FORCE_NO_SHIZUKU"))
+                registerReceiver(debugAccessibilityStateReceiver, IntentFilter("com.voiceconfig.app.DEBUG_ACCESSIBILITY_STATE"))
+                registerReceiver(debugScreenshotReceiver, IntentFilter("com.voiceconfig.app.DEBUG_ACCESSIBILITY_SCREENSHOT"))
+                registerReceiver(debugWechatRiskReceiver, IntentFilter("com.voiceconfig.app.DEBUG_WECHAT_RISK"))
                 registerReceiver(debugAsrFileReceiver, IntentFilter("com.voiceconfig.app.DEBUG_ASR_FILE"))
             }
         }

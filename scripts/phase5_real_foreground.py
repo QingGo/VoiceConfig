@@ -3,6 +3,7 @@
 
 用法: python scripts/phase5_real_foreground.py [serial]
 """
+import os
 import re
 import subprocess
 import sys
@@ -13,12 +14,16 @@ PACKAGE = "com.voiceconfig.app"
 ACTIVITY = ".MainActivity"
 BROADCAST = "com.voiceconfig.app.DEBUG_AGENT_INPUT"
 
+ALLOW_WECHAT = os.environ.get("ALLOW_WECHAT") == "1"
+
 SCENARIOS = [
     ("打开瑞幸咖啡", "帮我打开瑞幸咖啡", "com.lucky.luckyclient"),
-    ("打开微信", "帮我打开微信", "com.tencent.mm"),
     ("打开企业微信", "帮我打开企业微信", "com.tencent.wework"),
     ("打开设置", "帮我打开设置", "com.android.settings"),
 ]
+
+if ALLOW_WECHAT:
+    SCENARIOS.insert(1, ("打开微信", "帮我打开微信", "com.tencent.mm"))
 
 
 def adb(*args):

@@ -68,6 +68,12 @@ class ApiKeyStore @Inject constructor(
             prefs.edit().putBoolean(KEY_AGENT_AUTO_CONFIRM, value).apply()
         }
 
+    var wechatUiAutomationEnabled: Boolean
+        get() = prefs.getBoolean(KEY_WECHAT_UI_AUTOMATION, false)
+        set(value) {
+            prefs.edit().putBoolean(KEY_WECHAT_UI_AUTOMATION, value).apply()
+        }
+
     var agentAutoVerifyEnabled: Boolean
         get() = prefs.getBoolean(KEY_AGENT_AUTO_VERIFY_ENABLED, true)
         set(value) {
@@ -203,6 +209,7 @@ class ApiKeyStore @Inject constructor(
         private const val KEY_AGENT_THINKING_ENABLED = "agent_deepseek_thinking_enabled"
         private const val KEY_AGENT_REASONING_EFFORT = "agent_deepseek_reasoning_effort"
         private const val KEY_AGENT_AUTO_CONFIRM = "agent_auto_confirm_sensitive_actions"
+        private const val KEY_WECHAT_UI_AUTOMATION = "wechat_ui_automation_enabled"
         private const val KEY_AGENT_AUTO_VERIFY_ENABLED = "agent_auto_verify_enabled"
         private const val KEY_AGENT_MAX_AUTO_VERIFY = "agent_max_auto_verifies"
         private const val KEY_AGENT_IMAGE_DETAIL_LOW = "agent_image_detail_low"

@@ -631,6 +631,34 @@ imported_logs/real_device_agent_trace.log
 
 ---
 
+## 7.7 微信风控：默认禁用个人微信自动化（2026-08-30）
+
+真机测试触发微信“账号安全使用提醒”，风险来源是模拟器/无障碍脚本自动操作个人微信。
+
+处理原则：
+
+- **个人微信自动化默认关闭**，即使 Agent 曾跑通过，也不再作为常规回归路径。
+- 新增 `WechatRiskGuard`：
+  - 默认 `automationAllowed=false`
+  - 拦截 `wechat_open / wechat_read_messages / wechat_send_reply`
+  - 拦截 `open_app` 目标为 `com.tencent.mm`
+  - 拦截当前前台为个人微信时的所有 UI 读写/点击/输入工具
+  - 企业微信 `com.tencent.wework` 不受影响
+- 新增持久化开关 `wechatUiAutomationEnabled`，默认 false。
+- 只有显式开启“微信小号风险模式”后才允许在专属小号上测试。
+- 调试广播可切换：
+  ```bash
+  adb shell am broadcast -a com.voiceconfig.app.DEBUG_WECHAT_RISK --ez allowed true
+  ```
+- 微信 E2E 暂停：
+  - 不再在模拟器/主号上跑微信打开、输入、发送类自动化。
+  - 后续演示优先走企业微信官方 API 或人工小号验证。
+- 新增单测：
+  - `personal wechat automation is blocked by default`
+  - `personal wechat automation can be enabled for explicit test accounts`
+
+---
+
 ## 8. 后续不做什么
 
 - 不新增“听起来很酷但不可验证”的功能

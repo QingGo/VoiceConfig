@@ -776,7 +776,7 @@ class AgentSession @Inject constructor(
                         startedAtElapsedMs = toolStartElapsedMs,
                     ),
                 )
-                val decision = safety.decide(tool, args)
+                val decision = safety.decide(tool, args, latestUiPackage)
                 trace.log(runId, "safety_evaluate", mapOf(
                     "tool" to tool.name,
                     "args" to args,

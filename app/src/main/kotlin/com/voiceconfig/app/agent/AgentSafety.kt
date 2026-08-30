@@ -35,15 +35,26 @@ data class SafetyDecision(
  */
 class AgentSafety {
 
-    fun decide(tool: AgentTool, args: Map<String, Any?>): SafetyDecision =
-        decide(tool.name, args, tool.metadata)
+    fun decide(tool: AgentTool, args: Map<String, Any?>, foregroundPackage: String? = null): SafetyDecision =
+        decide(tool.name, args, tool.metadata, foregroundPackage)
 
     fun decide(
         toolName: String,
         args: Map<String, Any?>,
         metadata: AgentToolMetadata = AgentToolMetadataRegistry.of(toolName),
+        foregroundPackage: String? = null,
     ): SafetyDecision {
         val text = argsText(args)
+
+        // 0. 个人微信风控保护：默认禁止所有个人微信 UI 自动化。
+        WechatRiskGuard.blockReason(toolName, args, foregroundPackage)?.let { reason ->
+            return SafetyDecision(
+                level = SafetyLevel.CONFIRM,
+                requiresConfirmation = true,
+                blocked = true,
+                reason = reason,
+            )
+        }
 
         // 1. 不可逆硬拦截：无论是否开启自动确认，都禁止直接执行最终操作。
         if (toolName in IRREVERSIBLE_CAPABLE_TOOLS &&
