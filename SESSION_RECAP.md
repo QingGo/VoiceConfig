@@ -809,6 +809,7 @@ adb shell am broadcast -a com.voiceconfig.app.DEBUG_AUTO_CONFIRM --ez enabled tr
 - 当前真机 `192.168.31.111:39865` 已用真实 DeepSeek LLM 跑通瑞幸终端 E2E：耗时 198.6s，40 次工具调用，最终停在免密支付页，未点击支付/提交订单，严格场景断言全部通过。
 - 性能优化：关闭 DeepSeek 思维链路后真机全流程约 80s；新增 `luckin_quick_order` 宏后，模型不再逐屏思考，工具调用从 36 次降到 5 次，实测约 21s（当前购物车非空，待清空后复测全新下单）。
 - 清空购物车后的全新下单实测：**11.7s / 3 次工具调用**，`luckin_quick_order` 独立完成点单并停在免密支付页，未支付。
+- 架构收敛：瑞幸快速点单从“专用硬编码宏”重构为 **FlowScript 数据 + UiFlowExecutor 通用执行器**；新增 App/流程通过增加数据脚本扩展，不再复制状态机。
 - 真机调参入口：`DEBUG_THINKING`、`DEBUG_AUTO_VERIFY_MAX` 广播。
 
 ---
