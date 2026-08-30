@@ -806,6 +806,7 @@ adb shell am broadcast -a com.voiceconfig.app.DEBUG_AUTO_CONFIRM --ez enabled tr
 - 单测覆盖：所有 UI 变更类手机工具均要求自动可见证据。
 - 真机冷启动修复：`open_app` 在 MIUI 上因无障碍窗口延迟导致“实际已打开但验证失败”，已将前台验证重试窗口扩到约 4 秒；真机打开瑞幸/企业微信已通过。
 - 瑞幸真实包名修正：内置 Skill 和 `LuckinOpenTool` 使用 `com.lucky.luckyclient`（不再是 `com.luckincoffee.android`）。
+- 当前真机 `192.168.31.111:39865` 已用真实 DeepSeek LLM 跑通瑞幸终端 E2E：耗时 198.6s，40 次工具调用，最终停在免密支付页，未点击支付/提交订单，严格场景断言全部通过。
 
 ---
 

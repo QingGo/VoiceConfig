@@ -287,6 +287,7 @@
 - [x] 真机 Mock LLM E2E **14/14 通过**（含自动可见证据、`ui_wait`、安全/配置缺失守卫）
 - [x] 真机单步耗时基线（Mock LLM）：read_ui ~0.6s / tap_text+验证 ~0.8s / swipe+验证 ~0.6s / ui_wait ~0.4s / open_app+验证 ~1.6s
 - [x] 真机打开瑞幸/企业微信：`open_app` 冷启动验证通过（修复 MIUI 冷启动无障碍延迟导致的误报失败）
+- [x] 真实 LLM 瑞幸终端 E2E：当前真机 PASS（耗时 198.6s / 40 工具调用 / 停在免密支付 / 未点击支付/提交订单 / 未执行禁止动作）
 - [x] 瑞幸内置 Skill / `LuckinOpenTool` 包名统一为真机实际包名 `com.lucky.luckyclient`
 - [x] 模拟器 Mock LLM E2E 14/14 通过
 - [x] 真机 + 模拟器双跑：`scripts/dual_device_mock_e2e.sh` 双设备 14/14 通过
