@@ -153,7 +153,7 @@ VoiceConfig 的终极目标不是“做一个会聊天、会读屏的 App”，�
 - [x] `TapTool / TapTextTool / SwipeTool / PressKeyTool / DismissPopupsTool` 已走 `UiActionLayer`
 - [x] `input_text` 自动验证 + read_ui 失败降级 read_screen
 - [x] `ReadUiTool` 已完全收敛到 `UiActionLayer`；Overlay 已扩展权限/终端分类
-- [ ] `ui_assert / ui_wait` 成为模型常规验证路径
+- [x] `ui_assert` 已写入系统提示作为关键路径验证；[ ] 全量自动化断言矩阵
 - [x] 浮层识别规则化：PROMO(AD) / PERMISSION / FUNCTIONAL_PICKER / TERMINAL_CONFIRM
 - [x] 坐标仅兜底并返回 `coordinateFallback=true` 标记
 
