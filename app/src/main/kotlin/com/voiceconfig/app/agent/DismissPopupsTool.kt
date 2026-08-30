@@ -216,7 +216,10 @@ class DismissPopupsTool @Inject constructor(
                 )
             }
         }
-        return ToolResult.failure("未检测到可关闭弹窗；请确认是否需要 Shizuku 授权")
+        return ToolResult.success(
+            "未检测到需要关闭的广告/更新弹窗（无障碍快速模式）",
+            mapOf("actions" to emptyList<String>(), "fast" to true),
+        )
     }
 
     private fun parseBoundsCenter(bounds: String): Pair<Int, Int>? {

@@ -29,6 +29,12 @@
     "timeout": 30,
     "requireWaiting": true,
     "category": "mock-wait-user"
+  },
+  {
+    "name": "检查并关闭弹窗（Mock LLM）",
+    "text": "检查弹窗",
+    "timeout": 30,
+    "category": "mock-dismiss-popups"
   }
 
 ]

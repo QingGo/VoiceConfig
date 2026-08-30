@@ -434,6 +434,10 @@ open class AgentChatClient @Inject constructor(
                 call("c1", "wecom_send_message", """{"toUser":"test","content":"hello"}"""),
                 done("企业微信发送测试结束"),
             )
+            text.contains("弹窗") || text.contains("广告") || text.contains("关闭弹窗") -> listOf(
+                call("c1", "dismiss_popups", "{}"),
+                done("弹窗检查完成"),
+            )
             text.contains("等待确认") || text.contains("等待用户") || text.contains("停在最后一步") -> listOf(
                 call("c1", "wait_user", """{"reason":"测试：等待用户确认"}"""),
                 done("已停在等待确认，等待用户操作"),
