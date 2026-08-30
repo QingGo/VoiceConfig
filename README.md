@@ -2,18 +2,20 @@
 
 > 用自然语言/语音，在 Android 手机上可靠创建和执行自动化任务；内置多模态 Agent，可以“看懂屏幕、操作 App、验证结果”。
 
-VoiceConfig（言控）是一个 Android Jetpack Compose 应用。它不只是提醒工具，更是一个**可验证的手机自动化 Agent**：
+VoiceConfig（言控）是一个 Android Jetpack Compose 应用。它不只是提醒工具，更是一个**可验证的个人数字执行 Agent**：
 
 - 用中文自然语言创建定时、周期、条件自动化任务；
 - 通过 DeepSeek 多模态 Agent 执行多步、跨 App 操作；
-- 支持 Shizuku 高级自动打开 App；
-- 提供会话历史、任务记录、运行日志和 Agent 工具调用回放。
+- 内置 **FlowScript 确定性流程引擎**：可导入、审核、版本化、参数化、安全停靠；
+- 支持 Shizuku / 无障碍 / 强提醒三种执行模式；
+- 支持企业微信官方 API、Home Assistant、远程 SSH/节点、远程项目；
+- 提供会话历史、任务记录、运行日志、FlowScript 管理和 Agent 工具调用回放。
 
 ## 界面截图
 
-| 自动化 | 智能助手 | 设置 | 模板库 |
-| --- | --- | --- | --- |
-| ![自动化](screenshots/readme_home_new.png) | ![智能助手](screenshots/readme_agent_new.png) | ![设置](screenshots/readme_settings_new.png) | ![模板库](screenshots/readme_templates_new.png) |
+| 对话 / Agent | 自动化 | 设置 / 我的 |
+| --- | --- | --- |
+| ![对话](screenshots/readme_agent_new.png) | ![自动化](screenshots/readme_automation_new.png) | ![设置](screenshots/readme_settings_new.png) |
 
 ## 工作原理
 
@@ -73,6 +75,18 @@ VoiceConfig 不是“只会聊天”的助手，而是把语言理解、手机�
 - 执行时会自动叠加已通过审核的经验/技能
 - 未配置大模型或网络不可用时，界面会明确提示并只开放简单任务
 
+### 2.6 FlowScript 确定性执行平台
+
+- 将成功路径从“LLM 自由探索”沉淀为**可执行数据**：`FlowScript` + `UiFlowExecutor`
+- 支持 JSON 导入 / 导出 / 校验 / 版本化 / 审核状态
+- 导入脚本默认 `PENDING`，必须人工审核为 `APPROVED` 后才能执行
+- 支持参数模板：`{drink}`、`{temperature}` 等占位符可被工具/LLM 覆盖
+- 支持动作：点击文字、点击资源 ID、返回、关闭弹窗、输入文本、等待
+- 支持安全字段 `forbiddenActionTokens`，由执行引擎强制拦截
+- 内置瑞幸标准冰美式流程，可停在免密支付/确认订单页而不支付
+- `run_flow_script` 工具允许 Agent 执行任意已审核启用的 FlowScript
+- 设置页提供 FlowScript 流程库：审核、启停、删除、导入、导出
+
 ### 3. 多模态 Agent
 
 - 多轮工具调用
@@ -95,9 +109,11 @@ VoiceConfig 不是“只会聊天”的助手，而是把语言理解、手机�
 | 通道 | 说明 |
 |---|---|
 | 通知提醒 | 默认降级通道 |
+| 强提醒 / full-screen | 无 Shizuku 熄屏时：全屏通知 + 震动 + 铃声 |
 | Deep Link | 直接打开指定页面 |
-| Shizuku | 高级自动打开 App |
-| AccessibilityService | 无 Shizuku 时读取 UI / 点击文字和坐标（需手动开启） |
+| Shizuku | Assist 模式：可靠自动打开 App |
+| AccessibilityService | Ambient 模式：读取 UI / 点击文字和坐标（需手动开启） |
+| Notify 模式 | 无可靠 UI 通道时仅提醒，等待用户点亮后继续 |
 | Agent 工具链 | 读屏、点击、输入、验证 |
 
 ### 5. 本地优先与隐私
@@ -128,13 +144,24 @@ VoiceConfig 不是“只会聊天”的助手，而是把语言理解、手机�
 | `press_key` | 按键 / keycode |
 | `swipe` | 滑动 |
 | `wait` | 等待 |
+| `ui_assert` | 确定性断言：可见 / 不可见 / 等待 |
+| `ui_wait` | 显式等待 UI 元素出现 |
+| `dismiss_popups` | 关闭弹窗/浮层 |
 | `run_shell` | 执行受限 shell 命令 |
 | `web_search` | DeepSeek 联网搜索 |
-| `file_read` | 读取文件 |
-| `file_write` | 写入文件 |
+| `notify` | 发送普通通知 |
+| `strong_remind` | 全屏 + 震动 + 铃声强提醒 |
+| `create_reminder` | 创建系统提醒 |
+| `create_scheduled_task` | 创建定时自动化任务 |
+| `wait_user` | 等待用户确认 |
+| `luckin_quick_order` | 瑞幸快速点单宏 |
+| `run_flow_script` | 执行已审核启用的 FlowScript |
+| `wecom_send_message` | 企业微信官方 API 发消息 |
+| `home_devices` / `home_control` | Home Assistant 设备查询/控制 |
+| `remote_node` / `remote_ssh_*` | 远程只读节点 / SSH 命令 / 文件 / 项目 |
+| `file_read` / `file_write` | 读写文件 |
 | `clipboard_read` | 读取剪贴板 |
 | `logcat_read` | 读取系统日志 |
-| `notify` | 发送通知 |
 | `open_file` | 打开文件/产物 |
 
 ## 技术架构
@@ -143,9 +170,10 @@ VoiceConfig 不是“只会聊天”的助手，而是把语言理解、手机�
 app
  ├── MainActivity / Compose UI
  ├── Agent（AgentSession + Tool Calling + Vision）
+ ├── FlowScript（FlowScriptCodec / Store / UiFlowExecutor / BuiltinFlowScripts）
  ├── AI（DeepSeek API、ASR、模型管理）
- ├── Scheduler（Alarm、条件触发）
- ├── Executor（通知、Deep Link、Shizuku）
+ ├── Scheduler（Alarm、条件触发、熄屏强提醒降级）
+ ├── Executor（通知、Deep Link、Shizuku、强提醒）
  └── data:local（Room 本地存储）
 
 core:
@@ -173,21 +201,26 @@ core:
 
 - Material 3 + Jetpack Compose
 - 支持深色模式
-- **默认进入「智能助手」**：复杂多步任务、跨 App 操作、工具调用、轨迹回放
-- **自动化页（第二 Tab）**：简单定时任务、模板库、条件触发器、执行记录
-- Agent 页面：会话列表 / 对话详情；更多菜单包含推理设置、经验库、Agent 运行记录、全局设置
-- 悬浮麦克风为主要语音入口，支持自动化页与 Agent 页语音
-- 智能助手会话列表支持按时间分组、重命名、删除、清空；对话详情可返回会话列表
-- 全局设置页，按领域分区：
+- 底部导航当前为三个主页面：
+  - **首页 / 对话**：Agent 多轮会话、工具调用、轨迹、FlowScript 执行入口
+  - **自动化**：简单定时任务、模板、条件触发器、执行记录
+  - **我的**：模型、语音、企业微信/微信、FlowScript 流程库、HA、远程、权限、高级/调试
+- Agent 页面：新建会话、历史会话、工具调用卡片、自动验证、失败/等待确认状态
+- 悬浮麦克风为主要语音入口，支持对话页与自动化页语音
+- 全局设置页按领域分区：
   - 模型与密钥
   - 智能助手行为
-  - 语音识别
-  - 条件触发器
+  - 微信 / 企业微信
+  - FlowScript 流程库
+  - Home Assistant
+  - 语音识别 / 唤醒
+  - 触发器
   - 权限与系统
-  - 高级/调试
-- 模板库：
-  - 分类 Chip
-  - 存为模板 / 管理 / 导入导出
+  - 高级 / 调试
+- 自动化页：
+  - 全部 / 已启用 / 已停用
+  - 让言控创建、手动创建
+  - 模板库、搜索、任务启停、下次执行时间
 
 ## 快速开始
 
@@ -256,13 +289,20 @@ Shizuku 用于提供 shell 级能力，让“打开 App、读取 UI、输入点�
 ### 没有 Shizuku 时能做什么？
 
 **仍然可以：**
-- 创建定时提醒、通知；
-- 创建定时打开 Deep Link；
+- 创建定时提醒、通知、定时打开 Deep Link；
 - 使用无障碍服务读取界面、点击文字/按钮；
 - 使用智能助手读屏、点击、输入、滑动等基础操作；
 - 通过普通 Intent / Deep Link 尝试打开 App（前台/用户触发等场景通常可行）；
 - 使用本地/在线 ASR 进行语音识别；
-- 查看任务、模板、执行记录和 Agent 轨迹。
+- 查看任务、模板、执行记录、FlowScript 和 Agent 轨迹；
+- 熄屏/无 Shizuku 时使用 **强提醒**：全屏通知 + 震动 + 铃声，提醒用户点亮屏幕。
+
+**执行模式：**
+| 模式 | 能力 |
+|---|---|
+| `ASSIST` | Shizuku/root 可用，可靠打开 App、读屏、输入、熄屏任务 |
+| `AMBIENT` | 仅无障碍，亮屏可操作；熄屏/锁屏自动打开不可靠 |
+| `NOTIFY` | 无可靠 UI 通道，优先强提醒，等待用户点亮后继续 |
 
 **缺少 Shizuku 时受限较多的部分：**
 - 后台/定时/锁屏场景下可靠地自动打开任意 App；
@@ -273,7 +313,7 @@ Shizuku 用于提供 shell 级能力，让“打开 App、读取 UI、输入点�
 
 **建议：**
 安装并授权 [Shizuku](https://shizuku.rikka.app/) 后，大部分高级自动化能力可以解锁。
-多数普通用户仍可在无 Shizuku 环境下使用提醒、无障碍 Agent 操作等基础功能。
+无 Shizuku 时仍可使用提醒、无障碍 Agent 操作、FlowScript、强提醒降级等基础能力。
 
 ## 版本与发布
 
@@ -317,8 +357,27 @@ python scripts/agent_scenario_eval.py --serial emulator-5554 run --text "帮我�
 
 # 运行一组场景
 python scripts/agent_scenario_eval.py --serial emulator-5554 suite --scenarios scripts/scenarios.example.json
+```
 
-# 从设备拉取并分析 trace
+真机 / 双设备回归：
+
+```bash
+# 真机一键准备：安装最新 APK、启动 App、开启无障碍、打开 Mock LLM/AutoConfirm
+scripts/real_device_setup.sh 192.168.31.111:39865
+
+# 真机 + 模拟器双跑 Mock E2E
+scripts/dual_device_mock_e2e.sh
+```
+
+FlowScript 相关 JVM 测试：
+
+```bash
+./gradlew :app:testDebugUnitTest --tests 'com.voiceconfig.app.agent.FlowScript*'
+```
+
+从设备拉取并分析 trace：
+
+```bash
 python scripts/agent_scenario_eval.py --serial emulator-5554 pull --analyze
 ```
 
@@ -501,8 +560,14 @@ adb shell am broadcast -a com.voiceconfig.app.DEBUG_ASR_FILE   --es wav /data/us
 - [x] 代码级敏感操作安全策略（默认确认 + 可开启自动模式）
 - [x] 场景 Replay / 自动化评测框架（scripts/agent_scenario_eval.py）
 - [x] 无障碍降级通道（AccessibilityService 可读/可点基础版）
-- [ ] 悬浮球与连续语音
+- [x] 全局语音命令管道 / VoiceCommandCenter
+- [x] FlowScript 确定性执行平台（JSON、审核、参数化、安全护栏）
+- [x] `strong_remind` 强提醒与熄屏自动降级
+- [x] 执行模式 `ASSIST / AMBIENT / NOTIFY`
+- [x] 企业微信官方 API / Home Assistant / 远程 SSH 与远程项目
 - [x] 技能库（本地经验沉淀）
+- [ ] 悬浮球连续语音与低功耗长测
+- [ ] FlowScript 真机 golden 5/5 与多域复制
 - [ ] 技能市场/分享
 
 ## 安全与隐私
