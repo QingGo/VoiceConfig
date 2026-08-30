@@ -558,7 +558,7 @@
 - [ ] `ui_assert / ui_wait` 纳入模型常规验证路径
 - [x] 浮层规则化：
   - `PROMO(AD) / PERMISSION / FUNCTIONAL_PICKER / TERMINAL_CONFIRM`
-- [ ] 坐标仅作为最后兜底，并明确返回“坐标兜底”标记
+- [x] 坐标仅作为最后兜底，并明确返回 `coordinateFallback=true` 标记
 
 ### P2：沉淀场景 Skill
 
