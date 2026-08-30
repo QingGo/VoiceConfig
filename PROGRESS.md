@@ -361,3 +361,8 @@
 - [x] `AgentCapabilitySnapshot` 增加 `executionMode` 派生属性
 - [x] `CapabilityStatus` 映射并展示执行模式：Assist / Shizuku、Ambient / 无障碍、Notify / 强提醒
 - [x] 新增执行模式映射单测
+
+## FlowScript 静态 Golden 校验（2026-08-30 续）
+
+- [x] 新增 `FlowScriptGoldenTest`：所有内置脚本通过 validate + JSON roundtrip
+- [x] 检查所有 `{placeholder}` 都在 `parameters` 中声明，避免运行时替换成空
