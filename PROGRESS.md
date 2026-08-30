@@ -33,7 +33,7 @@
 - [x] LuckinOrderSession：门店/饮品/加购/确认状态机
 - [ ] 真实 UI 选品/加购/支付前确认
 - [ ] 支付前强制人工确认与审计
-- [ ] Skill 沉淀
+- [x] 内置 4 条 APPROVED Skill（瑞幸/企业微信/HA/远程）
 
 ## Phase D：微信消息助理
 

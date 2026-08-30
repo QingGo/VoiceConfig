@@ -58,18 +58,18 @@
 
 - 个人微信自动化不可作为产品路径，否则有账号风控/封号风险
 - 微信类不可读 UI 仍依赖视觉 + 模型文本回退，证据不够强
-- `ReadUiTool` 等仍未完全收敛到 `UiActionLayer`
+- `ReadUiTool` 已收敛到 `UiActionLayer`；`DismissPopupsTool / PressKeyTool / InputTextTool` 也已走统一层
 - 截图虽然变小，但真机耗时基线还未重新测量
 - 模拟器 Mock 不能替代真机 MIUI / 锁屏 / 离线验证
 - 企业微信 API 还没有真实测试号联调
 - 官方 API 工具缺少凭证安全存储、权限最小化、调用审计
-- Skill 沉淀仍缺失，模型仍以自由探索为主
+- 已内置 4 条 APPROVED Skill，但模型仍未强制 Skill 驱动
 
 ### 计划要完成的部分
 
 - P0：真机设备矩阵、无障碍自愈、锁屏/离线、企业微信真实联调
-- P1：`ReadUiTool` 完全收敛、浮层规则化、全量可见证据
-- P2：把瑞幸/企业微信/HA/远程沉淀为 APPROVED Skill
+- P1：`ReadUiTool` 已收敛、浮层规则化已扩展权限/终端分类；全量可见证据待补齐
+- P2：已沉淀 4 条内置 APPROVED Skill；下一步改为 Skill 驱动执行
 - P3：终端安全矩阵每域补 UI 特征、人工确认、trace
 - P4：自动 trace 报告、真机耗时基线、失败自动分类
 - P5：本地语音 1 小时 soak、低功耗回归、语音端到端
@@ -552,12 +552,12 @@
 
 ### P1：完成确定性执行层
 
-- [ ] 所有 UI 工具统一走 `UiActionLayer`
-  - 包括 `DismissPopupsTool / ReadUiTool / PressKeyTool / InputTextTool`
+- [x] 所有 UI 工具统一走 `UiActionLayer`
+  - 已包括 `DismissPopupsTool / ReadUiTool / PressKeyTool / InputTextTool`
 - [ ] 输入/点击成功必须有“可见证据”闭环，禁止工具自行返回成功而没有截图/UI 证据
 - [ ] `ui_assert / ui_wait` 纳入模型常规验证路径
-- [ ] 浮层规则化：
-  - `AD / PERMISSION / FUNCTIONAL_PICKER / TERMINAL_CONFIRM`
+- [x] 浮层规则化：
+  - `PROMO(AD) / PERMISSION / FUNCTIONAL_PICKER / TERMINAL_CONFIRM`
 - [ ] 坐标仅作为最后兜底，并明确返回“坐标兜底”标记
 
 ### P2：沉淀场景 Skill

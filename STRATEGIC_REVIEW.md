@@ -152,15 +152,15 @@ VoiceConfig 的终极目标不是“做一个会聊天、会读屏的 App”，�
 ### P1：完成确定性执行层
 - [x] `TapTool / TapTextTool / SwipeTool / PressKeyTool / DismissPopupsTool` 已走 `UiActionLayer`
 - [x] `input_text` 自动验证 + read_ui 失败降级 read_screen
-- [ ] `ReadUiTool` 等剩余工具完全收敛到 `UiActionLayer`
+- [x] `ReadUiTool` 已完全收敛到 `UiActionLayer`；Overlay 已扩展权限/终端分类
 - [ ] `ui_assert / ui_wait` 成为模型常规验证路径
-- [ ] 浮层识别规则化：AD / PROMO / PERMISSION / FUNCTIONAL_PICKER / TERMINAL_CONFIRM
+- [x] 浮层识别规则化：PROMO(AD) / PERMISSION / FUNCTIONAL_PICKER / TERMINAL_CONFIRM
 - [ ] 坐标仅兜底并返回“坐标兜底”标记
 
 ### P2：沉淀场景 Skill
-- [ ] 把已验证成功路径转成 `APPROVED + enabled` 的 Skill
-- [ ] 瑞幸、企业微信官方 API、HA、远程项目各 1 条可复放 Skill（个人微信除外）
-- [ ] Skill 记录：每步目的 / 预期 / 验证 / 兜底 / 终端停止点
+- [x] 已内置 4 条 `APPROVED + enabled` Skill：瑞幸/企业微信 API/HA/远程验证
+- [x] 已内置瑞幸、企业微信官方 API、HA、远程项目各 1 条可复放 Skill（个人微信除外）
+- [x] 内置 Skill 已记录每步目的 / 预期 / 验证 / 兜底 / 终端停止点
 - [ ] 模型改为“选 Skill → 验证 → 按 Skill 执行 → 终端停止”
 
 ### P3：终端安全矩阵
