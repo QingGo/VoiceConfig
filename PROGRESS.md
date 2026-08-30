@@ -372,3 +372,7 @@
 - [x] `FlowExecutionResult` 增加 `elapsedMs` / `iterations`
 - [x] `UiFlowExecutor` 在终端、失败、禁止动作、超限时都返回耗时和迭代次数
 - [x] `run_flow_script` / `luckin_quick_order` 结果中回传执行耗时与迭代数
+
+## FlowScript 设置页导入反馈（2026-08-30 续）
+
+- [x] 导入按钮改为显示“成功/失败”结果，JSON 格式或校验失败会明确提示

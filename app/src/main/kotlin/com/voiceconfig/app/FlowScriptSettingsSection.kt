@@ -34,7 +34,7 @@ fun FlowScriptSettingsSection(
     onReject: (String) -> Unit,
     onSetEnabled: (String, Boolean) -> Unit,
     onDelete: (String) -> Unit,
-    onImportJson: (String) -> Unit,
+    onImportJson: (String) -> Boolean,
 ) {
     val context = LocalContext.current
     var importText by remember { mutableStateOf("") }
@@ -76,14 +76,17 @@ fun FlowScriptSettingsSection(
             )
             TextButton(
                 onClick = {
-                    val ok = importText.isNotBlank()
-                    if (ok) {
-                        onImportJson(importText)
-                        importMessage = "已提交导入，请在下方的待审核列表确认"
-                        importText = ""
-                    } else {
+                    if (importText.isBlank()) {
                         importMessage = "请先粘贴 JSON"
+                        return@TextButton
                     }
+                    val ok = onImportJson(importText)
+                    importMessage = if (ok) {
+                        "导入成功，请在下方的待审核列表确认"
+                    } else {
+                        "导入失败：JSON 格式或校验未通过"
+                    }
+                    importText = ""
                 },
             ) {
                 Text("导入 FlowScript")
