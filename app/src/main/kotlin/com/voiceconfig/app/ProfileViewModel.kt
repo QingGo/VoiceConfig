@@ -4,6 +4,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.voiceconfig.app.ai.ApiKeyStore
 import com.voiceconfig.app.agent.WechatRiskGuard
+import com.voiceconfig.app.agent.AgentSkill
+import com.voiceconfig.app.agent.AgentSkillStore
 import com.voiceconfig.app.agent.WecomSendMessageTool
 import com.voiceconfig.app.home.HomeAssistantDevice
 import com.voiceconfig.data.local.entity.AiDebugLogEntity
@@ -23,6 +25,7 @@ class ProfileViewModel @Inject constructor(
     private val homeAssistantFeature: HomeAssistantFeature,
     private val aiDebugLogRepository: AiDebugLogRepository,
     private val wecomSendMessageTool: WecomSendMessageTool,
+    private val agentSkillStore: AgentSkillStore,
 ) : ViewModel() {
 
 
@@ -89,6 +92,8 @@ class ProfileViewModel @Inject constructor(
 
     private val _wecomTestMessage = MutableStateFlow<String?>(null)
     val wecomTestMessage: StateFlow<String?> = _wecomTestMessage.asStateFlow()
+
+    val agentSkills: StateFlow<List<AgentSkill>> = agentSkillStore.skills
 
     private val _agentAutoVerifyEnabled = MutableStateFlow(apiKeyStore.agentAutoVerifyEnabled)
     val agentAutoVerifyEnabled: StateFlow<Boolean> = _agentAutoVerifyEnabled.asStateFlow()
