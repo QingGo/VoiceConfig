@@ -223,6 +223,25 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    private val debugThinkingReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            val enabled = intent?.getBooleanExtra("enabled", false) ?: false
+            apiKeyStore.agentDeepSeekThinkingEnabled = enabled
+            intent?.getStringExtra("effort")?.takeIf { it.isNotBlank() }?.let { effort ->
+                apiKeyStore.agentDeepSeekReasoningEffort = effort
+            }
+            android.util.Log.i("ThinkingDebug", "enabled=$enabled effort=${apiKeyStore.agentDeepSeekReasoningEffort}")
+        }
+    }
+
+    private val debugAutoVerifyMaxReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            val max = intent?.getIntExtra("max", 8) ?: 8
+            apiKeyStore.agentMaxAutoVerifies = max.coerceIn(0, 20)
+            android.util.Log.i("AutoVerifyDebug", "max=${apiKeyStore.agentMaxAutoVerifies}")
+        }
+    }
+
     private val debugTaskPlanReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
             val action = intent?.getStringExtra("action")?.takeIf { it.isNotBlank() } ?: return
@@ -322,6 +341,16 @@ class MainActivity : ComponentActivity() {
                     Context.RECEIVER_EXPORTED,
                 )
                 registerReceiver(
+                    debugThinkingReceiver,
+                    IntentFilter("com.voiceconfig.app.DEBUG_THINKING"),
+                    Context.RECEIVER_EXPORTED,
+                )
+                registerReceiver(
+                    debugAutoVerifyMaxReceiver,
+                    IntentFilter("com.voiceconfig.app.DEBUG_AUTO_VERIFY_MAX"),
+                    Context.RECEIVER_EXPORTED,
+                )
+                registerReceiver(
                     debugAsrFileReceiver,
                     IntentFilter("com.voiceconfig.app.DEBUG_ASR_FILE"),
                     Context.RECEIVER_EXPORTED,
@@ -336,6 +365,8 @@ class MainActivity : ComponentActivity() {
                 registerReceiver(debugWechatRiskReceiver, IntentFilter("com.voiceconfig.app.DEBUG_WECHAT_RISK"))
                 registerReceiver(debugMockLlmReceiver, IntentFilter("com.voiceconfig.app.DEBUG_MOCK_LLM"))
                 registerReceiver(debugAutoConfirmReceiver, IntentFilter("com.voiceconfig.app.DEBUG_AUTO_CONFIRM"))
+                registerReceiver(debugThinkingReceiver, IntentFilter("com.voiceconfig.app.DEBUG_THINKING"))
+                registerReceiver(debugAutoVerifyMaxReceiver, IntentFilter("com.voiceconfig.app.DEBUG_AUTO_VERIFY_MAX"))
                 registerReceiver(debugAsrFileReceiver, IntentFilter("com.voiceconfig.app.DEBUG_ASR_FILE"))
             }
         }

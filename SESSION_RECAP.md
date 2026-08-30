@@ -807,6 +807,8 @@ adb shell am broadcast -a com.voiceconfig.app.DEBUG_AUTO_CONFIRM --ez enabled tr
 - 真机冷启动修复：`open_app` 在 MIUI 上因无障碍窗口延迟导致“实际已打开但验证失败”，已将前台验证重试窗口扩到约 4 秒；真机打开瑞幸/企业微信已通过。
 - 瑞幸真实包名修正：内置 Skill 和 `LuckinOpenTool` 使用 `com.lucky.luckyclient`（不再是 `com.luckincoffee.android`）。
 - 当前真机 `192.168.31.111:39865` 已用真实 DeepSeek LLM 跑通瑞幸终端 E2E：耗时 198.6s，40 次工具调用，最终停在免密支付页，未点击支付/提交订单，严格场景断言全部通过。
+- 性能优化：关闭 DeepSeek 思维链路后真机全流程约 80s；新增 `luckin_quick_order` 宏后，模型不再逐屏思考，工具调用从 36 次降到 5 次，实测约 21s（当前购物车非空，待清空后复测全新下单）。
+- 真机调参入口：`DEBUG_THINKING`、`DEBUG_AUTO_VERIFY_MAX` 广播。
 
 ---
 

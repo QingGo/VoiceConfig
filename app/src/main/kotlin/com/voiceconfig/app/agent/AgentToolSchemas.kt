@@ -251,6 +251,11 @@ object AgentToolSchemas {
             "status" to string("WATCH/RECOMMENDED/BOUGHT"),
         )
         "luckin_open" -> objectSchema()
+        "luckin_quick_order" -> objectSchema(
+            "store" to string("可选，门店名称；默认使用常用门店"),
+            "drink" to string("可选，饮品名称；默认标准美式"),
+            "temperature" to string("可选，冷热；默认冰"),
+        )
         "luckin_prepare_order" -> objectSchema(
             "store" to string("门店名称或位置"),
             "drink" to string("饮品名称，如：冰美式/生椰拿铁"),

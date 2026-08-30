@@ -327,6 +327,13 @@ object AgentToolMetadataRegistry {
             mutatesUi = true,
             requiresAutoVerify = true,
         ),
+        "luckin_quick_order" to AgentToolMetadata(
+            category = "消费技能",
+            group = ToolGroup.APP_SKILL,
+            risk = ToolRisk.MEDIUM,
+            mutatesUi = true,
+            requiresAutoVerify = false,
+        ),
         "wechat_draft_reply" to AgentToolMetadata(
             category = "通信技能",
             group = ToolGroup.APP_SKILL,

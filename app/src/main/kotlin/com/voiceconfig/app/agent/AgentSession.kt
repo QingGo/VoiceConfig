@@ -1354,8 +1354,11 @@ class AgentSession @Inject constructor(
             - 为节省时间，默认使用 read_ui 获取文字和坐标（它也返回弹窗提示），不要每步都调用 get_screen_state / read_screen。
             - get_screen_state 默认不包含截图，只返回 UI 树/坐标/弹窗提示，速度更快；只有需要看图片、图标位置、视觉布局时才传 includeImage:true 或使用 read_screen。每个页面最多只做 1 次视觉看图，不要连续多次 includeImage:true。
             - 同一页面连续操作时，沿用上一次 UI 树/坐标即可，不要重复读取屏幕；只有操作后页面疑似没变化、或进入新页面时才验证。
+            - 系统会在 tap/tap_text/swipe/input_text 等操作后自动执行 UI 验证并返回新界面证据。如果自动验证已给出该页面，不要再手动 read_ui，直接基于自动验证结果继续。
+            - 同一页面内，基于同一次 read_ui 返回的节点，可以在同一轮连续调用多个 tap_text/tap 完成该页面的多个操作；不要每点一次都重新读屏。
             - 点击/操作失败或页面没变化时，先 wait 500ms 再快速 read_ui 确认，不要连续 get_screen_state。
             - 菜单/分类/商品选择优先使用 tap_text 或搜索，不要反复用 tap 猜位置；搜索一次没有结果就返回菜单，不要反复搜索同一关键词。
+            - 用户要求瑞幸/咖啡下单时，优先直接调用 luckin_quick_order 快速路径；它只在确实无法完成时才返回失败，你无需自行逐屏点击。
             - 点击有明确文字的按钮/条目时，直接使用 tap_text，不要根据截图估计坐标，也不要为每个按钮先 review_tap；tap 只用于纯图标、无文字且坐标能确定的节点。
             - 当检测到营销/更新/广告弹窗时，立即调用 dismiss_popups，不要自己用 tap 猜关闭按钮坐标；弹窗未关闭前不要继续点击页面内容。
             - 当遇到功能性选择层（门店选择、商品选择、规格选择）时，不要调用 dismiss_popups，使用 tap_text 选择目标。
