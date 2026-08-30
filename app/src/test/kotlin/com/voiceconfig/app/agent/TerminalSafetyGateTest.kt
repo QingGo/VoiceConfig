@@ -37,4 +37,33 @@ class TerminalSafetyGateTest {
     fun `no terminal on ordinary page`() {
         assertFalse(TerminalSafetyGate.isTerminal("商品列表、门店选择、购物车", "买咖啡"))
     }
+
+    @Test
+    fun `ignores terminal keywords when foreground is voiceconfig itself`() {
+        // 言控会话页可能显示任务描述“免密支付/发送”，这不是真实终端页。
+        assertFalse(
+            TerminalSafetyGate.isTerminal(
+                "未完成任务：在瑞幸点一杯冰美式，到达免密支付页后停下",
+                "瑞幸下单",
+                TerminalSafetyGate.SELF_PACKAGE,
+            ),
+        )
+        assertFalse(
+            TerminalSafetyGate.isTerminal(
+                "任务：给微信联系人发送消息",
+                "微信回复",
+                TerminalSafetyGate.SELF_PACKAGE,
+            ),
+        )
+    }
+
+    @Test
+    fun `still detects terminal keywords for external app foreground`() {
+        val hit = TerminalSafetyGate.detect(
+            "确认订单 免密支付",
+            "瑞幸下单",
+            "com.lucky.luckyclient",
+        )
+        assertEquals(TerminalSafetyGate.TerminalKind.PAYMENT, hit.kind)
+    }
 }

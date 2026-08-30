@@ -93,6 +93,26 @@ class TaskPlanTest {
     }
 
     @Test
+    fun `stop verifier ignores terminal keywords shown in voiceconfig own ui`() {
+        val plan = TaskPlan(
+            goal = "瑞幸点单",
+            steps = mutableListOf(
+                TaskStep("step_1", "打开App", TaskStepStatus.COMPLETED, "已打开"),
+                TaskStep("step_2", "下单", TaskStepStatus.COMPLETED, "已到确认页"),
+            ),
+        )
+        // 言控会话页会显示任务文本“免密支付”，不能误判为真实终端页。
+        assertEquals(
+            StopDecision.DONE,
+            StopVerifier().evaluate(
+                plan,
+                uiEvidence = "未完成任务：在瑞幸点一杯冰美式，到达免密支付页后停下",
+                foregroundPackage = TerminalSafetyGate.SELF_PACKAGE,
+            ),
+        )
+    }
+
+    @Test
     fun `stop verifier requires evidence before done`() {
         val plan = TaskPlan(
             goal = "测试",

@@ -7,6 +7,7 @@ import android.graphics.Color
 import android.graphics.Paint
 import android.graphics.Typeface
 import android.util.Base64
+import com.voiceconfig.app.service.AgentAccessibilityService
 import java.io.ByteArrayOutputStream
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -33,54 +34,69 @@ class ReadScreenTool @Inject constructor(
     private var cachedHeight: Int = 0
 
     override val name: String = "read_screen"
-    override val description: String = "截取当前屏幕并返回带坐标网格的画面，适合需要看界面、图片、小程序按钮位置时使用；参数：{\"gridStep\":100,\"maxDimension\":800}（可选，网格间隔像素默认200，最长边像素0表示不缩图）"
+    override val description: String = "截取当前屏幕并返回带坐标网格的画面，适合需要看界面、图片、小程序按钮位置时使用；参数：{\"gridStep\":100,\"maxDimension\":0}（可选，网格间隔像素默认200，maxDimension=0表示不缩图，点击时以网格数字代表的原始屏幕坐标为准）"
 
     override suspend fun execute(args: Map<String, Any?>): ToolResult {
-        if (!shizuku.isAvailable()) {
-            return ToolResult.failure("read_screen 需要 Shizuku 授权")
-        }
-        val timingMs = linkedMapOf<String, Long>()
+        val timingMs = linkedMapOf<String, Any?>()
         val totalStartMs = System.currentTimeMillis()
-        synchronized(this) {
-            val now = System.currentTimeMillis()
-            if (cachedBase64 != null && now - cachedAtMs < CACHE_TTL_MS) {
-                timingMs["total_ms"] = System.currentTimeMillis() - totalStartMs
-                return ToolResult.success(
-                    "已返回短时间内的屏幕截图缓存（${cachedBase64?.length ?: 0} 字符 base64）",
-                    mapOf(
-                        "image_base64" to cachedBase64,
-                        "path" to "/data/local/tmp/voiceconfig_screen.png",
-                        "width" to cachedWidth,
-                        "height" to cachedHeight,
-                        "has_grid" to true,
-                        "cached" to true,
-                        "timingMs" to timingMs,
-                    ),
-                )
+
+        // 优先 Shizuku 截屏；没有 Shizuku 时使用 AccessibilityService.takeScreenshot。
+        val useAccessibilityScreenshot = !shizuku.isAvailable()
+        var image: String
+        var dimension: Pair<Int, Int>? = null
+        if (useAccessibilityScreenshot) {
+            val a11yBase64 = AgentAccessibilityService.captureScreenshot()
+            if (a11yBase64 == null) {
+                return ToolResult.failure("read_screen 需要 Shizuku 授权或无障碍截屏能力")
             }
+            image = a11yBase64
+            dimension = decodeImageSize(image)
+            timingMs["source"] = "accessibility"
+        } else {
+            synchronized(this) {
+                val now = System.currentTimeMillis()
+                if (cachedBase64 != null && now - cachedAtMs < CACHE_TTL_MS) {
+                    timingMs["total_ms"] = System.currentTimeMillis() - totalStartMs
+                    return ToolResult.success(
+                        "已返回短时间内的屏幕截图缓存（${cachedBase64?.length ?: 0} 字符 base64）",
+                        mapOf(
+                            "image_base64" to cachedBase64,
+                            "path" to "/data/local/tmp/voiceconfig_screen.png",
+                            "width" to cachedWidth,
+                            "height" to cachedHeight,
+                            "has_grid" to true,
+                            "cached" to true,
+                            "timingMs" to timingMs,
+                        ),
+                    )
+                }
+            }
+            val path = "/data/local/tmp/voiceconfig_screen.png"
+            val captureStartMs = System.currentTimeMillis()
+            val capture = shizuku.execute("screencap", "-p", path)
+            timingMs["screencap_ms"] = System.currentTimeMillis() - captureStartMs
+            if (!capture.ok) {
+                return ToolResult.failure("截屏失败：${capture.stderr.trim().ifBlank { "exit=${capture.exitCode}" }}")
+            }
+            val base64StartMs = System.currentTimeMillis()
+            val base64 = shizuku.execute("base64", "-w0", path)
+            timingMs["base64_ms"] = System.currentTimeMillis() - base64StartMs
+            if (!base64.ok || base64.stdout.isBlank()) {
+                return ToolResult.failure("读取截图失败：${base64.stderr.trim().ifBlank { "exit=${base64.exitCode}" }}")
+            }
+            image = base64.stdout.replace("\n", "").replace("\r", "").trim()
+            val sizeStartMs = System.currentTimeMillis()
+            val sizeResult = shizuku.execute("wm", "size")
+            timingMs["wm_size_ms"] = System.currentTimeMillis() - sizeStartMs
+            dimension = Regex("""(\d+)\s*x\s*(\d+)""")
+                .find(sizeResult.stdout)
+                ?.let { it.groupValues[1].toIntOrNull() to it.groupValues[2].toIntOrNull() }
+                ?.takeIf { it.first != null && it.second != null }
+                ?.let { it.first!! to it.second!! }
         }
-        val path = "/data/local/tmp/voiceconfig_screen.png"
-        val captureStartMs = System.currentTimeMillis()
-        val capture = shizuku.execute("screencap", "-p", path)
-        timingMs["screencap_ms"] = System.currentTimeMillis() - captureStartMs
-        if (!capture.ok) {
-            return ToolResult.failure("截屏失败：${capture.stderr.trim().ifBlank { "exit=${capture.exitCode}" }}")
-        }
-        val base64StartMs = System.currentTimeMillis()
-        val base64 = shizuku.execute("base64", "-w0", path)
-        timingMs["base64_ms"] = System.currentTimeMillis() - base64StartMs
-        if (!base64.ok || base64.stdout.isBlank()) {
-            return ToolResult.failure("读取截图失败：${base64.stderr.trim().ifBlank { "exit=${base64.exitCode}" }}")
-        }
-        val image = base64.stdout.replace("\n", "").replace("\r", "").trim()
+
         val gridStep = (args["gridStep"] as? Number)?.toInt()?.coerceIn(50, 500) ?: 200
-        val sizeStartMs = System.currentTimeMillis()
-        val sizeResult = shizuku.execute("wm", "size")
-        timingMs["wm_size_ms"] = System.currentTimeMillis() - sizeStartMs
-        val dimension = Regex("""(\d+)\s*x\s*(\d+)""")
-            .find(sizeResult.stdout)
-            ?.let { it.groupValues[1].toIntOrNull() to it.groupValues[2].toIntOrNull() }
-        val maxDimension = (args["maxDimension"] as? Number)?.toInt()?.coerceIn(0, 4096) ?: 800
+        val maxDimension = (args["maxDimension"] as? Number)?.toInt()?.coerceIn(0, 4096) ?: 0
         val gridStartMs = System.currentTimeMillis()
         var gridImage = addCoordinateGrid(image, gridStep, maxDimension)
         val annotations = (args["annotations"] as? List<*>)?.filterIsInstance<Map<*, *>>() ?: emptyList()
@@ -98,17 +114,27 @@ class ReadScreenTool @Inject constructor(
             cachedWidth = dimension?.first ?: 0
             cachedHeight = dimension?.second ?: 0
         }
+        val sourcePath = if (useAccessibilityScreenshot) "accessibility_takeScreenshot" else "/data/local/tmp/voiceconfig_screen.png"
         return ToolResult.success(
-            "已截取当前屏幕并叠加坐标网格（${gridImage.length} 字符 base64）",
+            "已截取当前屏幕并叠加坐标网格（${gridImage.length} 字符 base64）。网格数字为原始屏幕坐标，请使用网格数字而非图片像素位置.",
             mapOf(
                 "image_base64" to gridImage,
-                "path" to path,
+                "path" to sourcePath,
                 "width" to (dimension?.first ?: 0),
                 "height" to (dimension?.second ?: 0),
                 "has_grid" to true,
                 "timingMs" to timingMs,
             ),
         )
+    }
+
+    private fun decodeImageSize(base64: String): Pair<Int, Int>? {
+        return runCatching {
+            val bytes = Base64.decode(base64, Base64.DEFAULT)
+            val opts = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+            BitmapFactory.decodeByteArray(bytes, 0, bytes.size, opts)
+            if (opts.outWidth > 0 && opts.outHeight > 0) opts.outWidth to opts.outHeight else null
+        }.getOrNull()
     }
 
     private fun annotateImage(

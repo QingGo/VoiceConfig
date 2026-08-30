@@ -174,8 +174,8 @@
 - [x] 企业微信定时打开：真机 PASS（create_scheduled_task 成功）
 - [x] Phase 4 敏感确认：远程 shell 命令触发 WAITING_CONFIRM，未被语音/调试命令绕过
 - [x] Phase 4 能力预检：瑞幸点单 / 微信发送等 UI 命令在无无障碍/Shizuku 真机上被 preflight 阻断，trace 完整
-- [ ] 瑞幸点单真实 UI 选品/加购/确认：需在已授权无障碍或 Shizuku 的真机执行
-- [ ] 微信回复真实发送：需先授权无障碍/Shizuku，并完成 Agent 层二次确认
+- [x] 瑞幸点单真实 UI 选品/加购/确认：真机已到达“确认订单/免密支付”页并停住，严格 E2E 断言通过
+- [ ] 微信回复真实发送：真机能打开“文件传输助手”并聚焦输入框，但 Agent 内文字注入仍不可靠，尚未到“发送前最后一步”
 - [ ] Home Assistant 控制：需配置 HA token 后跑通 home_devices/home_control
 - [ ] 远程设备管理：本轮已验证敏感确认，节点清单/远程构建待配置节点后回归
 - [ ] 长程购物比价：待跑通 product_compare / product_search 全链路
@@ -189,10 +189,12 @@
 - [x] `TerminalSafetyGate`：识别确认订单 / 免密支付 / 提交订单 / 消息发送确认页
 - [x] `StopVerifier` 终端页强制 `WAITING_CONFIRM`，不再判为未完成 / DONE
 - [x] 单测覆盖：TerminalSafetyGateTest、TaskPlanTest 终端页、UiAssertToolTest
-- [ ] 真机瑞幸 E2E：安装新版后 `AgentAccessibilityService` 未重连（dumpsys 显示 Bound 但 app 进程 instance 为 null，且设备处于锁屏），待恢复无障碍连接与解锁后回归
+- [x] 真机瑞幸 E2E：已重连无障碍并在真机跑到免密支付页，严格断言 `scenarioVerified=true`
 - [x] 严格 E2E 断言脚本：`agent_scenario_eval.py` 已支持 `expectedForeground / terminalText / absentText / requireWaiting`
 - [x] 新增 `scripts/phase5_terminal_scenarios.json`：瑞幸免密支付、微信发送确认的严格终端场景
-- [ ] 真机执行上述终端场景（当前设备锁屏 + 无障碍未重连）
+- [x] 新增无障碍截屏兜底：`AccessibilityService.takeScreenshot`，即使无 Shizuku 也能给模型提供视觉截图
+- [x] 微信已打开“文件传输助手”并聚焦输入框；剩余阻塞为文字注入不可靠（`input_text` 假成功）
+- [ ] 微信发送前最后一步待完成：需要可用的粘贴/候选词/Shell 输入通道
 
 ## 已提交代码
 

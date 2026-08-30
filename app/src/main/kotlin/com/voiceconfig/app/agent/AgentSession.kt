@@ -270,6 +270,7 @@ class AgentSession @Inject constructor(
         var latestScreenWidth: Int? = null
         var latestScreenHeight: Int? = null
         var latestUiEvidence = ""
+        var latestUiPackage: String? = null
         var autoVerifyCount = 0
         var lastAutoVerifyAt = 0L
         val startedAtMs = System.currentTimeMillis()
@@ -462,14 +463,15 @@ class AgentSession @Inject constructor(
                     return AgentTurnResult(ok = false, message = error, toolCalls = allToolCalls, toolResults = allToolResults.toList(), history = historySnapshot(), runId = runId)
                 }
                 val currentPlan = taskPlanStore.snapshot()
-                val stopDecision = stopVerifier.evaluate(currentPlan, latestUiEvidence)
-                val terminalHit = TerminalSafetyGate.detect(latestUiEvidence, currentPlan?.goal)
+                val stopDecision = stopVerifier.evaluate(currentPlan, latestUiEvidence, latestUiPackage)
+                val terminalHit = TerminalSafetyGate.detect(latestUiEvidence, currentPlan?.goal, latestUiPackage)
                 trace.log(runId, "stop_verifier", mapOf(
                     "round" to round,
                     "decision" to stopDecision.name,
                     "waiting" to (currentPlan?.waitingForHuman ?: ""),
                     "terminal_kind" to terminalHit.kind.name,
                     "terminal_marker" to terminalHit.marker,
+                    "terminal_foreground_package" to (latestUiPackage ?: ""),
                     "steps_total" to (currentPlan?.steps?.size ?: 0),
                     "steps_completed" to (currentPlan?.steps?.count { it.status == TaskStepStatus.COMPLETED || it.status == TaskStepStatus.SKIPPED } ?: 0),
                 ))
@@ -952,6 +954,7 @@ class AgentSession @Inject constructor(
                 onMessage(history.last())
                 if (toolCall.name in setOf("read_ui", "get_screen_state", "read_screen") && result.message.isNotBlank()) {
                     latestUiEvidence = result.message.take(2000)
+                    latestUiPackage = (result.data["foregroundPackage"] as? String)?.takeIf { it.isNotBlank() }
                 }
                 allToolCalls += ToolCall(toolCall.name, args)
                 allToolResults += result

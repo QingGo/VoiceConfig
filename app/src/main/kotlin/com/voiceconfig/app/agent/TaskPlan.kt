@@ -187,10 +187,10 @@ class StopVerifier {
      * 当计划步骤全部完成时，如果没有任何 UI 证据且步骤本身也未填写 evidence，
      * 我们仍认为“未验证通过”，返回 CONTINUE，避免模型直接说完成。
      */
-    fun evaluate(plan: TaskPlan?, uiEvidence: String = ""): StopDecision {
+    fun evaluate(plan: TaskPlan?, uiEvidence: String = "", foregroundPackage: String? = null): StopDecision {
         // Terminal Safety Gate：一旦 UI 证据表明已到达最终确认/支付/发送页，
         // 即使没有任务计划或计划未全部完成，也必须强制等待用户，不能判 DONE/CONTINUE。
-        val terminal = TerminalSafetyGate.detect(uiEvidence, plan?.goal)
+        val terminal = TerminalSafetyGate.detect(uiEvidence, plan?.goal, foregroundPackage)
         if (terminal.kind != TerminalSafetyGate.TerminalKind.NONE) {
             return StopDecision.WAIT_USER
         }

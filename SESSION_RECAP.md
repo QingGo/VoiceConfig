@@ -1,7 +1,7 @@
 # VoiceConfig Session Recap
 
 > 记录时间：2026-08-30
-> 适用设备：`192.168.31.109:42097`（M2102K1C / Android 14 / 1440x3200）
+> 适用设备：`192.168.31.106:37459`（M2102K1C / Android 14 / 1440x3200）
 > 关联文档：[SYSTEM_THINKING.md](SYSTEM_THINKING.md)、[STRATEGIC_REVIEW.md](STRATEGIC_REVIEW.md)、[PROGRESS.md](PROGRESS.md)
 
 ---
@@ -525,6 +525,27 @@
 - `TerminalSafetyGate` + `StopVerifier`：到达确认订单 / 免密支付 / 提交订单 / 发送确认页时强制 `WAITING_CONFIRM`
 - 单测已补：`TerminalSafetyGateTest`、`TaskPlanTest` 终端页、`UiAssertToolTest`
 - 真机回归受“重装后无障碍未重连 + 设备锁屏”阻塞，已记录到 PROGRESS 待恢复后验证
+
+---
+
+## 7.5 真机恢复后的最新进展（2026-08-30）
+
+真机 `192.168.31.106:37459` 已重新在线并解锁，无障碍服务已成功连接：
+
+- [x] `AgentAccessibilityService` 重连成功，App 进程 `instance` 正常
+- [x] 修复：无障碍读取时主动刷新 `rootInActiveWindow`，解决切到新 App 后读不到当前窗口的问题
+- [x] 修复：`TerminalSafetyGate` 增加前台包名感知，避免在言控自身界面把任务描述中的“免密支付/发送”误判为终端页
+- [x] 新增：`AccessibilityService.takeScreenshot` 截屏兜底，不再依赖 Shizuku 也能返回带坐标网格截图
+- [x] 通行证：瑞幸严格终端 E2E 已真正跑通，最终停在 `com.lucky.luckyclient` 的“确认订单/免密支付”页，未支付，`scenarioVerified=true`
+- [x] 脚本修复：`launch_app` 改为 `am start -W` 并等待 1 秒，避免动态 receiver 未就绪导致广播丢失；补 `import re`
+- [x] `input_text` 支持可选 `x/y` 先点击输入框再输入
+
+### 仍未通过
+
+- [ ] 微信发送前最后一步：能打开“文件传输助手”并使用视觉截图导航，但文字注入仍不可靠
+  - `input_text` 返回“已通过无障碍输入文本”但实际输入框未出现文本（疑似写入了不可见/非目标节点）
+  - `adb shell input tap` 能聚焦输入框并弹出键盘，说明坐标/焦点路径可行，但 Agent 内 `dispatchGesture` 点击输入框后输入策略未真正落到微信
+  - 下一步候选：长按输入框召唤粘贴菜单、点候选词、或接入可用的 Shell/Shizuku 输入通道
 
 ---
 

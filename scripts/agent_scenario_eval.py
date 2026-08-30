@@ -26,6 +26,7 @@ import argparse
 import collections
 import json
 import os
+import re
 import subprocess
 import sys
 import tempfile
@@ -135,7 +136,9 @@ def verify_scenario(serial, scenario):
 
 
 def launch_app(serial):
-    adb(serial, ["shell", "am", "start", "-n", f"{PACKAGE}/{ACTIVITY}"])
+    adb(serial, ["shell", "am", "start", "-W", "-n", f"{PACKAGE}/{ACTIVITY}"])
+    # 动态注册的 debug receiver 在 MainActivity onCreate 中完成；等待 Activity 真正起来再广播。
+    time.sleep(1.0)
 
 
 def send_scenario(serial, text, new_session=True, pre_stop_packages=()):

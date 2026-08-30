@@ -60,7 +60,13 @@ class ReadUiTool @Inject constructor(
         if (!shizuku.isAvailable()) {
             val a11y = AgentAccessibilityService.currentSnapshot()
             if (!a11y.isNullOrBlank()) {
-                return success("已通过无障碍服务读取当前界面：\n$a11y", mapOf("source" to "accessibility"))
+                return success(
+                    "已通过无障碍服务读取当前界面：\n$a11y",
+                    mapOf(
+                        "source" to "accessibility",
+                        "foregroundPackage" to AgentAccessibilityService.currentPackageName(),
+                    ),
+                )
             }
             return staleFallback() ?: ToolResult.failure("read_ui 需要 Shizuku 授权或开启无障碍服务")
         }
@@ -102,6 +108,7 @@ class ReadUiTool @Inject constructor(
                     "overlay" to overlayData,
                     "nodes" to uiNodes.map(::nodeMap),
                     "source" to "accessibility",
+                    "foregroundPackage" to currentForegroundPackage(),
                     "timingMs" to mapOf("total_ms" to 0L),
                 ),
             )
@@ -120,14 +127,22 @@ class ReadUiTool @Inject constructor(
             if (retryNodes.isNotEmpty()) {
                 return success(
                     "已通过无障碍服务读取当前界面（重试成功）",
-                    mapOf("source" to "accessibility", "ui" to UiDumpParser.summarizeNodes(retryNodes.map { it.toUiNode() })),
+                    mapOf(
+                        "source" to "accessibility",
+                        "foregroundPackage" to AgentAccessibilityService.currentPackageName(),
+                        "ui" to UiDumpParser.summarizeNodes(retryNodes.map { it.toUiNode() }),
+                    ),
                 )
             }
             val a11y = AgentAccessibilityService.currentSnapshot()
             if (!a11y.isNullOrBlank()) {
                 return success(
                     "已通过无障碍服务读取当前界面（uiautomator dump 失败）:\n$a11y",
-                    mapOf("source" to "accessibility", "ui" to a11y),
+                    mapOf(
+                        "source" to "accessibility",
+                        "foregroundPackage" to AgentAccessibilityService.currentPackageName(),
+                        "ui" to a11y,
+                    ),
                 )
             }
             return staleFallback() ?: ToolResult.failure("UI 层级获取失败：${dump.stderr.trim().ifBlank { "exit=${dump.exitCode}" }}")
@@ -149,14 +164,22 @@ class ReadUiTool @Inject constructor(
                 if (retryNodes.isNotEmpty()) {
                     return success(
                         "已通过无障碍服务读取当前界面（无法读取 UI 文件，重试成功）",
-                        mapOf("source" to "accessibility", "ui" to UiDumpParser.summarizeNodes(retryNodes.map { it.toUiNode() })),
+                        mapOf(
+                            "source" to "accessibility",
+                            "foregroundPackage" to AgentAccessibilityService.currentPackageName(),
+                            "ui" to UiDumpParser.summarizeNodes(retryNodes.map { it.toUiNode() }),
+                        ),
                     )
                 }
                 val a11y = AgentAccessibilityService.currentSnapshot()
                 if (!a11y.isNullOrBlank()) {
                     return success(
                         "已通过无障碍服务读取当前界面（无法读取 UI 文件）:\n$a11y",
-                        mapOf("source" to "accessibility", "ui" to a11y),
+                        mapOf(
+                            "source" to "accessibility",
+                            "foregroundPackage" to AgentAccessibilityService.currentPackageName(),
+                            "ui" to a11y,
+                        ),
                     )
                 }
                 return staleFallback() ?: ToolResult.failure("无法读取 UI 文件：${cat.stderr} ${fallback.stderr}")
@@ -210,6 +233,7 @@ class ReadUiTool @Inject constructor(
                 "bounds" to nodes.map { it.bounds },
                 "overlay" to overlayData,
                 "nodes" to nodes.map(::nodeMap),
+                "foregroundPackage" to currentForegroundPackage(),
                 "timingMs" to timingMs,
             ),
         )
@@ -243,6 +267,7 @@ class ReadUiTool @Inject constructor(
     )
 
     private fun currentForegroundPackage(): String? {
+        AgentAccessibilityService.currentPackageName()?.let { return it }
         val result = shizuku.execute("dumpsys", "activity", "activities")
         if (!result.ok) return null
         val match = Regex("""topResumedActivity=.*?\s([A-Za-z0-9_.]+)/""")

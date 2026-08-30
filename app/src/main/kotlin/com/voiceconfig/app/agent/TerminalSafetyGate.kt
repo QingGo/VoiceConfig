@@ -55,15 +55,23 @@ object TerminalSafetyGate {
         val reason: String,
     )
 
+    /** 言控自身包名：在这些页面里出现“免密支付/发送”等字样只是任务描述或会话文本，不是真实终端页。 */
+    const val SELF_PACKAGE = "com.voiceconfig.app"
+
     /**
      * 判断当前 UI 证据是否已到达终端确认页。
      *
      * @param uiEvidence 最近一次 read_ui/get_screen_state/read_screen 的文本。
      * @param goal 用户目标，用于区分支付与发送，并降低普通“发送”按钮的误判。
+     * @param foregroundPackage 当前前台包名；当为言控自身时，不把会话/任务描述中的关键词当作终端页。
      */
-    fun detect(uiEvidence: String, goal: String? = null): TerminalHit {
+    fun detect(uiEvidence: String, goal: String? = null, foregroundPackage: String? = null): TerminalHit {
         val text = uiEvidence.orEmpty()
         val goalText = goal.orEmpty()
+
+        if (foregroundPackage == SELF_PACKAGE) {
+            return TerminalHit(TerminalKind.NONE, "", "当前前台为言控自身，忽略任务描述中的终端关键词")
+        }
 
         val payment = PAYMENT_TERMINAL_MARKERS.firstOrNull { text.contains(it, ignoreCase = true) }
         if (payment != null) {
@@ -87,8 +95,8 @@ object TerminalSafetyGate {
         return TerminalHit(TerminalKind.NONE, "", "")
     }
 
-    fun isTerminal(uiEvidence: String, goal: String? = null): Boolean =
-        detect(uiEvidence, goal).kind != TerminalKind.NONE
+    fun isTerminal(uiEvidence: String, goal: String? = null, foregroundPackage: String? = null): Boolean =
+        detect(uiEvidence, goal, foregroundPackage).kind != TerminalKind.NONE
 
     private fun isSendGoal(goal: String): Boolean =
         SEND_GOAL_MARKERS.any { goal.contains(it, ignoreCase = true) }

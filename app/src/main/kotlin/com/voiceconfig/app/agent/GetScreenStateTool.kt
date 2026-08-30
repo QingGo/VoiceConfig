@@ -41,6 +41,7 @@ class GetScreenStateTool @Inject constructor(
         data["ui"] = uiResult.data["ui"]
         data["nodeCount"] = uiResult.data["nodeCount"]
         data["bounds"] = uiResult.data["bounds"]
+        uiResult.data["foregroundPackage"]?.let { data["foregroundPackage"] = it }
         uiResult.data["overlay"]?.let { data["overlay"] = it }
         val uiNodes: List<*> = uiResult.data["nodes"] as? List<*> ?: emptyList<Any?>()
         val annotations = mutableListOf<Map<String, Any?>>()

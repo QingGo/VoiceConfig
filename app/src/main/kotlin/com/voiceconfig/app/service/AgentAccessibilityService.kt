@@ -1,11 +1,20 @@
 package com.voiceconfig.app.service
 
 import android.accessibilityservice.AccessibilityService
+import android.accessibilityservice.AccessibilityService.ScreenshotResult
 import android.accessibilityservice.AccessibilityServiceInfo
+import android.graphics.Bitmap
+import android.os.Build
+import android.os.Bundle
+import android.util.Base64
+import android.util.Log
+import android.view.Display
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
-import android.os.Bundle
-import android.util.Log
+import java.io.ByteArrayOutputStream
+import java.util.concurrent.Executors
+import kotlin.coroutines.resume
+import kotlinx.coroutines.suspendCancellableCoroutine
 import android.accessibilityservice.GestureDescription
 import android.graphics.Path
 
@@ -66,6 +75,7 @@ class AgentAccessibilityService : AccessibilityService() {
     }
 
     private fun snapshotText(): String {
+        activeRoot = rootInActiveWindow
         val root = activeRoot ?: return "（无障碍服务未获取到当前窗口）"
         val sb = StringBuilder()
         collect(root, 0, sb)
@@ -115,6 +125,7 @@ class AgentAccessibilityService : AccessibilityService() {
     }
 
     private fun snapshotNodes(): List<AccessibilityUiSnapshot> {
+        activeRoot = rootInActiveWindow
         val root = activeRoot ?: return emptyList()
         val out = mutableListOf<AccessibilityUiSnapshot>()
         collectNodes(root, 0, out)
@@ -122,18 +133,21 @@ class AgentAccessibilityService : AccessibilityService() {
     }
 
     private fun clickByText(text: String): Boolean {
+        activeRoot = rootInActiveWindow
         val root = activeRoot ?: return false
         val node = findText(root, text) ?: return false
         return node.performAction(AccessibilityNodeInfo.ACTION_CLICK)
     }
 
     private fun clickByBounds(x: Int, y: Int): Boolean {
+        activeRoot = rootInActiveWindow
         val root = activeRoot ?: return false
         val node = findClickableAt(root, x, y) ?: return false
         return node.performAction(AccessibilityNodeInfo.ACTION_CLICK)
     }
 
     private fun inputByText(text: String): Boolean {
+        activeRoot = rootInActiveWindow
         val root = activeRoot ?: return false
         val focused = root.findFocus(AccessibilityNodeInfo.FOCUS_INPUT)
         val target = focused ?: findFirstEditable(root) ?: return false
@@ -144,6 +158,7 @@ class AgentAccessibilityService : AccessibilityService() {
     }
 
     private fun pasteIntoFocused(): Boolean {
+        activeRoot = rootInActiveWindow
         val root = activeRoot ?: return false
         val focused = root.findFocus(AccessibilityNodeInfo.FOCUS_INPUT)
         val target = focused ?: findFirstEditable(root) ?: return false
@@ -192,7 +207,7 @@ class AgentAccessibilityService : AccessibilityService() {
             lineTo(x.toFloat(), y.toFloat())
         }
         val gesture = GestureDescription.Builder()
-            .addStroke(GestureDescription.StrokeDescription(path, 0, 60))
+            .addStroke(GestureDescription.StrokeDescription(path, 0, 120))
             .build()
         return runCatching { dispatchGesture(gesture, null, null) }.getOrDefault(false)
     }
@@ -213,6 +228,7 @@ class AgentAccessibilityService : AccessibilityService() {
     }
 
     private fun clickByResourceId(resourceId: String): Boolean {
+        activeRoot = rootInActiveWindow
         val root = activeRoot ?: return false
         val nodes = root.findAccessibilityNodeInfosByViewId(resourceId)
         val node = nodes?.firstOrNull() ?: return false
@@ -246,9 +262,60 @@ class AgentAccessibilityService : AccessibilityService() {
 
         fun currentSnapshot(): String? = instance?.snapshotText()
 
-        fun currentPackageName(): String? = instance?.activeRoot?.packageName?.toString()?.ifBlank { null }
+        fun currentPackageName(): String? {
+            val svc = instance ?: return null
+            svc.activeRoot = svc.rootInActiveWindow
+            return svc.activeRoot?.packageName?.toString()?.ifBlank { null }
+        }
 
         fun currentNodes(): List<AccessibilityUiSnapshot> = instance?.snapshotNodes() ?: emptyList()
+
+        /** 通过 AccessibilityService 的 takeScreenshot API 截屏（无需 Shizuku）。返回 PNG base64。 */
+        suspend fun captureScreenshot(): String? {
+            val svc = instance ?: return null
+            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) return null
+            return suspendCancellableCoroutine { cont ->
+                val executor = Executors.newSingleThreadExecutor()
+                var completed = false
+                fun complete(value: String?) {
+                    if (!completed) {
+                        completed = true
+                        cont.resume(value)
+                    }
+                    runCatching { executor.shutdown() }
+                }
+                svc.takeScreenshot(
+                    Display.DEFAULT_DISPLAY,
+                    executor,
+                    object : AccessibilityService.TakeScreenshotCallback {
+                        override fun onSuccess(screenshot: ScreenshotResult) {
+                            try {
+                                val hw = screenshot.hardwareBuffer
+                                val bitmap = Bitmap.wrapHardwareBuffer(hw, screenshot.colorSpace)
+                                    ?.copy(Bitmap.Config.ARGB_8888, false)
+                                hw.close()
+                                if (bitmap == null) {
+                                    complete(null)
+                                    return
+                                }
+                                val baos = ByteArrayOutputStream()
+                                bitmap.compress(Bitmap.CompressFormat.PNG, 100, baos)
+                                bitmap.recycle()
+                                complete(Base64.encodeToString(baos.toByteArray(), Base64.NO_WRAP))
+                            } catch (e: Exception) {
+                                Log.e(TAG, "accessibility screenshot convert failed", e)
+                                complete(null)
+                            }
+                        }
+
+                        override fun onFailure(errorCode: Int) {
+                            Log.w(TAG, "accessibility screenshot failed error=$errorCode")
+                            complete(null)
+                        }
+                    },
+                )
+            }
+        }
 
         fun clickText(text: String): Boolean? = instance?.clickByText(text)
 

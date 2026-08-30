@@ -92,6 +92,8 @@ object AgentToolSchemas {
         )
         "input_text" -> objectSchema(
             "text" to string("要输入的文本"),
+            "x" to integer("可选，输入框屏幕绝对 X 坐标；输入框未聚焦时先点击该坐标"),
+            "y" to integer("可选，输入框屏幕绝对 Y 坐标；输入框未聚焦时先点击该坐标"),
         )
         "swipe" -> objectSchema(
             "x1" to integer("起点 X"),
