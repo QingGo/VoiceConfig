@@ -22,5 +22,13 @@
     "text": "反复读屏压力测试",
     "timeout": 60,
     "category": "mock-perception-pressure"
+  },
+  {
+    "name": "等待用户确认（Mock LLM）",
+    "text": "等待确认测试",
+    "timeout": 30,
+    "requireWaiting": true,
+    "category": "mock-wait-user"
   }
+
 ]
