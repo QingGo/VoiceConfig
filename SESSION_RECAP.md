@@ -143,16 +143,16 @@
   ```
 - 包含瑞幸、微信两个严格终端场景
 
-### 2.9 真机 E2E 尝试（受阻）
+### 2.9 真机 E2E 尝试（前期受阻，本轮已解决）
 
-- 安装新版 APK 到 `192.168.31.109:42097`
-- 尝试发送瑞幸点单命令
-- 结果：
-  - trace 显示 preflight 通过
-  - 但 `read_ui` 失败，报告“需要 Shizuku 或无障碍”
-  - `AgentAccessibilityService` 系统层显示 Bound，但 App 进程 `instance` 仍为 null
-- 尝试重新写回无障碍设置、重启 App、切换设置，仍未恢复
-- 最后真机从 ADB 离线/锁屏，无法继续
+- 前期安装新版 APK 到旧真机 `192.168.31.109:42097`
+- 曾遇到：
+  - `AgentAccessibilityService` 系统层 Bound，但 App 进程 `instance` 为 null
+  - 设备锁屏/离线，无法继续
+- 本轮换用恢复后的真机 `192.168.31.106:37459`，重新启用无障碍并验证：
+  - 服务连接正常，`instance` 可用
+  - 瑞幸、微信严格终端 E2E 均跑通
+- 结论：重装 APK 后需要重新写回 `enabled_accessibility_services`，并确认服务实际连接后再执行
 
 ---
 
@@ -257,20 +257,20 @@
   - 开关 `accessibility_enabled`
   - force-stop + 重新启动 App
   - 通过 adb 打开无障碍设置页
-- 结果：仍未能让 App 进程拿到服务实例
+- 结果：前期仍未能让 App 进程拿到服务实例
 - 修复尝试：
   - 在 `AgentAccessibilityService.onCreate()` 中提前设置 `instance`
-  - 便于服务对象一旦创建就能被能力检测识别
-- 仍需真机恢复后验证
+  - 每次读取/点击前主动刷新 `rootInActiveWindow`
+- 本轮真机恢复后验证通过：重装 APK → 重新写回无障碍设置 → 服务重新连接 → `instance` 可用
 
-### 3.9 真机锁屏/离线导致 E2E 中断
+### 3.9 真机锁屏/离线导致 E2E 中断（本轮已恢复）
 
-- 真机在测试中进入锁屏，显示“Draw pattern or use fingerprint to unlock”
-- 后续 ADB 设备从列表消失
-- 无法继续瑞幸/微信真实终端场景
+- 真机曾进入锁屏，显示“Draw pattern or use fingerprint to unlock”
+- 后续 ADB 设备从列表消失，无法继续测试
+- 本轮新真机重新上线并解锁后继续，严格 E2E 已跑通
 - 教训：
   - 自动化必须处理锁屏/亮屏/设备掉线
-  - 多设备矩阵与自动恢复是 P0
+  - 多设备矩阵与自动恢复仍是 P0 必须完成项
 
 ---
 
@@ -313,7 +313,9 @@
   close_iv
   一键换购
   ```
-- [x] 无障碍点击/滑动/返回实际可用
+- [x] 微信“文件传输助手”输入框显示“收到，稍后回复”，停在 Send 前未发送
+- [x] 无障碍点击/滑动/返回/粘贴/截屏实际可用
+- [x] 严格 E2E 全量 2/2 PASS
 
 ### 本轮新增代码
 
@@ -324,6 +326,11 @@
 - [x] `StopVerifier` 接入 Terminal Safety Gate
 - [x] `AgentSession` 终端等待时自动持久化 `waitingForHuman`
 - [x] `AgentAccessibilityService.onCreate()` 提前设置 instance
+- [x] `AgentAccessibilityService` 读取/点击前主动刷新 `rootInActiveWindow`
+- [x] `AccessibilityService.takeScreenshot` 截屏兜底（无 Shizuku 可用）
+- [x] `TerminalSafetyGate` 前台包名感知 + 英文 Send 识别
+- [x] `TextInputManager` 改为先粘贴再设置文本，微信输入成功
+- [x] `input_text` 支持可选 `x/y` 先点击输入框
 
 ### 本轮新增测试
 
@@ -354,13 +361,13 @@
 
 ## 5. 新发现的问题
 
-### 5.1 真机执行通道仍是最脆弱的地基（当前最大阻塞）
+### 5.1 真机执行通道曾是最脆弱地基（本轮已验证，仍需自愈）
 
-- `AgentAccessibilityService` 系统层 Bound，但 App 进程 `instance` 仍可能为 null
+- `AgentAccessibilityService` 系统层 Bound，但 App 进程 `instance` 曾为 null
 - 重装 / 更新 APK 后服务不一定自动重连
 - 真机锁屏、离线、MIUI 回收都会中断自动化
-- Shizuku 缺失时：截图不可用、shell 输入不可用、只能靠无障碍降级
-- 需要：
+- 本轮已修复：重新写回设置 + 主动刷新 root + 无障碍截屏兜底
+- 仍需要长期方案：
   - `AccessibilityKeepAlive` 状态机
   - 自动重连
   - 设备矩阵
@@ -373,10 +380,10 @@
 - `DismissPopupsTool / ReadUiTool / PressKeyTool / InputTextTool` 尚未全部改走该层
 - 坐标仍可能被模型当成常规方案，需要继续强化“坐标仅兜底”
 
-### 5.3 Terminal Safety Gate 已建立，但未在真机证明
+### 5.3 Terminal Safety Gate 已在真机证明，但矩阵仍待扩展
 
 - `StopVerifier` 已能强制 `WAITING_CONFIRM`
-- 但瑞幸/微信终端场景尚未真实跑通
+- 瑞幸、微信真实终端场景已跑通并通过严格断言
 - 安全矩阵只在支付/发送域，仍需扩展：
   - 删除
   - 配置修改
@@ -384,7 +391,7 @@
   - 远程破坏性命令
 - 需要统一“终端页特征 → 禁止动作 → 人工确认 UI → trace 标记”
 
-### 5.4 E2E 断言能力已增强，但缺少真实通过记录
+### 5.4 E2E 断言已有真实通过记录，但微信证据依赖 message fallback
 
 - `agent_scenario_eval.py` 已支持：
   - `expectedForeground`
@@ -392,8 +399,9 @@
   - `absentText`
   - `requireWaiting`
 - 新增了 `phase5_terminal_scenarios.json`
-- 但设备恢复前无法验证
-- 还需要把 trace / 截图 / 未执行最终动作纳入自动报告
+- 真机严格套件已 2/2 PASS
+- 微信 UI 不暴露节点，终端文字通过 Agent 最终消息回退验证
+- 还需要把 trace / 截图 / 未执行最终动作自动纳入报告，并逐步补 OCR/截图抽检
 
 ### 5.5 缺少确定性 Skill
 
@@ -434,6 +442,20 @@
 - 但语音确认、Agent 二次确认、用户实际最后操作三者的关系需要统一 UI/状态机
 - 不可逆操作必须永远无法被自动确认绕过
 
+### 5.10 微信类不可读 UI 带来的新问题（本轮新发现）
+
+- 微信等 App 不向 Accessibility/UIAutomator 暴露可读节点
+- `read_ui / get_screen_state` 无效，只能依赖 `read_screen` 视觉截图
+- 视觉截图会导致：
+  - 上下文/token 急剧膨胀
+  - 模型可能在已有目标消息时过早回复“已完成”
+- 微信文字输入靠“无障碍粘贴”成功，但不是通用输入通道
+- `TerminalSafetyGate` 在不可读 UI 下需要参考模型最终文本识别 Send/发送
+- 需要后续：
+  - Skill 固化路径
+  - 截图存档/OCR/人工抽检
+  - 输入成功必须截图验证
+
 ---
 
 ## 6. 计划要完成的部分（按当前优先级）
@@ -453,14 +475,15 @@
   - 模拟器
   - 有/无 Shizuku
   - 有/无障碍
-- [ ] 真机跑通：
+- [x] 真机跑通：
   - 瑞幸稳定停在免密支付
-  - 微信停在发送确认
+  - 微信停在发送确认（“文件传输助手”可复现场景）
 
 ### P1：完成确定性执行层
 
 - [ ] 所有 UI 工具统一走 `UiActionLayer`
   - 包括 `DismissPopupsTool / ReadUiTool / PressKeyTool / InputTextTool`
+- [ ] 输入/点击成功必须有“可见证据”闭环，禁止工具自行返回成功而没有截图/UI 证据
 - [ ] `ui_assert / ui_wait` 纳入模型常规验证路径
 - [ ] 浮层规则化：
   - `AD / PERMISSION / FUNCTIONAL_PICKER / TERMINAL_CONFIRM`
