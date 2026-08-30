@@ -155,7 +155,7 @@ VoiceConfig 的终极目标不是“做一个会聊天、会读屏的 App”，�
 - [x] `ReadUiTool` 已完全收敛到 `UiActionLayer`；Overlay 已扩展权限/终端分类
 - [ ] `ui_assert / ui_wait` 成为模型常规验证路径
 - [x] 浮层识别规则化：PROMO(AD) / PERMISSION / FUNCTIONAL_PICKER / TERMINAL_CONFIRM
-- [ ] 坐标仅兜底并返回“坐标兜底”标记
+- [x] 坐标仅兜底并返回 `coordinateFallback=true` 标记
 
 ### P2：沉淀场景 Skill
 - [x] 已内置 4 条 `APPROVED + enabled` Skill：瑞幸/企业微信 API/HA/远程验证
@@ -171,7 +171,7 @@ VoiceConfig 的终极目标不是“做一个会聊天、会读屏的 App”，�
 
 ### P4：严格 E2E 与可观测性
 - [x] 模拟器 Mock LLM 回归套件（4/4 通过）
-- [ ] 自动 trace 报告：路径 / 耗时 / token / 截图 / 失败原因
+- [x] 自动 trace 报告：路径 / 耗时 / 截图 / 失败原因（`AgentTraceReportBuilder`）；[ ] token / 真机基线
 - [ ] 真机 + 模拟器双跑
 - [ ] 失败自动归类：权限 / 无障碍 / 模型 / UI变化 / 安全拦截 / 平台合规
 - [ ] 修复后的真机耗时基线（目标：简单 <10s，常见多步 <60s，复杂 <120s）

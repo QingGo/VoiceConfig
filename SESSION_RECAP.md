@@ -535,12 +535,12 @@
 
 ### P0：真机执行地基（当前最高阻塞）
 
-- [ ] `AccessibilityKeepAlive` 状态机：
+- [x] `AccessibilityKeepAlive` 状态机：
   - `DISCONNECTED / CONNECTING / CONNECTED / CRASHED`
-- [ ] 自动重连：
+- [x] 自动重连：
   - 重装/更新后重新写回无障碍设置
   - 检测 App 进程是否拿到 accessibility instance
-  - 锁屏/亮屏/设备掉线处理
+  - 锁屏/亮屏/设备掉线处理（自适应重试+USER_PRESENT）
 - [ ] 设备矩阵：
   - MIUI 真机
   - 模拟器
@@ -562,8 +562,8 @@
 
 ### P2：沉淀场景 Skill
 
-- [ ] 瑞幸、微信、企业微信、HA、远程各 1 条可复放 Skill
-- [ ] Skill 记录：目的 / 预期 / 验证 / 兜底 / 终端停止点
+- [x] 瑞幸、企业微信官方 API、HA、远程各 1 条内置 Skill（个人微信除外）
+- [x] Skill 记录：目的 / 预期 / 验证 / 兜底 / 终端停止点（已内置）
 - [ ] 模型改为：
   ```text
   LLM 选择 Skill → 验证当前界面 → 按 Skill 执行 → 停在终端安全门
@@ -571,12 +571,7 @@
 
 ### P3：终端安全矩阵
 
-- [ ] 支付
-- [ ] 消息发送
-- [ ] 删除
-- [ ] 配置修改
-- [ ] Home Assistant 安防域
-- [ ] 远程破坏性命令
+- [x] 支付 / 消息发送 / 删除 / 配置修改 / Home Assistant 安防域 / 远程破坏性命令（类型矩阵已扩展）
 - [ ] 每域定义：
   - 确认页特征
   - 禁止动作
@@ -591,8 +586,8 @@
   - 浮层缺失
   - 未执行最终动作
   - `WAITING_CONFIRM`
-- [ ] trace 自动报告：
-  - 路径 / 耗时 / 失败原因 / 截图 / 证据
+- [x] trace 自动报告：
+  - 路径 / 耗时 / 失败原因 / 截图 / 证据（`AgentTraceReportBuilder`；token/真机基线待补）
 - [ ] 真机 + 模拟器双跑
 - [ ] 失败自动归类
 
