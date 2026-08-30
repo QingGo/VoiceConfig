@@ -5,6 +5,8 @@ import com.voiceconfig.app.ai.ApiKeyStore
 import com.voiceconfig.data.local.entity.AiDebugLogEntity
 import com.voiceconfig.data.local.repository.AiDebugLogRepository
 import java.net.HttpURLConnection
+import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.atomic.AtomicInteger
 import java.net.URL
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -53,6 +55,8 @@ open class AgentChatClient @Inject constructor(
 
     @Volatile
     override var lastError: String? = null
+
+    private val mockCounters = ConcurrentHashMap<String, AtomicInteger>()
 
     companion object {
         private const val TAG = "AgentChatClient"
@@ -201,6 +205,11 @@ open class AgentChatClient @Inject constructor(
         tools: List<AgentTool>,
         onEvent: (AgentStreamEvent) -> Unit,
     ): AgentChatResponse? = withContext(Dispatchers.IO) {
+        if (apiKeyStore.agentMockLlmEnabled) {
+            val mock = mockAgentResponse(messages)
+            onEvent(AgentStreamEvent.Done(mock))
+            return@withContext mock
+        }
         val apiKey = apiKeyStore.deepSeekApiKey
         if (apiKey.isBlank()) {
             lastError = "未配置 DeepSeek API Key"
@@ -375,6 +384,71 @@ open class AgentChatClient @Inject constructor(
                 put(obj)
             }
         }
+
+    private fun mockAgentResponse(messages: List<AgentMessage>): AgentChatResponse {
+        val userText = messages.firstOrNull { it.role == "user" }?.content ?: ""
+        val key = userText.take(80)
+        val isNewRun = messages.none { it.role == "assistant" }
+        if (isNewRun) {
+            mockCounters.remove(key)
+        }
+        val step = mockCounters.computeIfAbsent(key) { AtomicInteger() }.getAndIncrement()
+        val scenario = mockScenario(userText)
+        return scenario.getOrNull(step) ?: AgentChatResponse(
+            content = "完成",
+            reasoningContent = null,
+            toolCalls = emptyList(),
+            finishReason = "stop",
+        )
+    }
+
+    private fun mockScenario(text: String): List<AgentChatResponse> {
+        fun call(id: String, name: String, args: String) = AgentChatResponse(
+            content = null,
+            reasoningContent = null,
+            toolCalls = listOf(AgentToolCall(id, name, args)),
+        )
+        fun done(content: String = "完成") = AgentChatResponse(
+            content = content,
+            reasoningContent = null,
+            toolCalls = emptyList(),
+            finishReason = "stop",
+        )
+        return when {
+            text.contains("反复读屏") || text.contains("压力读屏") -> listOf(
+                call("c1", "read_screen", "{}"),
+                call("c2", "read_screen", "{}"),
+                call("c3", "read_screen", "{}"),
+                call("c4", "read_screen", "{}"),
+                call("c5", "read_screen", "{}"),
+                call("c6", "read_screen", "{}"),
+                call("c7", "read_screen", "{}"),
+                call("c8", "read_screen", "{}"),
+                done("截图压力测试完成"),
+            )
+            text.contains("微信自动化测试") -> listOf(
+                call("c1", "wechat_open", "{}"),
+                done("微信测试结束"),
+            )
+            text.contains("企业微信发送") -> listOf(
+                call("c1", "wecom_send_message", """{"toUser":"test","content":"hello"}"""),
+                done("企业微信发送测试结束"),
+            )
+            text.contains("截图") || text.contains("截屏") || text.contains("屏幕") -> listOf(
+                call("c1", "read_screen", "{}"),
+                done("截图完成"),
+            )
+            text.contains("读取") -> listOf(
+                call("c1", "read_ui", "{}"),
+                done("读取完成"),
+            )
+            text.contains("设置") -> listOf(
+                call("c1", "open_app", """{"package":"com.android.settings"}"""),
+                done("设置已打开"),
+            )
+            else -> listOf(done("完成"))
+        }
+    }
 
     private fun parseChatResponse(json: String): AgentChatResponse? {
         val root = JSONObject(json)

@@ -338,7 +338,7 @@ class AgentViewModel @Inject constructor(
     fun handleVoiceCommand(command: GlobalVoiceCommand) {
         val text = command.text
         if (text.isBlank()) return
-        if (command.autoSend && apiKeyStore.deepSeekApiKey.isNotBlank()) {
+        if (command.autoSend && (apiKeyStore.deepSeekApiKey.isNotBlank() || apiKeyStore.agentMockLlmEnabled)) {
             onAgentInputChange(text)
             sendAgentMessage(text, origin = VoiceCommandOrigin.from(command))
             clearAgentDraft()

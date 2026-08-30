@@ -674,6 +674,26 @@ imported_logs/real_device_agent_trace.log
 
 ---
 
+## 7.9 模拟器 Mock LLM 与验证进展（2026-08-30）
+
+新增无云模型依赖的 Mock LLM 调试模式，使模拟器可以真实验证 Agent 执行链路：
+
+```bash
+adb shell am broadcast -a com.voiceconfig.app.DEBUG_MOCK_LLM --ez enabled true
+adb shell am broadcast -a com.voiceconfig.app.DEBUG_AUTO_CONFIRM --ez enabled true
+```
+
+模拟器验证结果：
+
+- 打开设置：Agent 调用 open_app，整体约 5s。
+- 读取当前界面：read_ui 正常返回无障碍节点。
+- 截屏：read_screen 返回 base64 约 114KB～181KB，已从修复前 600KB+ 明显下降。
+- 反复读屏压力：只真实执行 3 次截图即被“连续重复感知”拦截，未失控。
+- 微信自动化：WechatRiskGuard 硬拦截，耗时 <1s，不再进入敏感确认等待。
+- 企业微信发送：wecom_send_message 已注册并可调用；未配置凭证时明确失败。
+
+---
+
 ## 8. 后续不做什么
 
 - 不新增“听起来很酷但不可验证”的功能

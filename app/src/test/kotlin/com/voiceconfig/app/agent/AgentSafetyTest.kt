@@ -102,7 +102,7 @@ class AgentSafetyTest {
         try {
             val open = safety.decide("wechat_open", emptyMap())
             assertTrue(open.blocked)
-            assertTrue(open.requiresConfirmation)
+            assertFalse(open.requiresConfirmation)
 
             val genericOpen = safety.decide("open_app", mapOf("package" to "com.tencent.mm"))
             assertTrue(genericOpen.blocked)

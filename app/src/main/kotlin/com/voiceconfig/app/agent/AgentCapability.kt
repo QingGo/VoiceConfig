@@ -68,7 +68,7 @@ class AgentCapabilityInspector @Inject constructor(
         return AgentCapabilitySnapshot(
             shizukuAvailable = shizuku.isAvailable(),
             accessibilityEnabled = AgentAccessibilityService.instance != null,
-            cloudLlmAvailable = apiKeyStore.deepSeekApiKey.isNotBlank(),
+            cloudLlmAvailable = apiKeyStore.deepSeekApiKey.isNotBlank() || apiKeyStore.agentMockLlmEnabled,
             exactAlarmAvailable = exactAlarm,
             batteryOptimizationIgnored = battery,
             networkAvailable = networkAvailable,

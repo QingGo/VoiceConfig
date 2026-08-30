@@ -50,7 +50,7 @@ class AgentSafety {
         WechatRiskGuard.blockReason(toolName, args, foregroundPackage)?.let { reason ->
             return SafetyDecision(
                 level = SafetyLevel.CONFIRM,
-                requiresConfirmation = true,
+                requiresConfirmation = false,
                 blocked = true,
                 reason = reason,
             )

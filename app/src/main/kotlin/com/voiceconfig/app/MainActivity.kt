@@ -207,6 +207,22 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    private val debugMockLlmReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            val enabled = intent?.getBooleanExtra("enabled", false) ?: false
+            apiKeyStore.agentMockLlmEnabled = enabled
+            android.util.Log.i("MockLlm", "enabled=$enabled persisted=${apiKeyStore.agentMockLlmEnabled}")
+        }
+    }
+
+    private val debugAutoConfirmReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            val enabled = intent?.getBooleanExtra("enabled", false) ?: false
+            apiKeyStore.agentAutoConfirmSensitiveActions = enabled
+            android.util.Log.i("AutoConfirmDebug", "enabled=$enabled persisted=${apiKeyStore.agentAutoConfirmSensitiveActions}")
+        }
+    }
+
     private val debugTaskPlanReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
             val action = intent?.getStringExtra("action")?.takeIf { it.isNotBlank() } ?: return
@@ -296,6 +312,16 @@ class MainActivity : ComponentActivity() {
                     Context.RECEIVER_EXPORTED,
                 )
                 registerReceiver(
+                    debugMockLlmReceiver,
+                    IntentFilter("com.voiceconfig.app.DEBUG_MOCK_LLM"),
+                    Context.RECEIVER_EXPORTED,
+                )
+                registerReceiver(
+                    debugAutoConfirmReceiver,
+                    IntentFilter("com.voiceconfig.app.DEBUG_AUTO_CONFIRM"),
+                    Context.RECEIVER_EXPORTED,
+                )
+                registerReceiver(
                     debugAsrFileReceiver,
                     IntentFilter("com.voiceconfig.app.DEBUG_ASR_FILE"),
                     Context.RECEIVER_EXPORTED,
@@ -308,6 +334,8 @@ class MainActivity : ComponentActivity() {
                 registerReceiver(debugAccessibilityStateReceiver, IntentFilter("com.voiceconfig.app.DEBUG_ACCESSIBILITY_STATE"))
                 registerReceiver(debugScreenshotReceiver, IntentFilter("com.voiceconfig.app.DEBUG_ACCESSIBILITY_SCREENSHOT"))
                 registerReceiver(debugWechatRiskReceiver, IntentFilter("com.voiceconfig.app.DEBUG_WECHAT_RISK"))
+                registerReceiver(debugMockLlmReceiver, IntentFilter("com.voiceconfig.app.DEBUG_MOCK_LLM"))
+                registerReceiver(debugAutoConfirmReceiver, IntentFilter("com.voiceconfig.app.DEBUG_AUTO_CONFIRM"))
                 registerReceiver(debugAsrFileReceiver, IntentFilter("com.voiceconfig.app.DEBUG_ASR_FILE"))
             }
         }

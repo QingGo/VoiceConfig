@@ -74,6 +74,12 @@ class ApiKeyStore @Inject constructor(
             prefs.edit().putBoolean(KEY_WECHAT_UI_AUTOMATION, value).apply()
         }
 
+    var agentMockLlmEnabled: Boolean
+        get() = prefs.getBoolean(KEY_AGENT_MOCK_LLM, false)
+        set(value) {
+            prefs.edit().putBoolean(KEY_AGENT_MOCK_LLM, value).apply()
+        }
+
     var wecomCorpId: String
         get() = prefs.getString(KEY_WECOM_CORP_ID, "") ?: ""
         set(value) {
@@ -228,6 +234,7 @@ class ApiKeyStore @Inject constructor(
         private const val KEY_AGENT_REASONING_EFFORT = "agent_deepseek_reasoning_effort"
         private const val KEY_AGENT_AUTO_CONFIRM = "agent_auto_confirm_sensitive_actions"
         private const val KEY_WECHAT_UI_AUTOMATION = "wechat_ui_automation_enabled"
+        private const val KEY_AGENT_MOCK_LLM = "agent_mock_llm_enabled"
         private const val KEY_WECOM_CORP_ID = "wecom_corp_id"
         private const val KEY_WECOM_AGENT_ID = "wecom_agent_id"
         private const val KEY_WECOM_SECRET = "wecom_secret"

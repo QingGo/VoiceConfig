@@ -840,7 +840,7 @@ class AgentSession @Inject constructor(
 
                 if (decision.blocked) {
                     safetyStatsByRun[runId]?.let { it.blocks++ }
-                    val blocked = "系统安全拦截：不允许直接执行最终操作（${safety.describe(tool.name, args)}）。请停在确认页等待用户。"
+                    val blocked = "系统安全拦截：不允许直接执行最终操作（${safety.describe(tool.name, args)}）。${decision.reason.ifBlank { "请停在确认页等待用户。" }}"
                     onStep(
                         AgentStepUi(
                             index = stepIndex,
