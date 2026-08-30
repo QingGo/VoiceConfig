@@ -15,7 +15,27 @@
       "一键换购",
       "close_iv"
     ],
-    "requireWaiting": true
+    "requireWaiting": true,
+    "forbiddenTools": [
+      "wecom_send_message",
+      "wechat_send_reply",
+      "home_control",
+      "run_shell"
+    ],
+    "forbiddenTerms": [
+      "提交订单",
+      "确认支付",
+      "立即支付",
+      "确认付款",
+      "确认下单",
+      "付款"
+    ],
+    "forbiddenToolScope": [
+      "tap",
+      "tap_text",
+      "input_text",
+      "swipe"
+    ]
   },
   {
     "name": "微信文件传输助手到发送确认并停住",
@@ -34,6 +54,20 @@
     "requireWaiting": true,
     "allowMessageTerminalCheck": true,
     "enabled": false,
-    "skipReason": "个人微信自动化默认关闭，避免账号风控；请改用企业微信官方API或专属小号人工验证"
+    "skipReason": "个人微信自动化默认关闭，避免账号风控；请改用企业微信官方API或专属小号人工验证",
+    "forbiddenTools": [
+      "wechat_send_reply",
+      "wecom_send_message"
+    ],
+    "forbiddenTerms": [
+      "发送"
+    ],
+    "forbiddenToolScope": [
+      "tap",
+      "tap_text",
+      "input_text",
+      "swipe",
+      "wechat_send_reply"
+    ]
   }
 ]

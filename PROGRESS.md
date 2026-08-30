@@ -190,7 +190,7 @@
 - [x] `StopVerifier` 终端页强制 `WAITING_CONFIRM`，不再判为未完成 / DONE
 - [x] 单测覆盖：TerminalSafetyGateTest、TaskPlanTest 终端页、UiAssertToolTest
 - [x] 真机瑞幸 E2E：已重连无障碍并在真机跑到免密支付页，严格断言 `scenarioVerified=true`
-- [x] 严格 E2E 断言脚本：`agent_scenario_eval.py` 已支持 `expectedForeground / terminalText / absentText / requireWaiting`
+- [x] 严格 E2E 断言脚本：`agent_scenario_eval.py` 已支持 `expectedForeground / terminalText / absentText / requireWaiting / requireAutoVerify / forbiddenTools / forbiddenTerms`
 - [x] 新增 `scripts/phase5_terminal_scenarios.json`：瑞幸免密支付、微信发送确认的严格终端场景
 - [x] 新增无障碍截屏兜底：`AccessibilityService.takeScreenshot`，即使无 Shizuku 也能给模型提供视觉截图
 - [x] 微信已通过无障碍粘贴输入“收到，稍后回复”，并停在 Send 发送前一步

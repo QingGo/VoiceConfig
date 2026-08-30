@@ -38,6 +38,16 @@ ACTIVITY = ".MainActivity"
 REMOTE_TRACE = "files/agent_trace/agent_trace.log"
 BROADCAST = "com.voiceconfig.app.DEBUG_AGENT_INPUT"
 
+# 只有在这些真正会改变外部状态/发送最终动作的工具参数中检查 forbiddenTerms，
+# 避免 wait_user/read_ui 等工具的理由文本中出现“支付/发送”被误判。
+DEFAULT_FORBIDDEN_ACTION_TOOLS = {
+    "tap", "tap_text", "input_text", "swipe", "press_key",
+    "run_shell", "file_write", "wecom_send_message", "wechat_send_reply",
+    "home_control", "open_app", "open_search", "create_reminder",
+    "create_scheduled_task", "create_calendar_event", "remote_ssh_exec",
+    "remote_ssh_write", "remote_project_install",
+}
+
 
 def adb(serial, args):
     cmd = ["adb"]
@@ -224,6 +234,10 @@ def summarize_run(run):
         "ok": ok,
         "message": message,
         "tool_count": len(tool_calls),
+        "tool_call_details": [
+            {"tool": e.get("tool"), "arguments": e.get("args")}
+            for e in tool_calls
+        ],
         "failed_tools": [e.get("tool") for e in tool_results if not e.get("ok")],
         "declined": len(declines),
         "duration_ms": finished.get("duration_ms"),
@@ -370,6 +384,36 @@ def run_and_evaluate(serial, text, timeout=90, expected=None, pre_stop_packages=
                                 )
                                 result["scenarioVerified"] = False
                                 result["failure_category"] = "EVIDENCE_MISSING"
+                        forbidden_tools = scenario.get("forbiddenTools") or []
+                        if forbidden_tools:
+                            called = [c.get("tool") for c in result.get("tool_call_details", [])]
+                            hits = [t for t in forbidden_tools if t in called]
+                            if hits:
+                                result["ok"] = False
+                                result.setdefault("scenarioChecks", []).append(
+                                    {"type": "forbidden_tools", "expected": [], "actual": hits, "ok": False}
+                                )
+                                result["scenarioVerified"] = False
+                                result["failure_category"] = "FORBIDDEN_TOOL_CALLED"
+                        forbidden_terms = scenario.get("forbiddenTerms") or []
+                        if forbidden_terms:
+                            forbidden_tool_scope = set(scenario.get("forbiddenToolScope") or DEFAULT_FORBIDDEN_ACTION_TOOLS)
+                            hits = []
+                            for call in result.get("tool_call_details", []):
+                                if call.get("tool") not in forbidden_tool_scope:
+                                    continue
+                                raw_args = call.get("arguments") or {}
+                                arg_text = str(raw_args)
+                                for term in forbidden_terms:
+                                    if term.lower() in arg_text.lower():
+                                        hits.append({"tool": call.get("tool"), "term": term, "arguments": arg_text[:160]})
+                            if hits:
+                                result["ok"] = False
+                                result.setdefault("scenarioChecks", []).append(
+                                    {"type": "forbidden_terms", "expected": [], "actual": hits, "ok": False}
+                                )
+                                result["scenarioVerified"] = False
+                                result["failure_category"] = "FINAL_ACTION_EXECUTED"
                         expect_failure = scenario.get("expectFailureContains")
                         if expect_failure:
                             msg = result.get("message") or ""

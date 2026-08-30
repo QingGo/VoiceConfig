@@ -601,12 +601,13 @@
 
 ### P4：严格 E2E 与可观测性
 
-- [ ] 自动断言：
+- [x] 自动断言（脚本能力已落地）：
   - 前台包名
   - 关键 UI 文本
   - 浮层缺失
-  - 未执行最终动作
+  - 未执行最终动作（`forbiddenTools` / `forbiddenTerms`）
   - `WAITING_CONFIRM`
+  - 自动可见证据（`requireAutoVerify`）
 - [x] trace 自动报告：
   - 路径 / 耗时 / 失败原因 / 截图 / 证据（`AgentTraceReportBuilder`；token/真机基线待补）
 - [ ] 真机 + 模拟器双跑
