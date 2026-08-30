@@ -154,8 +154,9 @@ class OpenAppTool @Inject constructor(
 
     private suspend fun verifyForeground(packageName: String?): Boolean {
         if (packageName.isNullOrBlank()) return true
-        repeat(3) {
-            delay(500)
+        // 冷启动/重型 App 前台切换可能超过 1 秒，多等几次再判定，避免“实际已打开但验证过早失败”。
+        repeat(8) {
+            delay(400)
             val check = shizuku.execute("dumpsys", "activity", "activities")
             if (check.ok && check.stdout.contains(packageName)) return true
         }
@@ -163,8 +164,9 @@ class OpenAppTool @Inject constructor(
     }
 
     private suspend fun verifyForegroundWithAccessibility(packageName: String): Boolean {
-        repeat(3) {
-            delay(500)
+        // MIUI 冷启动外部 App 时无障碍窗口事件可能延迟数秒，给足重试窗口。
+        repeat(10) {
+            delay(400)
             val current = runCatching { AgentAccessibilityService.currentPackageName() }.getOrNull()
             if (current == packageName) return true
         }

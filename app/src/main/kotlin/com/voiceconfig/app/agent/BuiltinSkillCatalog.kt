@@ -24,9 +24,9 @@ object BuiltinSkillCatalog {
             steps = listOf(
                 AgentSkillStep(
                     toolName = "open_app",
-                    args = "package=com.luckincoffee.android",
+                    args = "package=com.lucky.luckyclient",
                     purpose = "打开瑞幸咖啡 App",
-                    expected = "前台包名为 com.luckincoffee.android",
+                    expected = "前台包名为 com.lucky.luckyclient",
                     verification = "FOREGROUND: verified=true",
                     fallback = "find_app 搜索瑞幸后打开",
                 ),

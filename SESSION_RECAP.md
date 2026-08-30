@@ -803,6 +803,8 @@ adb shell am broadcast -a com.voiceconfig.app.DEBUG_AUTO_CONFIRM --ez enabled tr
 - 自动验证优先 `read_ui`；当微信等 App 不暴露无障碍节点导致失败时，自动降级 `read_screen` 截图，保留可见证据。
 - 单测覆盖：UI 读取失败 → 截图验证回退。
 - 单测覆盖：所有 UI 变更类手机工具均要求自动可见证据。
+- 真机冷启动修复：`open_app` 在 MIUI 上因无障碍窗口延迟导致“实际已打开但验证失败”，已将前台验证重试窗口扩到约 4 秒；真机打开瑞幸/企业微信已通过。
+- 瑞幸真实包名修正：内置 Skill 和 `LuckinOpenTool` 使用 `com.lucky.luckyclient`（不再是 `com.luckincoffee.android`）。
 
 ---
 

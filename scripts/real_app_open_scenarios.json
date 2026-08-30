@@ -1,0 +1,18 @@
+[
+  {
+    "name": "打开瑞幸咖啡（真机）",
+    "text": "打开瑞幸咖啡",
+    "timeout": 30,
+    "expectedForeground": "com.lucky.luckyclient",
+    "requireNoFailedTools": true,
+    "category": "real-open-luckin"
+  },
+  {
+    "name": "打开企业微信（真机）",
+    "text": "打开企业微信",
+    "timeout": 30,
+    "expectedForeground": "com.tencent.wework",
+    "requireNoFailedTools": true,
+    "category": "real-open-wework"
+  }
+]

@@ -78,7 +78,7 @@ class LuckinOpenTool @Inject constructor(
     )
 
     override suspend fun execute(args: Map<String, Any?>): ToolResult =
-        openAppTool.execute(mapOf("package" to "com.luckincoffee.android"))
+        openAppTool.execute(mapOf("package" to "com.lucky.luckyclient"))
 }
 
 enum class LuckinOrderStep {

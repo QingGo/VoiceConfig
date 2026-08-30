@@ -478,6 +478,14 @@ open class AgentChatClient @Inject constructor(
                 call("c1", "open_app", """{"package":"com.android.settings"}"""),
                 done("设置已打开"),
             )
+            text.contains("打开瑞幸") || text.contains("瑞幸咖啡") -> listOf(
+                call("c1", "open_app", """{"package":"com.lucky.luckyclient"}"""),
+                done("瑞幸咖啡已打开"),
+            )
+            text.contains("打开企业微信") -> listOf(
+                call("c1", "open_app", """{"package":"com.tencent.wework"}"""),
+                done("企业微信已打开"),
+            )
             else -> listOf(done("完成"))
         }
     }
