@@ -321,3 +321,13 @@
 - [x] 新增 `FlowScriptCodecTest` / `FlowScriptStoreTest`：roundtrip、校验、导入审核、内置保护、导出
 - [x] 全量 JVM 单测通过
 - [ ] 真机 golden 回归：连续 5/5 跑通瑞幸 FlowScript
+
+## 无 Shizuku 熄屏强提醒落地（2026-08-30 续）
+
+- [x] AndroidManifest 增加 `android.permission.VIBRATE`
+- [x] 新增 `strong_remind` 工具：全屏高优先级通知 + 震动 + 铃声，专用于熄屏/无 Shizuku 时提醒用户
+- [x] 工具已注册到核心工具集、metadata、schema
+- [x] 支持参数 `fullScreen / vibrate / sound`，默认全开
+- [x] 通知使用 `CATEGORY_ALARM` + 公共可见性 + 全屏 Intent，锁屏也能提醒
+- [x] 保留普通 `notify`，强提醒作为无 Shizuku 熄屏降级通道
+- [ ] 定时任务失败自动降级为强提醒（需用户点亮后继续/确认）

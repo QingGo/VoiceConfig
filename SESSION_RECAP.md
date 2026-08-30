@@ -62,6 +62,7 @@
 - FlowScript 已升级为 JSON 可导入导出/版本化/校验平台；`FlowScriptStore` + `FlowScriptCodec` 已实现
 - 新增 `run_flow_script` 通用工具与设置页 FlowScript 审核/导入/导出管理
 - `UiFlowExecutor` 已支持 forbiddenActionTokens 安全护栏
+- 新增 `strong_remind` 强提醒工具：全屏高优先级通知 + 震动 + 铃声，用于无 Shizuku/熄屏降级
 - `UiWaitTool` 已注册并通过真机 Mock E2E
 - UI 变更工具自动可见证据 + trace 化
 - `TerminalSafetyGate` 每域矩阵 + `terminal_gate` trace
@@ -81,7 +82,7 @@
 - 宏未处理“购物车残留/前置条件”通用校验
 - 关闭思维链换速度可能降低异常页面鲁棒性
 - 熄屏 + 仅无障碍无法可靠自动打开 App
-- 无 Shizuku 时缺少强提醒（震动/铃声/全屏）产品化路径
+- 强提醒工具已落地，但仍未接入定时任务自动降级/用户点亮后续执行
 - Shizuku 权限会因重启/断网/无线调试关闭而丢失，不能作为消费级依赖
 - 企业微信、HA、树莓派、智能家居仍未真实联调
 - 官方 API 凭证安全存储/最小权限/审计仍缺失

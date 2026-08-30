@@ -119,6 +119,13 @@ object AgentToolSchemas {
             "title" to string("通知标题"),
             "content" to string("通知内容"),
         )
+        "strong_remind" -> objectSchema(
+            "title" to string("提醒标题"),
+            "content" to string("提醒内容"),
+            "fullScreen" to string("是否全屏提醒，默认 true"),
+            "vibrate" to string("是否震动，默认 true"),
+            "sound" to string("是否铃声，默认 true"),
+        )
         "create_reminder" -> objectSchema(
             "content" to string("提醒内容，例如：喝水"),
             "time" to string("提醒时间 HH:mm，例如 08:00"),

@@ -238,6 +238,11 @@ object AgentToolMetadataRegistry {
             group = ToolGroup.CORE,
             risk = ToolRisk.LOW,
         ),
+        "strong_remind" to AgentToolMetadata(
+            category = "强提醒",
+            group = ToolGroup.CORE,
+            risk = ToolRisk.LOW,
+        ),
         "create_reminder" to AgentToolMetadata(
             category = "提醒",
             group = ToolGroup.CORE,
