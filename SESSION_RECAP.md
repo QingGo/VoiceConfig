@@ -2,7 +2,7 @@
 
 > 记录时间：2026-08-30
 > 适用设备：`192.168.31.109:42097`（M2102K1C / Android 14 / 1440x3200）
-> 关联文档：[SYSTEM_THINKING.md](../SYSTEM_THINKING.md)、[PROGRESS.md](../PROGRESS.md)
+> 关联文档：[SYSTEM_THINKING.md](SYSTEM_THINKING.md)、[STRATEGIC_REVIEW.md](STRATEGIC_REVIEW.md)、[PROGRESS.md](PROGRESS.md)
 
 ---
 
@@ -98,6 +98,62 @@
   - 企业微信 `com.tencent.wework`
   - 设置 `com.android.settings`
 
+### 2.6 UI Action Layer
+
+- 新增 `UiActionLayer`，统一：
+  - `tapById / tapByText / tapByDesc / tapCenter`
+  - `swipe / back / input`
+  - `waitFor / assertVisible / assertNotVisible`
+- `TapTool / TapTextTool / SwipeTool` 改为调用该层
+- 新增 `UiAssertTool`：
+  - `visible`
+  - `not_visible`
+  - `wait_for`
+- 优先级：
+  ```text
+  resource-id → text/content-desc → 无障碍真实点击 → 坐标兜底
+  ```
+
+### 2.7 Terminal Safety Gate
+
+- 新增 `TerminalSafetyGate`
+- 识别终端页：
+  ```text
+  确认订单 / 确认下单 / 免密支付 / 提交订单
+  确认支付 / 立即支付 / 确认付款 / 付款
+  确认发送 / 发送消息确认 / 确认发送消息 / 发送（通信目标）
+  ```
+- `StopVerifier` 强制：
+  ```text
+  终端页 → WAITING_CONFIRM
+  ```
+- 即使任务计划未全部完成，甚至没有任务计划，也会强制等待用户
+
+### 2.8 严格 E2E 断言
+
+- 增强 `scripts/agent_scenario_eval.py`
+- 支持：
+  - `expectedForeground`
+  - `terminalText`
+  - `absentText`
+  - `requireWaiting`
+- 新增：
+  ```text
+  scripts/phase5_terminal_scenarios.json
+  ```
+- 包含瑞幸、微信两个严格终端场景
+
+### 2.9 真机 E2E 尝试（受阻）
+
+- 安装新版 APK 到 `192.168.31.109:42097`
+- 尝试发送瑞幸点单命令
+- 结果：
+  - trace 显示 preflight 通过
+  - 但 `read_ui` 失败，报告“需要 Shizuku 或无障碍”
+  - `AgentAccessibilityService` 系统层显示 Bound，但 App 进程 `instance` 仍为 null
+- 尝试重新写回无障碍设置、重启 App、切换设置，仍未恢复
+- 最后真机从 ADB 离线/锁屏，无法继续
+
 ---
 
 ## 3. 踩过的坑
@@ -189,6 +245,33 @@
   - 尝试裸坐标点击
 - 不能依赖 LLM 做精确 UI 操作
 
+### 3.8 重装 APK 后无障碍服务不重连
+
+- 现象：
+  - `dumpsys accessibility` 显示 `Bound services` 包含言控
+  - 但 `AgentAccessibilityService.instance == null`
+  - `AgentPreflight` 仍判“缺少无障碍”
+  - `read_ui` 返回“需要 Shizuku 或无障碍”
+- 尝试：
+  - 重新写 `enabled_accessibility_services`
+  - 开关 `accessibility_enabled`
+  - force-stop + 重新启动 App
+  - 通过 adb 打开无障碍设置页
+- 结果：仍未能让 App 进程拿到服务实例
+- 修复尝试：
+  - 在 `AgentAccessibilityService.onCreate()` 中提前设置 `instance`
+  - 便于服务对象一旦创建就能被能力检测识别
+- 仍需真机恢复后验证
+
+### 3.9 真机锁屏/离线导致 E2E 中断
+
+- 真机在测试中进入锁屏，显示“Draw pattern or use fingerprint to unlock”
+- 后续 ADB 设备从列表消失
+- 无法继续瑞幸/微信真实终端场景
+- 教训：
+  - 自动化必须处理锁屏/亮屏/设备掉线
+  - 多设备矩阵与自动恢复是 P0
+
 ---
 
 ## 4. 已完成部分
@@ -232,6 +315,32 @@
   ```
 - [x] 无障碍点击/滑动/返回实际可用
 
+### 本轮新增代码
+
+- [x] `UiActionLayer`
+- [x] `UiAssertTool`
+- [x] `TerminalSafetyGate`
+- [x] `TapTool / TapTextTool / SwipeTool` 收敛到 `UiActionLayer`
+- [x] `StopVerifier` 接入 Terminal Safety Gate
+- [x] `AgentSession` 终端等待时自动持久化 `waitingForHuman`
+- [x] `AgentAccessibilityService.onCreate()` 提前设置 instance
+
+### 本轮新增测试
+
+- [x] `TerminalSafetyGateTest`
+- [x] `TaskPlanTest` 终端安全门（有计划 / 无计划 / 支付页 / 发送页）
+- [x] `UiAssertToolTest`
+- [x] `AgentToolsetTest` 校验 `ui_assert` 分组
+
+### 本轮新增/增强脚本
+
+- [x] `scripts/agent_scenario_eval.py`：
+  - `expectedForeground`
+  - `terminalText`
+  - `absentText`
+  - `requireWaiting`
+- [x] `scripts/phase5_terminal_scenarios.json`
+
 ### 脚本
 
 - [x] `scripts/phase4_safety_regression.sh`
@@ -245,162 +354,166 @@
 
 ## 5. 新发现的问题
 
-### 5.1 UI Action 层缺失
+### 5.1 真机执行通道仍是最脆弱的地基（当前最大阻塞）
 
-这是目前最大的技术债。
+- `AgentAccessibilityService` 系统层 Bound，但 App 进程 `instance` 仍可能为 null
+- 重装 / 更新 APK 后服务不一定自动重连
+- 真机锁屏、离线、MIUI 回收都会中断自动化
+- Shizuku 缺失时：截图不可用、shell 输入不可用、只能靠无障碍降级
+- 需要：
+  - `AccessibilityKeepAlive` 状态机
+  - 自动重连
+  - 设备矩阵
+  - 锁屏/亮屏/掉线自愈
 
-当前工具是：
+### 5.2 UiActionLayer 已建立，但未完成全量收敛
 
-```text
-tap(x, y)
-tap_text(text)
-input_text(text)
-swipe(...)
-```
+- 已新增统一原语和 `UiAssertTool`
+- 但仍有工具保留自己的读树/点击逻辑
+- `DismissPopupsTool / ReadUiTool / PressKeyTool / InputTextTool` 尚未全部改走该层
+- 坐标仍可能被模型当成常规方案，需要继续强化“坐标仅兜底”
 
-缺少统一选择器层：
+### 5.3 Terminal Safety Gate 已建立，但未在真机证明
 
-```text
-tap_by_id
-tap_by_text
-tap_by_desc
-wait_for
-assert_visible
-```
+- `StopVerifier` 已能强制 `WAITING_CONFIRM`
+- 但瑞幸/微信终端场景尚未真实跑通
+- 安全矩阵只在支付/发送域，仍需扩展：
+  - 删除
+  - 配置修改
+  - Home Assistant 安防域
+  - 远程破坏性命令
+- 需要统一“终端页特征 → 禁止动作 → 人工确认 UI → trace 标记”
 
-导致：
+### 5.4 E2E 断言能力已增强，但缺少真实通过记录
 
-- 坐标点错商品
-- 无文字按钮找不到
-- 页面状态无法稳定断言
+- `agent_scenario_eval.py` 已支持：
+  - `expectedForeground`
+  - `terminalText`
+  - `absentText`
+  - `requireWaiting`
+- 新增了 `phase5_terminal_scenarios.json`
+- 但设备恢复前无法验证
+- 还需要把 trace / 截图 / 未执行最终动作纳入自动报告
 
-### 5.2 Terminal Safety Gate 缺失
+### 5.5 缺少确定性 Skill
 
-- 已经到达“免密支付”页
-- 但 StopVerifier 仍可能判为：
-  ```text
-  任务计划尚未完成
-  ```
-- 需要明确识别：
-  ```text
-  确认订单 / 免密支付 / 发送确认 / 提交订单
-  ```
-- 到达后应强制：
-  ```text
-  WAITING_CONFIRM
-  ```
+- 已有 Skill 基础设施
+- 但瑞幸、微信、企业微信、HA、远程尚未沉淀为：
+  - 可审核
+  - 可复放
+  - 可验证
+  - 有明确终端停止点
+- 当前每次执行仍由 LLM 自由探索，稳定性差
 
-### 5.3 E2E 验证不够严谨
+### 5.6 Overlay 识别仍是启发式
 
-- 目前 `agent_scenario_eval.py` 主要看 `result.ok`
-- 需要断言：
-  - 前台包名
-  - 关键 UI 文本
-  - 浮层不存在
-  - 未点击最终支付/发送
-  - 有 trace/截图
+- `close_iv` 已修复
+- 但其他 App 的广告 / 权限 / 功能选择层 / 终端确认层没有统一分类
+- 需要规则化：
+  - `AD`
+  - `PERMISSION`
+  - `FUNCTIONAL_PICKER`
+  - `TERMINAL_CONFIRM`
 
-### 5.4 Overlay 识别仍是启发式
-
-- `close_iv` 已修
-- 但其他 App 浮层/营销层缺少通用确定性关闭
-- 需要统一“可关闭层”识别和关闭原语
-
-### 5.5 模型行为需要收敛
+### 5.7 模型行为需要收敛
 
 - 重复读屏
 - 长篇推理
 - 猜坐标
-- 同一流程不稳定
+- 同一流程每次路径不同
+- 需要从“LLM 探索”改为“LLM 选择 Skill + 验证 + 执行”
 
-### 5.6 MIUI/Shizuku 生态
+### 5.8 本地语音和低功耗缺少长期数据
 
-- 无障碍 force-stop 后掉线
-- Shizuku 不可用时：
-  - 截图不可用
-  - 部分 shell 输入不可用
-  - 部分场景只能降级
+- 本地 KWS / ASR 已接入
+- 缺 1 小时连续唤醒、误唤醒率、功耗、灭屏/亮屏切换数据
+
+### 5.9 安全确认交互仍缺完整设计
+
+- 已有安全硬拦截
+- 但语音确认、Agent 二次确认、用户实际最后操作三者的关系需要统一 UI/状态机
+- 不可逆操作必须永远无法被自动确认绕过
 
 ---
 
-## 6. 计划要完成的部分
+## 6. 计划要完成的部分（按当前优先级）
 
-### P0：UiActionLayer
+> 更完整的战略分析见 [STRATEGIC_REVIEW.md](STRATEGIC_REVIEW.md)
 
-建立统一 UI 操作层：
+### P0：真机执行地基（当前最高阻塞）
 
-```text
-tap_by_id
-tap_by_text
-tap_by_desc
-tap_center
-swipe
-back
-input
-wait_for
-assert_visible
-assert_not_visible
-```
+- [ ] `AccessibilityKeepAlive` 状态机：
+  - `DISCONNECTED / CONNECTING / CONNECTED / CRASHED`
+- [ ] 自动重连：
+  - 重装/更新后重新写回无障碍设置
+  - 检测 App 进程是否拿到 accessibility instance
+  - 锁屏/亮屏/设备掉线处理
+- [ ] 设备矩阵：
+  - MIUI 真机
+  - 模拟器
+  - 有/无 Shizuku
+  - 有/无障碍
+- [ ] 真机跑通：
+  - 瑞幸稳定停在免密支付
+  - 微信停在发送确认
 
-原则：
+### P1：完成确定性执行层
 
-- 优先 resource-id
-- 其次 text / content-desc
-- 坐标只作最后兜底
+- [ ] 所有 UI 工具统一走 `UiActionLayer`
+  - 包括 `DismissPopupsTool / ReadUiTool / PressKeyTool / InputTextTool`
+- [ ] `ui_assert / ui_wait` 纳入模型常规验证路径
+- [ ] 浮层规则化：
+  - `AD / PERMISSION / FUNCTIONAL_PICKER / TERMINAL_CONFIRM`
+- [ ] 坐标仅作为最后兜底，并明确返回“坐标兜底”标记
 
-### P1：Terminal Safety Gate
+### P2：沉淀场景 Skill
 
-StopVerifier 增加终端状态识别：
+- [ ] 瑞幸、微信、企业微信、HA、远程各 1 条可复放 Skill
+- [ ] Skill 记录：目的 / 预期 / 验证 / 兜底 / 终端停止点
+- [ ] 模型改为：
+  ```text
+  LLM 选择 Skill → 验证当前界面 → 按 Skill 执行 → 停在终端安全门
+  ```
 
-```text
-确认订单
-免密支付
-发送消息确认
-提交订单
-```
+### P3：终端安全矩阵
 
-到达后：
+- [ ] 支付
+- [ ] 消息发送
+- [ ] 删除
+- [ ] 配置修改
+- [ ] Home Assistant 安防域
+- [ ] 远程破坏性命令
+- [ ] 每域定义：
+  - 确认页特征
+  - 禁止动作
+  - 人工确认 UI
+  - trace 标记
 
-```text
-清理浮层
-→ 强制 WAITING_CONFIRM
-→ 不再判 incomplete
-```
+### P4：严格 E2E 与可观测性
 
-### P2：严格 E2E 断言
+- [ ] 自动断言：
+  - 前台包名
+  - 关键 UI 文本
+  - 浮层缺失
+  - 未执行最终动作
+  - `WAITING_CONFIRM`
+- [ ] trace 自动报告：
+  - 路径 / 耗时 / 失败原因 / 截图 / 证据
+- [ ] 真机 + 模拟器双跑
+- [ ] 失败自动归类
 
-每个场景自动断言：
+### P5：本地语音与长期稳定性
 
-- 前台包名
-- 关键 UI 文本
-- 浮层不存在
-- 未执行最终动作
-- trace/截图留档
+- [ ] 本地 KWS / ASR 1 小时 soak
+- [ ] 低电量 / 灭屏 / 亮屏策略回归
+- [ ] 语音触发 → Agent → TTS 端到端
+- [ ] 唤醒率、误唤醒、功耗数据
 
-### P3：场景化 Skill
+### P6：能力扩展
 
-瑞幸、微信、企业微信、HA、远程做成确定性 Skill：
-
-```text
-LLM 理解需求
-→ 选择 Skill
-→ Skill 执行精确 UI 步骤
-→ 停在终端安全门
-```
-
-### P4：可靠性
-
-- AccessibilityKeepAlive 状态机
-- 真机/模拟器双跑
-- force-stop 后自动重连
-- 失败重试/降级
-
-### P5：本地化与功耗
-
-- 本地 KWS 已验证接入
-- 本地 ASR 优先
-- 低电量策略
-- 连续唤醒功耗验收
+- [ ] 日历 / 提醒 / 健康 / 出行 / 购物
+- [ ] 远程开发 / 智能家居扩展
+- [ ] 必须以稳定地基为前提，不反向引入新债
 
 ---
 
