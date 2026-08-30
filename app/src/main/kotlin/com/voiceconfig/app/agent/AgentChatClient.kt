@@ -450,6 +450,14 @@ open class AgentChatClient @Inject constructor(
                 call("c1", "ui_assert", """{"action":"not_visible","text":"不存在的文本XYZ123"}"""),
                 done("断言测试完成"),
             )
+            text.contains("点击可见证据") || text.contains("点击测试") -> listOf(
+                call("c1", "tap_text", """{"text":"首页/对话"}"""),
+                done("点击可见证据测试完成"),
+            )
+            text.contains("滑动可见证据") || text.contains("滑动测试") -> listOf(
+                call("c1", "swipe", """{"x1":540,"y1":1800,"x2":540,"y2":1000,"durationMs":300}"""),
+                done("滑动可见证据测试完成"),
+            )
             text.contains("家庭设备") || text.contains("家居设备") || text.contains("home assistant") -> listOf(
                 call("c1", "home_devices", "{}"),
                 done("家庭设备测试结束"),

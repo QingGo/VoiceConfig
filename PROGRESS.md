@@ -253,8 +253,10 @@
 ## 可见证据闭环（2026-08-30）
 
 - [x] `input_text` 开启自动验证
+- [x] `tap` / `tap_text` / `swipe` / `press_key` 开启自动验证
 - [x] 自动验证 `read_ui` 失败时降级到 `read_screen`，为微信等不可读 UI 保留截图证据
 - [x] 新增单测：UI 读取失败时自动回退截图验证
+- [x] 新增单测：所有 UI 变更类手机工具都要求自动可见证据
 
 ## 已提交代码
 
@@ -277,6 +279,6 @@
 - [x] TraceReport 支持耗时/工具序列/截图/Token/失败分类/Markdown 导出
 - [x] 企业微信 API 凭证测试按钮 + CLI 脚本
 - [x] Agent 真实工具失败不再被“完成”掩盖
-- [x] 模拟器 Mock LLM E2E 11/11 通过
+- [x] 模拟器 Mock LLM E2E 13/13 通过
 - [ ] 真实 Home Assistant / 海信空调 / 百褶帘 / 树莓派 SSH 联调
 - [ ] 低成本 DIY 智能家居固化为可验证的 ESPHome/Skill 路径

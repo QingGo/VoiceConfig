@@ -28,7 +28,7 @@
 - Agent 系统提示强化：优先参考 Skill、使用 `ui_assert`、可见证据规则
 - TraceReport：失败分类 / Token / 请求体 / Markdown 导出
 - 企业微信 CLI 脚本：`scripts/wecom_send_test.py`
-- 模拟器场景从 4 个扩展到 11 个，覆盖更多安全与工具路径
+- 模拟器场景从 4 个扩展到 13 个，覆盖更多安全与工具路径
 - 智能家居 / 树莓派 / 百褶帘 / 海信空调改造方向调研
 
 ### 踩过的坑
@@ -69,7 +69,7 @@
 - Skill 相关性算法与系统提示强化
 - `ui_assert` 写入系统提示
 - TraceReport：耗时 / 工具序列 / 截图 / 验证 / 安全拦截 / LLM 错误 / Token / 请求体 / 失败分类 / Markdown 导出
-- 模拟器 Mock LLM E2E：**11/11 通过**
+- 模拟器 Mock LLM E2E：**13/13 通过**
 - 真实工具失败强制 FAILED 并暴露失败原因
 - 企业微信 / Home Assistant 未配置时明确失败
 - 个人微信自动化模拟器验证被安全拦截
@@ -79,7 +79,7 @@
 
 - 个人微信自动化不可作为产品路径，否则有账号风控/封号风险
 - 微信类不可读 UI 仍依赖视觉 + 模型文本回退，证据不够强
-- `ReadUiTool` 已收敛，但 `tap` / `tap_text` / `swipe` 还没有全部开启自动可见证据
+- `ReadUiTool` 已收敛；`tap` / `tap_text` / `swipe` / `press_key` 已开启自动可见证据，但仍需真机/模拟器回归确认耗时与证据质量
 - 真机耗时基线还未重新测量
 - 模拟器 Mock 不能替代真机 MIUI / 锁屏 / 离线验证
 - 企业微信 / Home Assistant / 树莓派 / 海信空调 / 百褶帘均无真实联调
@@ -575,7 +575,7 @@
 
 - [x] 所有 UI 工具统一走 `UiActionLayer`
   - 已包括 `DismissPopupsTool / ReadUiTool / PressKeyTool / InputTextTool`
-- [ ] 输入/点击成功必须有“可见证据”闭环，禁止工具自行返回成功而没有截图/UI 证据
+- [x] 输入/点击等 UI 变更工具已纳入自动可见证据：`tap` / `tap_text` / `swipe` / `press_key` / `input_text`
 - [ ] `ui_assert / ui_wait` 纳入模型常规验证路径
 - [x] 浮层规则化：
   - `PROMO(AD) / PERMISSION / FUNCTIONAL_PICKER / TERMINAL_CONFIRM`
@@ -796,8 +796,10 @@ adb shell am broadcast -a com.voiceconfig.app.DEBUG_AUTO_CONFIRM --ez enabled tr
 ## 7.11 可见证据闭环（2026-08-30）
 
 - `input_text` 已纳入自动验证。
+- `tap` / `tap_text` / `swipe` / `press_key` 已全部纳入自动验证。
 - 自动验证优先 `read_ui`；当微信等 App 不暴露无障碍节点导致失败时，自动降级 `read_screen` 截图，保留可见证据。
 - 单测覆盖：UI 读取失败 → 截图验证回退。
+- 单测覆盖：所有 UI 变更类手机工具均要求自动可见证据。
 
 ---
 

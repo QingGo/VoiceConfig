@@ -507,4 +507,54 @@ class AgentSessionTest {
         assertEquals(AgentRunState.FAILED, result.state)
     }
 
+
+    @Test
+    fun `auto verification logs one ui evidence trace event`() = runBlocking {
+        val logs = mutableListOf<Pair<String, Map<String, Any?>>>()
+        val trace = object : AgentTrace {
+            override fun startRun(userText: String): String = "trace-run"
+            override fun log(runId: String, type: String, data: Map<String, Any?>) {
+                logs += type to data
+            }
+            override fun saveScreenshot(runId: String, base64: String, label: String): String = ""
+        }
+        val uiTool = object : AgentTool {
+            override val name: String = "read_ui"
+            override val description: String = "ui"
+            override suspend fun execute(args: Map<String, Any?>): ToolResult =
+                ToolResult.success("ok", mapOf("summary" to "当前界面摘要", "foregroundPackage" to "com.android.settings"))
+        }
+        val tapTool = object : AgentTool {
+            override val name: String = "tap"
+            override val description: String = "tap"
+            override val metadata: AgentToolMetadata
+                get() = AgentToolMetadata(risk = ToolRisk.MEDIUM, mutatesUi = true, requiresAutoVerify = true)
+            override suspend fun execute(args: Map<String, Any?>): ToolResult =
+                ToolResult.success("tapped", emptyMap())
+        }
+        val registry = ToolRegistry().register(tapTool).register(uiTool)
+        val client = FakeToolChatClient(
+            listOf(
+                AgentChatResponse(content = null, reasoningContent = null, toolCalls = listOf(AgentToolCall("call1", "tap", "{}"))),
+                AgentChatResponse(content = "完成", reasoningContent = null, toolCalls = emptyList()),
+            ),
+        )
+        val session = AgentSession(registry, client, trace, TaskPlanStore(InMemoryTaskPlanPersistence()), InMemoryAgentRunLedger()).apply {
+            argumentParser = { emptyMap() }
+        }
+        val result = session.send(
+            "点一次并自动验证",
+            verifyPolicy = AgentVerificationPolicy(enabled = true, maxPerRun = 1, minIntervalMs = 0),
+        )
+        assertTrue(result.ok)
+        val autoEvents = logs.filter { it.first == "auto_verify" }
+        assertEquals(1, autoEvents.size)
+        val event = autoEvents.single().second
+        assertEquals("read_ui", event["verify_tool"])
+        assertEquals(true, event["ok"])
+        assertEquals(true, event["has_ui_text"])
+        assertEquals(false, event["has_screenshot"])
+        assertEquals("com.android.settings", event["foreground_package"])
+    }
+
 }

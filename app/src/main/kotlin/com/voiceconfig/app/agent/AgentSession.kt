@@ -1101,14 +1101,30 @@ class AgentSession @Inject constructor(
                     }
                     val verifyDurationMs = System.currentTimeMillis() - verifyStartMs
                     val verifyImage = verify?.data?.get("image_base64") as? String
+                    var verifyScreenshotPath: String? = null
                     if (verify?.ok == true && !verifyImage.isNullOrBlank()) {
                         latestScreenBase64 = verifyImage
                         latestScreenWidth = (verify.data["width"] as? Number)?.toInt()
                         latestScreenHeight = (verify.data["height"] as? Number)?.toInt()
-                        val path = trace.saveScreenshot(runId, verifyImage, "auto_verify_${toolCall.name}")
-                        trace.log(runId, "auto_verify", mapOf("tool" to toolCall.name, "path" to path, "base64_length" to verifyImage.length))
+                        verifyScreenshotPath = trace.saveScreenshot(runId, verifyImage, "auto_verify_${toolCall.name}")
                     }
                     val verifyResult = verify ?: ToolResult.failure("自动验证失败")
+                    trace.log(runId, "auto_verify", mapOf(
+                        "tool" to toolCall.name,
+                        "verify_tool" to verifyToolName,
+                        "ok" to verifyResult.ok,
+                        "source" to (verify?.data?.get("source") as? String ?: verifyToolName),
+                        "foreground_package" to (verify?.data?.get("foregroundPackage") as? String),
+                        "has_screenshot" to (verifyImage?.isNotBlank() == true),
+                        "has_ui_text" to (
+                            ((verify?.data?.get("ui") as? String)?.isNotBlank() == true) ||
+                                ((verify?.data?.get("summary") as? String)?.isNotBlank() == true)
+                            ),
+                        "path" to (verifyScreenshotPath ?: ""),
+                        "base64_length" to (verifyImage?.length ?: 0),
+                        "duration_ms" to verifyDurationMs,
+                        "message" to verifyResult.message.take(160),
+                    ))
                     val verifyLabel = if (verifyToolName == "read_screen") "自动截屏验证" else "自动UI验证"
                     onStep(
                         AgentStepUi(

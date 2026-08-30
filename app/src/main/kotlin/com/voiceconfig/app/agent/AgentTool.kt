@@ -181,7 +181,7 @@ object AgentToolMetadataRegistry {
             group = ToolGroup.PHONE,
             risk = ToolRisk.MEDIUM,
             mutatesUi = true,
-            requiresAutoVerify = false,
+            requiresAutoVerify = true,
             needsShizuku = true,
         ),
         "tap_text" to AgentToolMetadata(
@@ -189,7 +189,7 @@ object AgentToolMetadataRegistry {
             group = ToolGroup.PHONE,
             risk = ToolRisk.MEDIUM,
             mutatesUi = true,
-            requiresAutoVerify = false,
+            requiresAutoVerify = true,
             needsShizuku = true,
         ),
         "review_tap" to AgentToolMetadata(
@@ -211,7 +211,7 @@ object AgentToolMetadataRegistry {
             group = ToolGroup.PHONE,
             risk = ToolRisk.MEDIUM,
             mutatesUi = true,
-            requiresAutoVerify = false,
+            requiresAutoVerify = true,
             needsShizuku = true,
         ),
         "press_key" to AgentToolMetadata(
@@ -219,7 +219,7 @@ object AgentToolMetadataRegistry {
             group = ToolGroup.PHONE,
             risk = ToolRisk.MEDIUM,
             mutatesUi = true,
-            requiresAutoVerify = false,
+            requiresAutoVerify = true,
             needsShizuku = true,
         ),
         "wait" to AgentToolMetadata(

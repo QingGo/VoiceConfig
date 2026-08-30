@@ -215,6 +215,7 @@ def summarize_run(run):
     tool_calls = [e for e in run["entries"] if e.get("type") == "tool_call"]
     tool_results = [e for e in run["entries"] if e.get("type") == "tool_result"]
     declines = [e for e in run["entries"] if e.get("type") == "tool_declined"]
+    auto_verifies = [e for e in run["entries"] if e.get("type") == "auto_verify"]
     finished = run.get("run_finished") or {}
     ok = bool(finished.get("ok"))
     message = finished.get("message", "")
@@ -226,6 +227,9 @@ def summarize_run(run):
         "failed_tools": [e.get("tool") for e in tool_results if not e.get("ok")],
         "declined": len(declines),
         "duration_ms": finished.get("duration_ms"),
+        "auto_verify_count": len(auto_verifies),
+        "failed_auto_verify": any(not e.get("ok") for e in auto_verifies),
+        "auto_verify_tools": [e.get("verify_tool") for e in auto_verifies],
     }
     result["failure_category"] = classify_failure(result)
     result["waiting"] = bool(finished.get("waiting"))
@@ -350,6 +354,22 @@ def run_and_evaluate(serial, text, timeout=90, expected=None, pre_stop_packages=
                             )
                             result["scenarioVerified"] = False
                             result["failure_category"] = "TOOL_FAILURE"
+                        if scenario.get("requireAutoVerify"):
+                            auto_count = result.get("auto_verify_count", 0)
+                            auto_failed = result.get("failed_auto_verify", True)
+                            auto_ok = auto_count > 0 and not auto_failed
+                            if not auto_ok:
+                                result["ok"] = False
+                                result.setdefault("scenarioChecks", []).append(
+                                    {
+                                        "type": "auto_verify",
+                                        "expected": True,
+                                        "actual": {"count": auto_count, "failed": auto_failed, "tools": result.get("auto_verify_tools", [])},
+                                        "ok": False,
+                                    }
+                                )
+                                result["scenarioVerified"] = False
+                                result["failure_category"] = "EVIDENCE_MISSING"
                         expect_failure = scenario.get("expectFailureContains")
                         if expect_failure:
                             msg = result.get("message") or ""

@@ -70,6 +70,21 @@
     "timeout": 30,
     "expectFailureContains": "未配置 Home Assistant",
     "category": "mock-home-missing-config"
+  },
+  {
+    "name": "点击自动可见证据（Mock LLM）",
+    "text": "点击可见证据测试",
+    "timeout": 30,
+    "requireNoFailedTools": true,
+    "requireAutoVerify": true,
+    "category": "mock-tap-auto-verify"
+  },
+  {
+    "name": "滑动自动可见证据（Mock LLM）",
+    "text": "滑动可见证据测试",
+    "timeout": 30,
+    "requireNoFailedTools": true,
+    "requireAutoVerify": true,
+    "category": "mock-swipe-auto-verify"
   }
-
 ]

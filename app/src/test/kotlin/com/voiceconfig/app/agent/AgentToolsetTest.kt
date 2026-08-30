@@ -56,4 +56,15 @@ class AgentToolsetTest {
         assertEquals(ToolGroup.REMOTE, AgentToolMetadataRegistry.of("remote_project_verify").group)
     }
 
+
+    @Test
+    fun `phone UI mutation tools require automatic visible evidence`() {
+        val tools = listOf("tap", "tap_text", "swipe", "press_key", "input_text")
+        tools.forEach { name ->
+            val meta = AgentToolMetadataRegistry.of(name)
+            assertTrue("$name should enable automatic UI verification", meta.requiresAutoVerify)
+            assertTrue("$name should be a UI-mutating phone tool", meta.mutatesUi)
+            assertEquals("$name should be in PHONE group", ToolGroup.PHONE, meta.group)
+        }
+    }
 }
