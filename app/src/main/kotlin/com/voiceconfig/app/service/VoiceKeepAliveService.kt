@@ -62,6 +62,10 @@ class VoiceKeepAliveService : Service() {
                     powerPolicy.setScreenOff(false)
                     wakeWordEngine.resume()
                 }
+                Intent.ACTION_USER_PRESENT -> {
+                    powerPolicy.setScreenOff(false)
+                    wakeWordEngine.resume()
+                }
                 Intent.ACTION_BATTERY_LOW -> {
                     powerPolicy.setLowBattery(true)
                     wakeWordEngine.pause()
@@ -197,6 +201,7 @@ class VoiceKeepAliveService : Service() {
             addAction(Intent.ACTION_POWER_DISCONNECTED)
             addAction(Intent.ACTION_SCREEN_ON)
             addAction(Intent.ACTION_SCREEN_OFF)
+            addAction(Intent.ACTION_USER_PRESENT)
             addAction(WifiManager.NETWORK_STATE_CHANGED_ACTION)
         }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
