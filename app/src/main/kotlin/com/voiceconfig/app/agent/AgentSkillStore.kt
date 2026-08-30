@@ -142,7 +142,7 @@ class AgentSkillStore @Inject constructor(
     fun relevant(text: String, limit: Int = 3): List<AgentSkill> {
         return load()
             .filter { it.status == AgentSkillStatus.APPROVED && it.enabled }
-            .map { it to similarity(it.text, text) }
+            .map { it to SkillRelevance.score(text, it) }
             .filter { it.second > 0.15 }
             .sortedByDescending { it.second }
             .take(limit)
