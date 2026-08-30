@@ -171,7 +171,7 @@ VoiceConfig 的终极目标不是“做一个会聊天、会读屏的 App”，�
 
 ### P4：严格 E2E 与可观测性
 - [x] 模拟器 Mock LLM 回归套件（11/11 通过，含等待确认/弹窗/按键/断言/微信风控/WeCom与HA未配置）
-- [x] 自动 trace 报告：路径 / 耗时 / 截图 / 失败原因（`AgentTraceReportBuilder`）；[ ] token / 真机基线
+- [x] 自动 trace 报告：路径 / 耗时 / 截图 / Token / 请求体 / 失败原因（`AgentTraceReportBuilder`）；[ ] 真机基线
 - [ ] 真机 + 模拟器双跑
 - [x] 失败自动归类：权限 / 无障碍 / 模型 / UI变化 / 安全拦截 / 平台合规（TraceReportBuilder）
 - [ ] 修复后的真机耗时基线（目标：简单 <10s，常见多步 <60s，复杂 <120s）
