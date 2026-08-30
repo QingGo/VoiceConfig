@@ -11,97 +11,111 @@
 
 ### 做过的尝试
 
-- 全局语音中心、悬浮球、本地唤醒、低功耗策略
-- 统一 Agent 入口：文本 / 语音 / 调试广播
-- AccessibilityService 读屏 / 点击 / 手势 / 截屏降级
-- `UiActionLayer` 统一 UI 原语
-- `TerminalSafetyGate` 终端安全门
-- 真机瑞幸、微信严格终端 E2E
-- 速度优化：截图裁剪、截图瘦身、视觉预算、Completion Check 降次、`task_plan` 容错
-- 微信风控保护：默认禁用个人微信 UI 自动化
-- 企业微信官方 API 发送工具 + 设置页凭证测试
-- `AccessibilityKeepAlive` 状态机 + 自适应重试 + 锁屏恢复
-- Mock LLM 离线验证通道 + 模拟器 E2E 套件
-- UI 工具收敛：Tap / TapText / Swipe / PressKey / DismissPopups / ReadUiTool
-- 浮层规则化：PROMO / PERMISSION / FUNCTIONAL_PICKER / TERMINAL_CONFIRM
-- 内置 4 条 APPROVED Skill，并在设置页展示
-- Skill 相关性算法：按标签 / 适用场景提升命中
-- Agent 系统提示强化：优先参考 Skill、使用 `ui_assert`、可见证据规则
-- TraceReport：失败分类 / Token / 请求体 / Markdown 导出
-- 企业微信 CLI 脚本：`scripts/wecom_send_test.py`
-- 场景从 4 个扩展到 14 个（模拟器/真机共用），覆盖更多安全与工具路径
-- 智能家居 / 树莓派 / 百褶帘 / 海信空调改造方向调研
+- 真机接入 `192.168.31.111:39865`，安装最新 APK、开启无障碍、写回设置
+- 真实 DeepSeek LLM 驱动瑞幸终端 E2E
+- 关闭 DeepSeek 思维链做速度优化
+- 新增 `DEBUG_THINKING` / `DEBUG_AUTO_VERIFY_MAX` 真机调参广播
+- 新增 `luckin_quick_order` 快速点单宏
+- 将专用宏重构为 `FlowScript + UiFlowExecutor` 通用执行引擎
+- 清空购物车后重新复测全流程
+- 新增 `ui_wait` 显式等待工具
+- UI 变更工具（tap/tap_text/swipe/press_key/input_text）自动可见证据
+- auto_verify trace 结构化：来源 / 是否有 UI 文本 / 是否有截图 / 前台包名 / 耗时
+- `TerminalSafetyGate` 每域矩阵：确认页特征 / 禁止动作 / 人工确认 UI / trace 标记
+- `terminal_gate` trace 事件
+- `AgentTraceReport` 统计 terminalGates
+- `agent_scenario_eval.py`：requireAutoVerify / forbiddenTools / forbiddenTerms / 详细工具参数
+- 真机 + 模拟器双跑 Mock E2E 14/14
+- 真机打开瑞幸 / 企业微信冷启动测试
+- 修复 `open_app` MIUI 冷启动无障碍延迟导致的误报失败
+- 修正瑞幸真实包名：`com.lucky.luckyclient`
+- 新增 `scripts/real_device_setup.sh`、`scripts/dual_device_mock_e2e.sh`、`scripts/real_app_open_scenarios.json`
+- 熄屏 + 仅无障碍定时打开企业微信实测
+- 系统性思考：终极目标 / 技术债 / 借鉴项目 / 冲突规避 / 计划
 
 ### 踩过的坑
 
-- “看似通过”但未真实打开
-- MIUI 无障碍掉线、重装后不重连
-- 无障碍能读不能点，后来补 `canPerformGestures`
-- 瑞幸“一键换购”浮层 close_iv 点不到
-- TTS 朗读 Markdown 符号
-- 微信不暴露可读 UI，`read_ui` 失效
-- 微信输入假成功，改为无障碍粘贴优先
-- 微信真实触发账号风控，模拟器 + 脚本是高风险
-- 截图全量塞进 LLM，请求体 10MB+，单轮 10～35 秒
-- 敏感确认无超时，曾出现 29 分钟空档
-- 模型反复读屏、任务计划步骤找不到导致死循环
-- 重装 APK 后模拟器无障碍设置被重置
-- **模拟器 force-stop 会让 Accessibility 设置被清空**，导致首次 2/4 通过；已改为先启动 App、再写回设置、并保持 App 进程
-- **无 Shizuku 时 `dismiss_popups` 在“没有弹窗”时误报失败**；已修复为成功
-- **真实工具失败被模型“完成”掩盖**：
-  - 企业微信未配置、Home Assistant 未配置时，工具失败但 Agent 仍可能回复“完成”
-  - 已修复为强制 FAILED 并显示失败原因
-- **自动验证的辅助 `read_ui` 失败被误判为真实工具失败**；已排除
-- **用户拒绝敏感确认 / 安全硬拦截不能作为真实工具失败**；已排除
-- 测试文件追加到类外导致 JUnit InvalidTestClass；已修正（开发过程坑）
+- 真机重新上线后旧文档设备 IP 过期，需更新为 `192.168.31.111:39865`
+- `open_app` 冷启动在 MIUI 上“实际已打开但验证失败”，原因是无障碍窗口事件延迟
+- 瑞幸内置 Skill / `LuckinOpenTool` 使用错误包名 `com.luckincoffee.android`，真机实际是 `com.lucky.luckyclient`
+- 第一版 `LuckinQuickOrderTool` 是硬编码状态机：不通用、难维护
+- FlowScript 详情页只允许一次动作，导致“选冰”后无法再点“立即购买”
+- 清空购物车前测试结果不可信：旧购物车残留会干扰“全新下单”结论
+- 关闭 DeepSeek 思维链后速度大幅提升，但复杂页面鲁棒性下降
+- 真机熄屏 + 仅无障碍时，`open_app` 打开企业微信验证失败，任务失败
+- 模拟器/真机上敏感工具（如未配置企业微信）会进入敏感确认等待，导致无 auto-confirm 时脚本超时
+- 自动验证 `read_ui` 失败/Screenshot 降级路径在真机熄屏时拿不到前台窗口
+- 临时测试日志写到 `/tmp` 在 Windows/Git Bash 与 Python 路径不一致，导致读取失败
+- 在 Python 脚本中把大段 trace 当结果打印会撑爆输出；应只提取关键字段
 
 ### 已完成部分
 
-- 真机严格 E2E：瑞幸停在免密支付 + 微信停在 Send 前
-- `AccessibilityKeepAlive` 状态机基础版 + 自适应重试 + 健康指标 + `USER_PRESENT` 解锁恢复
-- `WechatRiskGuard` 默认禁用个人微信自动化
-- 设置页：微信小号风险模式 + 企业微信 API 配置 + 凭证测试按钮
-- `wecom_send_message` 官方 API 工具 + `scripts/wecom_send_test.py`
-- `ReadUiTool` 完全收敛到 `UiActionLayer`
-- 浮层分类扩展到权限弹窗和终端确认页
-- `DismissPopupsTool` 无 Shizuku 无弹窗时返回成功
-- `coordinateFallback=true` 标记
-- 内置 4 条 APPROVED Skill，设置页展示
-- Skill 相关性算法与系统提示强化
-- `ui_assert` 写入系统提示
-- TraceReport：耗时 / 工具序列 / 截图 / 验证 / 安全拦截 / LLM 错误 / Token / 请求体 / 失败分类 / Markdown 导出
-- 模拟器/真机 Mock LLM E2E：**14/14 通过**
-- 真实工具失败强制 FAILED 并暴露失败原因
-- 企业微信 / Home Assistant 未配置时明确失败
-- 个人微信自动化模拟器验证被安全拦截
-- 智能家居 / 树莓派方向完成调研并更新战略文档
+- 真实 LLM 瑞幸终端 E2E：
+  - 原始：198.6s / 40 工具调用
+  - 关闭思维链：约 80s
+  - 快速宏（现有购物车）：约 21s
+  - 清空购物车 + 宏：**11.7s / 3 工具调用**
+  - 通用 FlowScript + UiFlowExecutor 真机复测：约 23s / 5 工具调用
+  - 全部停在免密支付页，未支付，严格断言通过
+- `FlowScript` / `UiFlowExecutor` / `BuiltinFlowScripts` 已落地
+- `LuckinQuickOrderTool` 降为薄适配层
+- `UiWaitTool` 已注册并通过真机 Mock E2E
+- UI 变更工具自动可见证据 + trace 化
+- `TerminalSafetyGate` 每域矩阵 + `terminal_gate` trace
+- `AgentTraceReport` terminalGates 统计
+- 严格 E2E 断言：forbiddenTools / forbiddenTerms / requireAutoVerify
+- 真机 + 模拟器 Mock E2E **14/14 通过**
+- 真机打开瑞幸 / 企业微信通过
+- `open_app` 冷启动验证修复
+- 瑞幸真实包名修正
+- 新增真机准备脚本、双跑脚本、真机 App 打开场景
+- JVM 全量单测通过
 
 ### 新发现的问题
 
-- 个人微信自动化不可作为产品路径，否则有账号风控/封号风险
-- 微信类不可读 UI 仍依赖视觉 + 模型文本回退，证据不够强
-- FlowScript 已让瑞幸流程可维护，但仍是 Kotlin 数据、未版本化/可导入；瑞幸外其他域尚未沉淀
-- 快速宏依赖关闭思维链换取速度，异常/复杂页面可能降低鲁棒性；需要按域/风险动态决策
-- 宏未处理购物车残留/前置条件校验，真实测试可能受历史状态影响
-- `ReadUiTool` 已收敛；`tap` / `tap_text` / `swipe` / `press_key` 已开启自动可见证据，但仍需真机/模拟器回归确认耗时与证据质量
-- 真机耗时基线：瑞幸已测 11.7s；其他域待测
-- 模拟器 Mock 不能替代真机 MIUI / 锁屏 / 离线验证
-- 企业微信 / Home Assistant / 树莓派 / 海信空调 / 百褶帘均无真实联调
-- Skill 驱动已升级为 FlowScript 确定性执行器（瑞幸已落地），其他域待沉淀
-- 低成本 DIY 智能家居不能作为稳定产品能力承诺
-- 官方 API 缺少凭证安全存储、权限最小化、调用审计
-- 定时任务在熄屏 + 仅无障碍时不能可靠打开企业微信：实测 `open_app` 无法验证前台，运行失败；需要 Shizuku/唤醒/通知降级策略
-- 本地 KWS/ASR 1 小时 soak、低功耗回归仍缺失
+- FlowScript 仍是 Kotlin 数据，未 JSON 化/版本化/可导入
+- FlowScript 目前只有瑞幸，未验证其他域
+- 宏未处理“购物车残留/前置条件”通用校验
+- 关闭思维链换速度可能降低异常页面鲁棒性
+- 熄屏 + 仅无障碍无法可靠自动打开 App
+- 无 Shizuku 时缺少强提醒（震动/铃声/全屏）产品化路径
+- Shizuku 权限会因重启/断网/无线调试关闭而丢失，不能作为消费级依赖
+- 企业微信、HA、树莓派、智能家居仍未真实联调
+- 官方 API 凭证安全存储/最小权限/审计仍缺失
+- 个人微信自动化仍是合规红线
+- 本地 KWS/ASR、低功耗、锁屏回归仍未完成
 
 ### 计划要完成的部分
 
-- P0：真机设备矩阵、无障碍自愈、锁屏/离线、企业微信真实联调、真实 HA/树莓派/智能家居联调
-- P1：`tap` / `tap_text` / `swipe` 可见证据、完整自动断言矩阵、每域终端特征与人工确认 UI
-- P2：从“Skill 参考”升级为“Skill 确定性执行器”
-- P3：终端安全矩阵补全 UI 特征、禁止动作、人工确认、trace 标记
-- P4：真机耗时基线 + 自动 trace 报告 + 真机/模拟器双跑
-- P5：本地语音 1 小时 soak、低功耗回归、语音 → Agent → TTS 端到端
-- P6：稳定后再扩展更多 App / 智能家居 / 远程 / 购物能力
+- P0：把 FlowScript 升级为平台
+  - JSON Schema / 版本 / 校验 / 导入导出
+  - FlowScript 设置页管理与审核
+  - 真机 golden 回归（连续 5/5）
+- P1：用 FlowScript 扩展到多域
+  - 企业微信官方 API
+  - Home Assistant 设备控制
+  - 远程项目 build/test/verify
+  - 日历/提醒/购物等
+- P2：安全数据化
+  - FlowScript `forbiddenActions` 由引擎统一强制
+  - 终端人工确认 UI
+  - 不可逆操作永远不可自动确认
+- P3：无 Shizuku 熄屏策略
+  - 强提醒模式：闹钟铃声 + 震动 + 全屏通知
+  - 通知/提醒降级通道
+  - 用户点亮后继续执行
+- P4：可观测与回归
+  - 每个 FlowScript 性能预算
+  - 失败自动分类 / 修复建议
+  - 真机 + 模拟器双跑自动化
+- P5：本地语音与长期稳定性
+  - KWS/ASR 1h soak
+  - 低功耗 / 灭屏 / 亮屏回归
+  - 语音 → Agent → TTS 端到端
+- P6：真实联调
+  - 企业微信真实凭证
+  - HA / 树莓派 / 海信空调 / 百褶帘
+  - 凭证安全存储与审计
 
 ## 1. 本 Session 目标
 

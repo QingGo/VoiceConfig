@@ -297,3 +297,13 @@
 - [x] 真机 + 模拟器双跑：`scripts/dual_device_mock_e2e.sh` 双设备 14/14 通过
 - [ ] 真实 Home Assistant / 海信空调 / 百褶帘 / 树莓派 SSH 联调
 - [ ] 低成本 DIY 智能家居固化为可验证的 ESPHome/Skill 路径
+
+## 无 Shizuku / 熄屏策略（2026-08-30）
+
+- [x] 真机实测：熄屏 + 仅无障碍时，定时打开企业微信失败（`open_app` 无法验证前台）
+- [x] 确认原因：无障碍不能操作灭屏界面；无 Shizuku 无法 shell 唤醒；后台 `startActivity` 受系统限制
+- [x] 确认 Shizuku 权限不稳定：重启/断网/无线调试关闭都会导致权限丢失，不能作为消费级稳定依赖
+- [ ] 实现强提醒模式：闹钟铃声 + 震动 + 全屏通知（无需 Shizuku）
+- [ ] 无 Shizuku 熄屏任务默认降级：高优先级通知/全屏提醒 → 用户点亮 → Agent 继续
+- [ ] 在能力状态中增加“执行模式”：Ambient（无障碍亮屏）/ Assist（Shizuku/root）/ Notify（无 Shizuku 熄屏提醒）
+- [ ] 增加 `VIBRATE` 权限和震动/铃声全屏提醒工具
