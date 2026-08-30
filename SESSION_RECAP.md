@@ -6,6 +6,77 @@
 
 ---
 
+## 0. 最终整理（本 Session 完整清单）
+
+### 做过的尝试
+
+- 全局语音中心、悬浮球、本地唤醒、低功耗策略
+- 统一 Agent 入口：文本 / 语音 / 调试广播
+- AccessibilityService 读屏 / 点击 / 手势 / 截屏降级
+- `UiActionLayer` 统一 UI 原语
+- `TerminalSafetyGate` 终端安全门
+- 真机瑞幸、微信严格终端 E2E
+- 速度优化：截图裁剪、截图瘦身、视觉预算、Completion Check 降次、`task_plan` 容错
+- 微信风控保护：默认禁用个人微信 UI 自动化
+- 企业微信官方 API 发送工具
+- `AccessibilityKeepAlive` 状态机
+- Mock LLM 离线验证通道 + 模拟器 E2E 套件
+- UI 工具收敛：Tap / TapText / Swipe / PressKey / DismissPopups
+- 可见证据：`input_text` 自动验证 + `read_screen` 回退
+- 终端矩阵扩展：删除 / 配置 / 安防 / 远程破坏性
+
+### 踩过的坑
+
+- “看似通过”但未真实打开
+- MIUI 无障碍掉线、重装后不重连
+- 无障碍能读不能点，后来补 `canPerformGestures`
+- 瑞幸“一键换购”浮层 close_iv 点不到
+- TTS 朗读 Markdown 符号
+- 微信不暴露可读 UI，`read_ui` 失效
+- 微信输入假成功，改为无障碍粘贴优先
+- 微信真实触发账号风控，模拟器 + 脚本是高风险
+- 截图全量塞进 LLM，请求体 10MB+，单轮 10～35 秒
+- 敏感确认无超时，曾出现 29 分钟空档
+- 模型反复读屏、任务计划步骤找不到导致死循环
+- 重装 APK 后模拟器无障碍设置被重置
+
+### 已完成部分
+
+- 真机严格 E2E：瑞幸停在免密支付 + 微信停在 Send 前
+- 模拟器 Mock E2E：4/4 通过
+- `AccessibilityKeepAlive` 状态机基础版
+- `WechatRiskGuard` 默认禁用个人微信自动化
+- 设置页：微信小号风险模式 + 企业微信 API 配置
+- `wecom_send_message` 官方 API 工具
+- `UiActionLayer` 主要 UI 工具收敛
+- `input_text` 可见证据回退
+- 终端安全矩阵扩展
+- 截图从 600KB+ 降到 114KB～181KB
+- 单测：速度、风控、终端矩阵、可见证据、任务计划等
+
+### 新发现的问题
+
+- 个人微信自动化不可作为产品路径，否则有账号风控/封号风险
+- 微信类不可读 UI 仍依赖视觉 + 模型文本回退，证据不够强
+- `ReadUiTool` 等仍未完全收敛到 `UiActionLayer`
+- 截图虽然变小，但真机耗时基线还未重新测量
+- 模拟器 Mock 不能替代真机 MIUI / 锁屏 / 离线验证
+- 企业微信 API 还没有真实测试号联调
+- 官方 API 工具缺少凭证安全存储、权限最小化、调用审计
+- Skill 沉淀仍缺失，模型仍以自由探索为主
+
+### 计划要完成的部分
+
+- P0：真机设备矩阵、无障碍自愈、锁屏/离线、企业微信真实联调
+- P1：`ReadUiTool` 完全收敛、浮层规则化、全量可见证据
+- P2：把瑞幸/企业微信/HA/远程沉淀为 APPROVED Skill
+- P3：终端安全矩阵每域补 UI 特征、人工确认、trace
+- P4：自动 trace 报告、真机耗时基线、失败自动分类
+- P5：本地语音 1 小时 soak、低功耗回归、语音端到端
+- P6：稳定后再扩展更多能力
+
+---
+
 ## 1. 本 Session 目标
 
 把 VoiceConfig 从“能听能说”推进到：
