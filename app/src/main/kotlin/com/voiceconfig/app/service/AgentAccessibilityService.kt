@@ -270,7 +270,7 @@ class AgentAccessibilityService : AccessibilityService() {
 
         fun currentNodes(): List<AccessibilityUiSnapshot> = instance?.snapshotNodes() ?: emptyList()
 
-        /** 通过 AccessibilityService 的 takeScreenshot API 截屏（无需 Shizuku）。返回 PNG base64。 */
+        /** 通过 AccessibilityService 的 takeScreenshot API 截屏（无需 Shizuku）。返回 JPEG base64。 */
         suspend fun captureScreenshot(): String? {
             val svc = instance ?: return null
             if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) return null
@@ -299,7 +299,7 @@ class AgentAccessibilityService : AccessibilityService() {
                                     return
                                 }
                                 val baos = ByteArrayOutputStream()
-                                bitmap.compress(Bitmap.CompressFormat.PNG, 100, baos)
+                                bitmap.compress(Bitmap.CompressFormat.JPEG, 85, baos)
                                 bitmap.recycle()
                                 complete(Base64.encodeToString(baos.toByteArray(), Base64.NO_WRAP))
                             } catch (e: Exception) {

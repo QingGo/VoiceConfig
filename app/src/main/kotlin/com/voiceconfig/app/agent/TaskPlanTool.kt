@@ -75,8 +75,13 @@ class TaskPlanTool @Inject constructor(
             .getOrElse { return ToolResult.failure("未知步骤状态：$statusText") }
         val evidence = (args["evidence"] as? String)?.trim().orEmpty()
         val note = (args["note"] as? String)?.trim().orEmpty()
-        val index = plan.steps.indexOfFirst { it.id == stepId }
-        if (index < 0) return ToolResult.failure("未找到步骤：$stepId")
+        val index = resolveStepIndex(plan, stepId)
+        if (index < 0) {
+            return ToolResult.success(
+                "未找到步骤：$stepId；当前计划如下，请使用正确 stepId 或直接结束：\n" + planToText(plan),
+                mapOf("plan" to planToText(plan), "notFound" to stepId),
+            )
+        }
         store.update { p ->
             val newSteps = p.steps.toMutableList()
             val old = newSteps[index]
@@ -141,6 +146,19 @@ class TaskPlanTool @Inject constructor(
     private fun getPlan(): ToolResult {
         val plan = store.snapshot() ?: return ToolResult.success("当前没有任务计划", mapOf("plan" to null))
         return ToolResult.success(planToText(plan), mapOf("plan" to planToText(plan)))
+    }
+
+    private fun resolveStepIndex(plan: TaskPlan, stepId: String): Int {
+        plan.steps.indexOfFirst { it.id == stepId }.let { if (it >= 0) return it }
+        val digit = Regex("""(\d+)""").find(stepId)?.groupValues?.getOrNull(1)
+        if (digit != null) {
+            plan.steps.indexOfFirst { it.id == "step_$digit" }.let { if (it >= 0) return it }
+            val num = digit.toIntOrNull()
+            if (num != null && num in 1..plan.steps.size) return num - 1
+        }
+        plan.steps.indexOfFirst { it.title.contains(stepId, ignoreCase = true) }.let { if (it >= 0) return it }
+        plan.steps.indexOfFirst { stepId.contains(it.title, ignoreCase = true) }.let { if (it >= 0) return it }
+        return -1
     }
 
     private fun planToText(plan: TaskPlan): String = buildString {

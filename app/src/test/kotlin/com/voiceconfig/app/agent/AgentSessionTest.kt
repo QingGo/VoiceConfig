@@ -74,7 +74,7 @@ class AgentSessionTest {
         assertEquals(1, result.toolCalls.size)
         assertTrue(result.message.contains("完成"))
         assertTrue(result.history.any { it.role == "tool" && it.toolName == "echo" })
-        assertEquals(8, result.history.size) // user + assistant + tool + assistant final + 2 completion checks
+        assertEquals(6, result.history.size) // user + assistant + tool + assistant final + 1 completion check
 
         assertTrue(result.history.any { it.role == "assistant" && it.reasoningContent == "need echo" })
         val secondRequest = client.requestMessages.getOrNull(1)
@@ -121,7 +121,7 @@ class AgentSessionTest {
         assertTrue(result.ok)
         assertTrue(result.toolCalls.isEmpty())
         assertEquals("你好", result.message)
-        assertEquals(6, result.history.size) // user + assistant + 2 completion checks
+        assertEquals(4, result.history.size) // user + assistant + 1 completion check
     }
 
     @Test
@@ -328,4 +328,106 @@ class AgentSessionTest {
         assertFalse(result.ok)
         assertTrue(result.message.contains("超时"))
     }
+    @Test
+    fun `vision history sent to llm keeps only last two screenshots`() = runBlocking {
+        val screenTool = object : AgentTool {
+            override val name: String = "read_screen"
+            override val description: String = "screen"
+            private var n = 0
+            override suspend fun execute(args: Map<String, Any?>): ToolResult {
+                n++
+                return ToolResult.success("img$n", mapOf("image_base64" to "img$n"))
+            }
+        }
+        val registry = ToolRegistry().register(screenTool)
+        val client = FakeToolChatClient(
+            listOf(
+                AgentChatResponse(content = null, reasoningContent = null, toolCalls = listOf(AgentToolCall("c1", "read_screen", "{}"))),
+                AgentChatResponse(content = null, reasoningContent = null, toolCalls = listOf(AgentToolCall("c2", "read_screen", "{}"))),
+                AgentChatResponse(content = null, reasoningContent = null, toolCalls = listOf(AgentToolCall("c3", "read_screen", "{}"))),
+                AgentChatResponse(content = "完成", reasoningContent = null, toolCalls = emptyList()),
+            ),
+        )
+        val session = AgentSession(registry, client, NoOpTrace, TaskPlanStore(InMemoryTaskPlanPersistence()), InMemoryAgentRunLedger()).apply {
+            argumentParser = { emptyMap() }
+        }
+        val result = session.send("连续看屏")
+        assertTrue(result.ok)
+        val lastRequest = client.requestMessages.last()
+        val images = lastRequest.filter { it.role == "user" && it.imageBase64 != null }.map { it.imageBase64 }
+        assertEquals(2, images.size)
+        assertFalse(images.contains("img1"))
+        assertTrue(images.contains("img2"))
+        assertTrue(images.contains("img3"))
+    }
+
+    @Test
+    fun `visual read budget stops runaway screenshot loops`() = runBlocking {
+        var screenExecutions = 0
+        val screenTool = object : AgentTool {
+            override val name: String = "read_screen"
+            override val description: String = "screen"
+            override suspend fun execute(args: Map<String, Any?>): ToolResult {
+                screenExecutions++
+                return ToolResult.success("ok", mapOf("image_base64" to "img"))
+            }
+        }
+        val registry = ToolRegistry().register(screenTool)
+        val client = FakeToolChatClient(
+            listOf(
+                AgentChatResponse(content = null, reasoningContent = null, toolCalls = listOf(AgentToolCall("c1", "read_screen", "{}"))),
+                AgentChatResponse(content = null, reasoningContent = null, toolCalls = listOf(AgentToolCall("c2", "read_screen", "{}"))),
+                AgentChatResponse(content = "完成", reasoningContent = null, toolCalls = emptyList()),
+            ),
+        )
+        val session = AgentSession(registry, client, NoOpTrace, TaskPlanStore(InMemoryTaskPlanPersistence()), InMemoryAgentRunLedger()).apply {
+            argumentParser = { emptyMap() }
+        }
+        val result = session.send(
+            "看屏",
+            runPolicy = AgentRunPolicy(maxVisualReadsPerRun = 1),
+        )
+        assertTrue(result.ok)
+        assertEquals(1, screenExecutions)
+    }
+
+    @Test
+    fun `sensitive confirmation times out and is recorded as denied`() = runBlocking {
+        val sensitiveTool = object : AgentTool {
+            override val name: String = "sensitive_tool"
+            override val description: String = "sensitive"
+            override val metadata: AgentToolMetadata = AgentToolMetadata(
+                category = "测试",
+                group = ToolGroup.CORE,
+                risk = ToolRisk.SENSITIVE,
+                sensitive = true,
+            )
+            override suspend fun execute(args: Map<String, Any?>): ToolResult =
+                ToolResult.success("executed", emptyMap())
+        }
+        val registry = ToolRegistry().register(sensitiveTool)
+        val client = FakeToolChatClient(
+            listOf(
+                AgentChatResponse(content = null, reasoningContent = null, toolCalls = listOf(AgentToolCall("c1", "sensitive_tool", "{}"))),
+                AgentChatResponse(content = "完成", reasoningContent = null, toolCalls = emptyList()),
+            ),
+        )
+        val session = AgentSession(registry, client, NoOpTrace, TaskPlanStore(InMemoryTaskPlanPersistence()), InMemoryAgentRunLedger()).apply {
+            argumentParser = { emptyMap() }
+        }
+        val result = session.send(
+            "执行敏感",
+            runPolicy = AgentRunPolicy(sensitiveConfirmTimeoutMs = 100),
+            onSensitiveAction = {
+                kotlinx.coroutines.delay(10_000)
+                true
+            },
+        )
+        assertTrue(result.ok)
+        assertEquals(1, result.safetyConfirmations)
+        assertEquals(0, result.safetyApprovals)
+        assertEquals(1, result.safetyDenials)
+    }
+
+
 }

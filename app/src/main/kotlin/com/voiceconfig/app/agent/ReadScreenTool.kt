@@ -34,7 +34,7 @@ class ReadScreenTool @Inject constructor(
     private var cachedHeight: Int = 0
 
     override val name: String = "read_screen"
-    override val description: String = "截取当前屏幕并返回带坐标网格的画面，适合需要看界面、图片、小程序按钮位置时使用；参数：{\"gridStep\":100,\"maxDimension\":0}（可选，网格间隔像素默认200，maxDimension=0表示不缩图，点击时以网格数字代表的原始屏幕坐标为准）"
+    override val description: String = "截取当前屏幕并返回带坐标网格的画面，适合需要看界面、图片、小程序按钮位置时使用；参数：{\"gridStep\":100,\"maxDimension\":1440}（可选，网格间隔像素默认200，maxDimension=1440表示最长边缩到1440，点击时以网格数字代表的原始屏幕坐标为准）"
 
     override suspend fun execute(args: Map<String, Any?>): ToolResult {
         val timingMs = linkedMapOf<String, Any?>()
@@ -96,7 +96,7 @@ class ReadScreenTool @Inject constructor(
         }
 
         val gridStep = (args["gridStep"] as? Number)?.toInt()?.coerceIn(50, 500) ?: 200
-        val maxDimension = (args["maxDimension"] as? Number)?.toInt()?.coerceIn(0, 4096) ?: 0
+        val maxDimension = (args["maxDimension"] as? Number)?.toInt()?.coerceIn(0, 4096) ?: DEFAULT_MAX_DIMENSION
         val gridStartMs = System.currentTimeMillis()
         var gridImage = addCoordinateGrid(image, gridStep, maxDimension)
         val annotations = (args["annotations"] as? List<*>)?.filterIsInstance<Map<*, *>>() ?: emptyList()
@@ -189,7 +189,7 @@ class ReadScreenTool @Inject constructor(
                 }
             }
             val baos = ByteArrayOutputStream()
-            out.compress(Bitmap.CompressFormat.JPEG, 85, baos)
+            out.compress(Bitmap.CompressFormat.JPEG, 80, baos)
             out.recycle()
             Base64.encodeToString(baos.toByteArray(), Base64.NO_WRAP)
         }.getOrElse { imageBase64 }
@@ -243,12 +243,13 @@ class ReadScreenTool @Inject constructor(
             }
 
             val baos = ByteArrayOutputStream()
-            out.compress(Bitmap.CompressFormat.JPEG, 85, baos)
+            out.compress(Bitmap.CompressFormat.JPEG, 80, baos)
             out.recycle()
             Base64.encodeToString(baos.toByteArray(), Base64.NO_WRAP)
         }.getOrElse { imageBase64 }
     }
     companion object {
         private const val CACHE_TTL_MS = 800L
+        private const val DEFAULT_MAX_DIMENSION = 1440
     }
 }

@@ -50,6 +50,7 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 
 @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 @HiltViewModel
@@ -543,7 +544,15 @@ class AgentViewModel @Inject constructor(
             request = request,
             deferred = deferred,
         )
-        return deferred.await()
+        val approved = withTimeoutOrNull(SENSITIVE_CONFIRM_TIMEOUT_MS) {
+            deferred.await()
+        } ?: false
+        _pendingAgentConfirmation.value = null
+        return approved
+    }
+
+    companion object {
+        private const val SENSITIVE_CONFIRM_TIMEOUT_MS = 60_000L
     }
 
     fun resolveAgentConfirmation(approved: Boolean) {

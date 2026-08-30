@@ -8,6 +8,7 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import com.voiceconfig.app.voice.VoiceCommandOrigin
 import kotlinx.coroutines.withTimeout
+import kotlinx.coroutines.withTimeoutOrNull
 import org.json.JSONObject
 import java.util.concurrent.ConcurrentHashMap
 
@@ -273,13 +274,14 @@ class AgentSession @Inject constructor(
         var latestUiPackage: String? = null
         var autoVerifyCount = 0
         var lastAutoVerifyAt = 0L
+        var visualReadCount = 0
         val startedAtMs = System.currentTimeMillis()
         var llmWaitMs = 0L
         var toolExecMs = 0L
         var verifyMs = 0L
         var rounds = 0
         var completionCheckCount = 0
-        val maxCompletionChecks = 2
+        val maxCompletionChecks = 1
         var lastStepEndElapsedMs = 0L
         val recentActionKeys = mutableListOf<String>()
         var runState: AgentRunState? = null
@@ -368,7 +370,7 @@ class AgentSession @Inject constructor(
                 mapOf(
                     "round" to round,
                     "message_count" to historySnapshot().size,
-                    "has_screenshot" to pruneImageHistory(historySnapshot()).any { it.imageBase64 != null },
+                    "has_screenshot" to historyForLlm().any { it.imageBase64 != null },
                 ),
             )
             val llmStartMs = System.currentTimeMillis()
@@ -379,8 +381,8 @@ class AgentSession @Inject constructor(
                     response = withTimeout(runPolicy.llmTimeoutMs) {
                         chatClient.streamWithTools(
                             systemPrompt,
-                            // 为最大化 DeepSeek 前缀缓存，保持天然追加前缀，不做历史压缩。
-                            historySnapshot(),
+                            // 为最大化 DeepSeek 前缀缓存，保持天然追加前缀；仅裁剪旧截图避免上下文膨胀。
+                            historyForLlm(),
                             toolRegistry.modelTools(),
                             onStreamEvent,
                         )
@@ -725,6 +727,30 @@ class AgentSession @Inject constructor(
                     trace.log(runId, "perception_loop_detected", mapOf("round" to round, "tool" to toolCall.name, "count" to sameActionRecentCount + 1))
                     continue
                 }
+                val isVisualRead = toolCall.name == "read_screen" ||
+                    (toolCall.name == "get_screen_state" && (
+                        (args["includeImage"] as? Boolean) == true ||
+                        (args["includeScreen"] as? Boolean) == true
+                        ))
+                if (isVisualRead) {
+                    visualReadCount++
+                    if (visualReadCount > runPolicy.maxVisualReadsPerRun) {
+                        val interceptMsg = "系统拦截：本次任务视觉读屏次数已达上限（${runPolicy.maxVisualReadsPerRun} 次），未执行 ${toolCall.name}。请基于已有界面信息和工具结果继续；如果必须确认页面变化，请使用 read_ui，或说明当前卡点。"
+                        history += AgentMessage(
+                            role = "tool",
+                            content = interceptMsg,
+                            toolCallId = toolCall.id,
+                            toolName = toolCall.name,
+                            toolArgs = toolCall.arguments,
+                            toolResultOk = false,
+                        )
+                        onMessage(history.last())
+                        history += AgentMessage("user", "请不要再继续截图。改用其他操作或直接说明卡点。")
+                        onMessage(history.last())
+                        trace.log(runId, "visual_budget_exceeded", mapOf("round" to round, "tool" to toolCall.name, "count" to visualReadCount, "limit" to runPolicy.maxVisualReadsPerRun))
+                        continue
+                    }
+                }
                 if (sameActionRecentCount >= runPolicy.maxSamePageRepeats) {
                     val repeatError = "检测到同一操作连续重复 ${sameActionRecentCount + 1} 次（$actionKey），已停止避免死循环"
                     setState(AgentRunState.FAILED)
@@ -763,7 +789,9 @@ class AgentSession @Inject constructor(
                 if (decision.requiresConfirmation) {
                     safetyStatsByRun[runId]?.let { it.confirmations++ }
                     setState(AgentRunState.WAITING_CONFIRM)
-                    val approved = onSensitiveAction(sensitiveRequest)
+                    val approved = withTimeoutOrNull(runPolicy.sensitiveConfirmTimeoutMs) {
+                        onSensitiveAction(sensitiveRequest)
+                    } ?: false
                     safetyStatsByRun[runId]?.let {
                         if (approved) it.approvals++ else it.denials++
                     }
@@ -1069,6 +1097,7 @@ class AgentSession @Inject constructor(
                     content = "这是执行上述工具后的当前屏幕截图。$resolutionText，坐标原点在左上角，单位是像素。请根据画面中的元素估算绝对坐标，再调用 tap/input_text/swipe。",
                     imageBase64 = image,
                 )
+                pruneStaleImages()
                 onMessage(history.last())
             }
 
@@ -1137,13 +1166,33 @@ class AgentSession @Inject constructor(
         }
     }
 
-    private fun pruneImageHistory(messages: List<AgentMessage>): List<AgentMessage> {
+    private fun historyForLlm(): List<AgentMessage> {
+        val messages = history.toList()
         val imageIndices = messages.mapIndexedNotNull { index, msg ->
             if (msg.imageBase64 != null) index else null
         }
-        if (imageIndices.size <= 2) return messages
-        val drop = imageIndices.dropLast(2).toSet()
-        return messages.filterIndexed { index, _ -> index !in drop }
+        if (imageIndices.size <= MAX_IMAGE_HISTORY) return messages
+        val keep = imageIndices.takeLast(MAX_IMAGE_HISTORY).toSet()
+        return messages.filterIndexed { index, msg ->
+            msg.imageBase64 == null || index in keep
+        }
+    }
+
+    private fun pruneStaleImages() {
+        val imageIndices = history.mapIndexedNotNull { index, msg ->
+            if (msg.imageBase64 != null) index else null
+        }
+        if (imageIndices.size <= MAX_IMAGE_HISTORY) return
+        val keep = imageIndices.takeLast(MAX_IMAGE_HISTORY).toSet()
+        val pruned = history.filterIndexed { index, msg ->
+            msg.imageBase64 == null || index in keep
+        }
+        history.clear()
+        history.addAll(pruned)
+    }
+
+    companion object {
+        private const val MAX_IMAGE_HISTORY = 2
     }
 
     private fun buildSystemPrompt(skills: List<AgentSkill> = emptyList()): String {
@@ -1293,4 +1342,6 @@ data class AgentRunPolicy(
     val llmRetries: Int = 1,
     val toolTimeoutMs: Long = 45_000L,
     val maxSamePageRepeats: Int = 6,
+    val sensitiveConfirmTimeoutMs: Long = 90_000L,
+    val maxVisualReadsPerRun: Int = 6,
 )

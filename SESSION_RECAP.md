@@ -574,6 +574,63 @@
 
 ---
 
+## 7.6 真机执行耗时 Bad Case 分析与修复（2026-08-30）
+
+已把真机 `files/agent_trace/agent_trace.log` 导入到仓库：
+
+```text
+imported_logs/real_device_agent_trace.log
+```
+
+从 trace 中发现以下会“大大拉长执行时间”的 bad case，并完成代码修复（尚未真机回归）：
+
+### Bad Case 1：截图全量累积到 LLM 上下文
+
+- 现象：微信不可读 UI 场景连续调用 `read_screen` 后，单次 LLM 请求从几百 KB 涨到 **10.6 MB**，单轮 LLM 等待可达 10～35 秒。
+- 修复：
+  - LLM 请求只保留最近 **2 张**截图，旧截图在历史中也会被裁剪。
+  - `read_screen` 默认最长边从 0（原图）改为 **1440**，并把 JPEG 质量降到 80。
+  - 无 Shizuku 的无障碍截屏也直接输出 JPEG，减少中间传输/解码成本。
+
+### Bad Case 2：敏感操作确认无超时，可能挂 30 分钟
+
+- 现象：远程 SSH 敏感操作进入 `WAITING_CONFIRM` 后，如果用户没有及时点击确认，Agent 会一直等待，trace 中出现约 **29 分钟**的空档，直到整体 600s 超时。
+- 修复：
+  - AgentSession 层增加敏感确认超时（默认 90 秒），超时按“未确认/拒绝”处理。
+  - AgentViewModel 确认弹窗增加 60 秒超时并清理 pending 状态。
+  - 后台/自动化路径仍然受立即同意/拒绝策略约束，不会无限挂起。
+
+### Bad Case 3：视觉读屏无预算，模型反复截图
+
+- 现象：微信/瑞幸卡住时，模型反复调用 `read_screen` / `get_screen_state(includeImage)`，某次任务 45 轮、19 张截图。
+- 修复：
+  - 新增 `maxVisualReadsPerRun`（默认 6）。超过后系统拦截并明确提示“不要再截图，改用已有信息或说明卡点”。
+  - 保留原有连续重复感知拦截，形成双保险。
+
+### Bad Case 4：Completion Check 两轮造成额外 LLM 往返
+
+- 现象：很多成功任务在模型已经结束/停靠后，仍额外执行 2 轮 completion check，单次 8～13 秒，累计明显拖慢。
+- 修复：
+  - `maxCompletionChecks` 从 2 降到 **1**，减少一次不必要的完整 LLM 往返。
+
+### Bad Case 5：`task_plan` 找不到步骤导致反复失败
+
+- 现象：模型使用不精确 stepId 更新计划，连续出现“未找到步骤”，每个失败又触发一轮 LLM。
+- 修复：
+  - `task_plan update` 增加容错解析：支持 `step_N`、纯数字、序号、标题包含匹配。
+  - 仍未找到时不再返回硬失败，而是返回当前计划并给出可读提示，让模型能基于计划继续/结束。
+
+### 本次新增测试
+
+- `vision history sent to llm keeps only last two screenshots`
+- `visual read budget stops runaway screenshot loops`
+- `sensitive confirmation times out and is recorded as denied`
+- 原有 completion check 相关测试已同步为单次检查
+
+> 注意：以上优化尚未在真机重新跑完整耗时基线；下次设备在离开前/回来后执行严格 E2E 对比耗时即可。
+
+---
+
 ## 8. 后续不做什么
 
 - 不新增“听起来很酷但不可验证”的功能
