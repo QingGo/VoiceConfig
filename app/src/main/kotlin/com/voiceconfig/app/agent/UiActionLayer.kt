@@ -87,7 +87,7 @@ class UiActionLayer @Inject constructor(
         }
         val result = shizuku.execute("input", "tap", x.toString(), y.toString())
         return if (result.ok) {
-            UiActionResult.success("已通过 shell 点击 ($x, $y)", mapOf("x" to x, "y" to y, "source" to "shizuku"))
+            UiActionResult.success("已通过 shell 点击 ($x, $y)", mapOf("x" to x, "y" to y, "source" to "shizuku", "coordinateFallback" to true))
         } else {
             UiActionResult.failure("点击失败：${result.output}")
         }
@@ -112,7 +112,7 @@ class UiActionLayer @Inject constructor(
         }
         val result = shizuku.execute("input", "swipe", x1.toString(), y1.toString(), x2.toString(), y2.toString(), duration.toString())
         return if (result.ok) {
-            UiActionResult.success("已滑动", mapOf("x1" to x1, "y1" to y1, "x2" to x2, "y2" to y2, "durationMs" to duration))
+            UiActionResult.success("已滑动", mapOf("x1" to x1, "y1" to y1, "x2" to x2, "y2" to y2, "durationMs" to duration, "coordinateFallback" to true))
         } else {
             UiActionResult.failure("滑动失败：${result.output}")
         }
@@ -503,7 +503,7 @@ class UiActionLayer @Inject constructor(
         }
         val result = shizuku.execute("input", "tap", center.first.toString(), center.second.toString())
         return if (result.ok) {
-            UiActionResult.success("已通过 shell 点击 $label", mapOf("x" to center.first, "y" to center.second, "source" to "shizuku"))
+            UiActionResult.success("已通过 shell 点击 $label", mapOf("x" to center.first, "y" to center.second, "source" to "shizuku", "coordinateFallback" to true))
         } else {
             UiActionResult.failure("点击失败：${result.output}")
         }
