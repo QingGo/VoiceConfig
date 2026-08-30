@@ -381,7 +381,7 @@ class WaitUserToolTest {
     @Test
     fun `wait_user pauses even without an existing plan`() = runBlocking {
         val store = TaskPlanStore(InMemoryTaskPlanPersistence())
-        val tool = WaitUserTool(store, DismissPopupsTool(ShizukuCommandRunner()))
+        val tool = WaitUserTool(store, DismissPopupsTool(ShizukuCommandRunner(), UiActionLayer(ShizukuCommandRunner())))
         val result = tool.execute(mapOf("reason" to "请确认支付"))
         org.junit.Assert.assertTrue(result.ok)
         org.junit.Assert.assertTrue(store.snapshot()?.waitingForHuman == "请确认支付")

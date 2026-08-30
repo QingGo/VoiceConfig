@@ -16,6 +16,7 @@ import kotlinx.coroutines.delay
 @Singleton
 class DismissPopupsTool @Inject constructor(
     private val shizuku: ShizukuCommandRunner,
+    private val uiActionLayer: UiActionLayer,
 ) : AgentTool {
 
     override val name: String = "dismiss_popups"
@@ -28,7 +29,7 @@ class DismissPopupsTool @Inject constructor(
         // 先试无障碍直接点常见关闭文案，避免每次 uiautomator dump。
         val fastCloseTexts = listOf("关闭", "取消", "跳过", "我知道了", "知道了", "以后再说", "暂不", "稍后", "忽略")
         for (text in fastCloseTexts) {
-            if (AgentAccessibilityService.clickText(text) == true) {
+            if (uiActionLayer.tapByText(text).ok) {
                 return ToolResult.success(
                     "已通过无障碍服务关闭弹窗（点击“$text”）",
                     mapOf("source" to "accessibility", "text" to text),
@@ -94,12 +95,7 @@ class DismissPopupsTool @Inject constructor(
                         } ?: return ToolResult.failure("检测到弹窗但已尝试所有可解析关闭按钮，仍未关闭")
                         val center = OverlayDetector.center(candidate.node.bounds)!!
                         usedKeys += candidate.node.resourceId + "|" + candidate.node.bounds
-                        val tapped =
-                            if (AgentAccessibilityService.gestureTap(center.first, center.second) == true) {
-                                true
-                            } else {
-                                shizuku.execute("input", "tap", center.first.toString(), center.second.toString()).ok
-                            }
+                        val tapped = uiActionLayer.tapCenter(center.first, center.second).ok
                         if (!tapped) {
                             return ToolResult.failure("点击关闭按钮失败：无法通过无障碍或 Shizuku 点击")
                         }
@@ -145,7 +141,7 @@ class DismissPopupsTool @Inject constructor(
     suspend fun dismissFast(): ToolResult {
         val texts = listOf("关闭", "取消", "跳过", "我知道了", "知道了", "以后再说", "暂不", "稍后", "忽略")
         for (text in texts) {
-            if (AgentAccessibilityService.clickText(text) == true) {
+            if (uiActionLayer.tapByText(text).ok) {
                 return ToolResult.success(
                     "已通过无障碍服务快速关闭弹窗（点击“$text”）",
                     mapOf("source" to "accessibility", "text" to text, "fast" to true),
@@ -161,7 +157,7 @@ class DismissPopupsTool @Inject constructor(
     private suspend fun dismissWithAccessibility(): ToolResult {
         val texts = listOf("关闭", "取消", "跳过", "我知道了", "知道了", "以后再说", "暂不", "稍后", "忽略")
         for (text in texts) {
-            if (AgentAccessibilityService.clickText(text) == true) {
+            if (uiActionLayer.tapByText(text).ok) {
                 return ToolResult.success(
                     "已通过无障碍服务关闭弹窗（点击“$text”）",
                     mapOf("source" to "accessibility", "text" to text),
@@ -176,7 +172,7 @@ class DismissPopupsTool @Inject constructor(
             "android:id/close",
             "android:id/close_iv",
         )) {
-            if (AgentAccessibilityService.clickResourceId(resourceId) == true) {
+            if (uiActionLayer.tapById(resourceId).ok) {
                 return ToolResult.success(
                     "已通过无障碍服务点击关闭浮层（$resourceId）",
                     mapOf("source" to "accessibility_resource", "resourceId" to resourceId),
@@ -196,7 +192,7 @@ class DismissPopupsTool @Inject constructor(
         }
         if (closeNode != null) {
             val center = parseBoundsCenter(closeNode.bounds)
-            if (center != null && AgentAccessibilityService.gestureTap(center.first, center.second) == true) {
+            if (center != null && uiActionLayer.tapCenter(center.first, center.second).ok) {
                 return ToolResult.success(
                     "已通过无障碍手势点击关闭浮层（${closeNode.resourceId}）",
                     mapOf("source" to "accessibility_gesture", "resourceId" to closeNode.resourceId, "x" to center.first, "y" to center.second),

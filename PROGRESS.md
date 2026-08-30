@@ -215,7 +215,7 @@
 - [x] 调试广播 `DEBUG_WECHAT_RISK` 可临时开启风险模式（仅限专属小号测试）
 - [x] 单测覆盖：默认阻断、显式开启后放行
 - [ ] 微信 E2E 迁移：企业微信官方 API / 专属小号人工验证
-- [ ] UI 设置页增加“微信小号风险模式”开关（当前仅 debug 广播可切换）
+- [x] UI 设置页增加“微信小号风险模式”开关和企业微信 API 配置
 
 ## 企业微信合规发送通道（2026-08-30）
 
@@ -241,6 +241,7 @@
 ## 执行层收敛与终端矩阵扩展（2026-08-30）
 
 - [x] `PressKeyTool` 改为统一走 `UiActionLayer`，新增 `home()` / `keycode()`
+- [x] `DismissPopupsTool` 的快速关闭/资源ID/坐标点击全部改为经 `UiActionLayer`
 - [x] `TerminalSafetyGate` 扩展终端类型：
   - `DELETE`
   - `CONFIG`
