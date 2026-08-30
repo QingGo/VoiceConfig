@@ -151,6 +151,16 @@ def launch_app(serial):
     time.sleep(1.0)
 
 
+def send_debug_broadcast(serial, action, extras: dict):
+    args = ["shell", "am", "broadcast", "-a", action]
+    for k, v in extras.items():
+        if isinstance(v, bool):
+            args += ["--ez", k, "true" if v else "false"]
+        else:
+            args += ["--es", k, str(v)]
+    adb(serial, args)
+
+
 def send_scenario(serial, text, new_session=True, pre_stop_packages=()):
     """通过 debug broadcast 发送一个 Agent 场景。"""
     if pre_stop_packages:
@@ -283,7 +293,7 @@ def stop_packages(serial, packages):
             pass
 
 
-def run_and_evaluate(serial, text, timeout=90, expected=None, pre_stop_packages=(), scenario=None):
+def run_and_evaluate(serial, text, timeout=90, expected=None, pre_stop_packages=(), scenario=None, mock_llm=False, auto_confirm=False):
     local = os.path.join(tempfile.gettempdir(), "voiceconfig_agent_trace_eval.log")
     # 每次运行前拉取当前设备最新 trace 作为基线，避免跨设备临时文件污染。
     try:
@@ -293,6 +303,10 @@ def run_and_evaluate(serial, text, timeout=90, expected=None, pre_stop_packages=
     before = Path(local).read_text(encoding="utf-8") if Path(local).exists() else ""
     before_count = len(before.splitlines())
     try:
+        if mock_llm:
+            send_debug_broadcast(serial, "com.voiceconfig.app.DEBUG_MOCK_LLM", {"enabled": True})
+        if auto_confirm:
+            send_debug_broadcast(serial, "com.voiceconfig.app.DEBUG_AUTO_CONFIRM", {"enabled": True})
         send_scenario(serial, text, pre_stop_packages=pre_stop_packages)
         # 等待执行结束：轮询 run_finished 数量增加。
         deadline = time.time() + timeout
@@ -356,11 +370,15 @@ def main():
     p_run.add_argument("--timeout", type=int, default=90)
     p_run.add_argument("--expect", default=None, help="场景级验证关键词")
     p_run.add_argument("--stop-packages", default=None, help="运行前强制停止的包名，逗号分隔，例如 com.lucky.luckyclient")
+    p_run.add_argument("--mock-llm", action="store_true", help="开启离线 Mock LLM（无需 API Key）")
+    p_run.add_argument("--auto-confirm", action="store_true", help="自动同意敏感确认（仅测试）")
 
     p_suite = sub.add_parser("suite", help="运行一组场景")
     p_suite.add_argument("--scenarios", required=True)
     p_suite.add_argument("--timeout", type=int, default=90)
     p_suite.add_argument("--stop-packages", default=None, help="运行前强制停止的包名，逗号分隔")
+    p_suite.add_argument("--mock-llm", action="store_true", help="开启离线 Mock LLM（无需 API Key）")
+    p_suite.add_argument("--auto-confirm", action="store_true", help="自动同意敏感确认（仅测试）")
 
     p_analyze = sub.add_parser("analyze", help="分析本地 trace")
     p_analyze.add_argument("--trace", required=True)
@@ -376,7 +394,7 @@ def main():
 
     if args.command == "run":
         pre_stop = tuple(p for p in (args.stop_packages or "").split(",") if p.strip())
-        result = run_and_evaluate(args.serial, args.text, args.timeout, args.expect, pre_stop)
+        result = run_and_evaluate(args.serial, args.text, args.timeout, args.expect, pre_stop, mock_llm=args.mock_llm, auto_confirm=args.auto_confirm)
         print(json.dumps(result, ensure_ascii=False, indent=2))
         return 0 if result["ok"] else 1
 
@@ -390,7 +408,7 @@ def main():
                 continue
             print(f"==> {sc.get('name', sc['text'])}")
             pre_stop = tuple(sc.get("preStop", [])) or stop_default
-            result = run_and_evaluate(args.serial, sc["text"], sc.get("timeout", args.timeout), sc.get("expect"), pre_stop, scenario=sc)
+            result = run_and_evaluate(args.serial, sc["text"], sc.get("timeout", args.timeout), sc.get("expect"), pre_stop, scenario=sc, mock_llm=args.mock_llm, auto_confirm=args.auto_confirm)
             result["name"] = sc.get("name", sc["text"])
             if "expected" not in result:
                 result["expected"] = sc.get("expect")

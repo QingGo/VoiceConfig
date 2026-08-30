@@ -1,0 +1,26 @@
+[
+  {
+    "name": "打开设置（Mock LLM）",
+    "text": "打开设置",
+    "timeout": 30,
+    "category": "mock-open-settings"
+  },
+  {
+    "name": "读取当前界面（Mock LLM）",
+    "text": "读取当前界面",
+    "timeout": 30,
+    "category": "mock-read-ui"
+  },
+  {
+    "name": "截屏（Mock LLM）",
+    "text": "截一张当前屏幕的图",
+    "timeout": 30,
+    "category": "mock-read-screen"
+  },
+  {
+    "name": "反复读屏压力（Mock LLM）",
+    "text": "反复读屏压力测试",
+    "timeout": 60,
+    "category": "mock-perception-pressure"
+  }
+]
