@@ -40,12 +40,21 @@ class UiFlowExecutor @Inject constructor(
             }
         }
 
+        val startedAtMs = System.currentTimeMillis()
+        var iterationCount = 0
         val used = mutableSetOf<String>()
         for (iteration in 0 until script.maxIterations) {
+            iterationCount++
             delay(220)
             val ui = uiActionLayer.readUi(maxNodes = 120, maxChars = 3000)
             if (!ui.ok) {
-                return FlowExecutionResult(false, "无法读取当前界面：${ui.error ?: ui.message}", summary = ui.summary.take(600))
+                return FlowExecutionResult(
+                    ok = false,
+                    message = "无法读取当前界面：${ui.error ?: ui.message}",
+                    summary = ui.summary.take(600),
+                    elapsedMs = System.currentTimeMillis() - startedAtMs,
+                    iterations = iterationCount,
+                )
             }
             val text = ui.summary
 
@@ -67,6 +76,8 @@ class UiFlowExecutor @Inject constructor(
                     summary = text.take(800),
                     foregroundPackage = ui.foregroundPackage,
                     reason = waitReason,
+                    elapsedMs = System.currentTimeMillis() - startedAtMs,
+                    iterations = iterationCount,
                 )
             }
 
@@ -84,6 +95,8 @@ class UiFlowExecutor @Inject constructor(
                     ok = false,
                     message = "FlowScript 触发了禁止动作（${effectiveStep.label}），已安全停止。",
                     summary = text.take(600),
+                    elapsedMs = System.currentTimeMillis() - startedAtMs,
+                    iterations = iterationCount,
                 )
             }
 
@@ -97,6 +110,8 @@ class UiFlowExecutor @Inject constructor(
             ok = false,
             message = "${script.name} 未能在限步内到达终端页，请交给 LLM 接管。",
             summary = uiActionLayer.readUi(80, 1200).summary,
+            elapsedMs = System.currentTimeMillis() - startedAtMs,
+            iterations = iterationCount,
         )
     }
 

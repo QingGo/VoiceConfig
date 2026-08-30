@@ -55,10 +55,16 @@ class FlowScriptTool @Inject constructor(
                     "summary" to result.summary,
                     "reason" to result.reason,
                     "scriptId" to script.id,
+                    "elapsedMs" to result.elapsedMs,
+                    "iterations" to result.iterations,
                 ),
             )
         } else {
-            ToolResult.failure(result.message, mapOf("summary" to result.summary))
+            ToolResult.failure(result.message, mapOf(
+                "summary" to result.summary,
+                "elapsedMs" to result.elapsedMs,
+                "iterations" to result.iterations,
+            ))
         }
     }
 

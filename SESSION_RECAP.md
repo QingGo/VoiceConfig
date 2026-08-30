@@ -68,6 +68,7 @@
 - 新增 `strong_remind` 强提醒工具：全屏高优先级通知 + 震动 + 铃声，用于无 Shizuku/熄屏降级
 - 新增执行模式 `ASSIST / AMBIENT / NOTIFY`，能力状态与 UI 摘要已展示
 - 新增 FlowScript 静态 golden 校验：内置脚本 validate/roundtrip/参数占位符完整性
+- FlowScript 执行结果回传 `elapsedMs` / `iterations`，便于性能预算与回归
 - `UiWaitTool` 已注册并通过真机 Mock E2E
 - UI 变更工具自动可见证据 + trace 化
 - `TerminalSafetyGate` 每域矩阵 + `terminal_gate` trace

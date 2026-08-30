@@ -66,4 +66,6 @@ data class FlowExecutionResult(
     val summary: String = "",
     val foregroundPackage: String? = null,
     val reason: String = "",
+    val elapsedMs: Long = 0,
+    val iterations: Int = 0,
 )

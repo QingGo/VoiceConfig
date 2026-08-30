@@ -366,3 +366,9 @@
 
 - [x] 新增 `FlowScriptGoldenTest`：所有内置脚本通过 validate + JSON roundtrip
 - [x] 检查所有 `{placeholder}` 都在 `parameters` 中声明，避免运行时替换成空
+
+## FlowScript 执行可观测（2026-08-30 续）
+
+- [x] `FlowExecutionResult` 增加 `elapsedMs` / `iterations`
+- [x] `UiFlowExecutor` 在终端、失败、禁止动作、超限时都返回耗时和迭代次数
+- [x] `run_flow_script` / `luckin_quick_order` 结果中回传执行耗时与迭代数

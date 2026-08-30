@@ -44,10 +44,16 @@ class LuckinQuickOrderTool @Inject constructor(
                     "foregroundPackage" to result.foregroundPackage,
                     "summary" to result.summary,
                     "reason" to result.reason,
+                    "elapsedMs" to result.elapsedMs,
+                    "iterations" to result.iterations,
                 ),
             )
         } else {
-            ToolResult.failure(result.message, mapOf("summary" to result.summary))
+            ToolResult.failure(result.message, mapOf(
+                "summary" to result.summary,
+                "elapsedMs" to result.elapsedMs,
+                "iterations" to result.iterations,
+            ))
         }
     }
 }
