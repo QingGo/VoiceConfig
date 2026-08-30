@@ -331,3 +331,13 @@
 - [x] 通知使用 `CATEGORY_ALARM` + 公共可见性 + 全屏 Intent，锁屏也能提醒
 - [x] 保留普通 `notify`，强提醒作为无 Shizuku 熄屏降级通道
 - [x] 定时任务失败/等待确认且屏幕熄灭时，自动发送 strong_remind 强提醒（用户点亮后继续/确认）
+
+## FlowScript 参数化与模板（2026-08-30 续）
+
+- [x] `FlowScript` 新增 `parameters: Map<String, String>`，JSON 导入导出同步支持
+- [x] `UiFlowExecutor` 支持参数模板：`{drink}`、`{temperature}` 等占位符替换到步骤条件/动作/终端标记/包名
+- [x] 瑞幸内置脚本改为参数化：`drink` / `temperature` 可覆盖，不再硬编码“标准美式/冰”
+- [x] `luckin_quick_order` 已把 drink/temperature 作为 overrides 传入执行器
+- [x] `run_flow_script` 支持 `params` JSON 字符串覆盖脚本参数
+- [x] 新增参数 roundtrip 单测
+- [x] 全量 JVM 单测通过

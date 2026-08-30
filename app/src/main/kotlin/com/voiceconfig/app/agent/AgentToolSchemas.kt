@@ -265,6 +265,7 @@ object AgentToolSchemas {
         )
         "run_flow_script" -> objectSchema(
             "scriptId" to string("已审核启用的 FlowScript ID"),
+            "params" to string("可选 JSON 对象字符串，用于覆盖脚本参数，例如 {\"drink\":\"生椰拿铁\"}"),
         )
         "luckin_prepare_order" -> objectSchema(
             "store" to string("门店名称或位置"),

@@ -24,6 +24,7 @@ data class FlowScript(
     val id: String,
     val name: String,
     val description: String = "",
+    val parameters: Map<String, String> = emptyMap(),
     val openPackage: String? = null,
     val steps: List<FlowStep>,
     val terminalMarkers: List<String> = listOf("免密支付", "确认订单"),

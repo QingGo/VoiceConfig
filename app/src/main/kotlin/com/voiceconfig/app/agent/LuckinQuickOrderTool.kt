@@ -33,6 +33,7 @@ class LuckinQuickOrderTool @Inject constructor(
             script = BuiltinFlowScripts.luckinStandardIce,
             goal = "瑞幸快速点单",
             waitReason = "已到达瑞幸免密支付确认页（$drink / $temperature），等待用户确认。点击支付前不会自动提交。",
+            overrides = mapOf("drink" to drink, "temperature" to temperature),
         )
         return if (result.ok) {
             ToolResult.success(

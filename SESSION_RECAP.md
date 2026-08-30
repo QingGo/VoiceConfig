@@ -62,6 +62,7 @@
 - FlowScript 已升级为 JSON 可导入导出/版本化/校验平台；`FlowScriptStore` + `FlowScriptCodec` 已实现
 - 新增 `run_flow_script` 通用工具与设置页 FlowScript 审核/导入/导出管理
 - `UiFlowExecutor` 已支持 forbiddenActionTokens 安全护栏
+- FlowScript 支持脚本参数模板 `{key}`，瑞幸 drink/temperature 已参数化可由 LLM/工具覆盖
 - 新增 `strong_remind` 强提醒工具：全屏高优先级通知 + 震动 + 铃声，用于无 Shizuku/熄屏降级
 - `UiWaitTool` 已注册并通过真机 Mock E2E
 - UI 变更工具自动可见证据 + trace 化

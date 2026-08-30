@@ -11,7 +11,8 @@ object BuiltinFlowScripts {
     val luckinStandardIce: FlowScript = FlowScript(
         id = "builtin_luckin_standard_ice",
         name = "瑞幸标准冰美式到免密支付",
-        description = "打开瑞幸，按标准路径选择冰美式并停在免密支付/确认订单页，绝不自动支付。",
+        description = "打开瑞幸，按标准路径选择指定饮品并停在免密支付/确认订单页，绝不自动支付。",
+        parameters = mapOf("drink" to "标准美式", "temperature" to "冰"),
         openPackage = "com.lucky.luckyclient",
         terminalMarkers = listOf("免密支付", "确认订单"),
         maxIterations = 18,
@@ -45,17 +46,17 @@ object BuiltinFlowScripts {
             ),
             FlowStep(
                 id = "drink",
-                name = "选择标准美式",
-                whenContains = listOf("标准美式"),
+                name = "选择指定饮品",
+                whenContains = listOf("{drink}"),
                 whenNotContains = listOf("保存口味", "立即购买"),
-                action = FlowAction.TapText(listOf("标准美式")),
+                action = FlowAction.TapText(listOf("{drink}")),
             ),
             FlowStep(
                 id = "ice",
-                name = "选择冰",
+                name = "选择指定温度",
                 whenContains = listOf("保存口味", "热"),
-                whenNotContains = listOf("冰"),
-                action = FlowAction.TapText(listOf("冰")),
+                whenNotContains = listOf("{temperature}"),
+                action = FlowAction.TapText(listOf("{temperature}")),
             ),
             FlowStep(
                 id = "buy",

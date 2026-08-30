@@ -8,6 +8,7 @@ import kotlinx.coroutines.delay
  * 通用 UI 流程执行器。
  *
  * 执行 [FlowScript] 数据：
+ * - 支持脚本参数模板：步骤文本中的 `{key}` 会被 [parameters] 替换；
  * - 按条件匹配当前界面上的步骤；
  * - 执行 tap/tap_id/back/dismiss 等通用原语；
  * - 检测到终端页时自动写入 WAITING_CONFIRM 并停止。
@@ -26,8 +27,13 @@ class UiFlowExecutor @Inject constructor(
         script: FlowScript,
         goal: String = script.name,
         waitReason: String = "已到达 ${script.name} 的终端确认页，等待用户确认",
+        overrides: Map<String, Any?> = emptyMap(),
     ): FlowExecutionResult {
-        script.openPackage?.let { pkg ->
+        val params = script.parameters + overrides.mapValues { it.value?.toString() ?: "" }
+        val effectiveMarkers = script.terminalMarkers.map { expandTemplate(it, params) }
+        val effectivePackage = script.openPackage?.let { expandTemplate(it, params) }
+
+        effectivePackage?.let { pkg ->
             val opened = openAppTool.execute(mapOf("package" to pkg))
             if (!opened.ok) {
                 return FlowExecutionResult(false, "无法打开 ${script.name}：${opened.message}")
@@ -44,7 +50,7 @@ class UiFlowExecutor @Inject constructor(
             val text = ui.summary
 
             // 终端页优先：无论当前执行到哪一步，到达终端就停。
-            if (isTerminal(text, script.terminalMarkers)) {
+            if (isTerminal(text, effectiveMarkers)) {
                 runCatching { dismissPopupsTool.execute(emptyMap()) }
                 taskPlanStore.set(
                     TaskPlan(
@@ -65,22 +71,23 @@ class UiFlowExecutor @Inject constructor(
             }
 
             val step = script.steps.firstOrNull { candidate ->
-                candidate.id !in used && matches(candidate, text)
+                candidate.id !in used && matches(candidate, text, params)
             } ?: continue
+            val effectiveStep = expandStep(step, params)
 
             // 安全护栏：如果脚本步骤标记了禁止动作 token，引擎直接拒绝执行。
-            if (step.label.isNotBlank() && script.forbiddenActionTokens.any {
-                    it.equals(step.label, ignoreCase = true)
+            if (effectiveStep.label.isNotBlank() && script.forbiddenActionTokens.any {
+                    it.equals(effectiveStep.label, ignoreCase = true)
                 }
             ) {
                 return FlowExecutionResult(
                     ok = false,
-                    message = "FlowScript 触发了禁止动作（${step.label}），已安全停止。",
+                    message = "FlowScript 触发了禁止动作（${effectiveStep.label}），已安全停止。",
                     summary = text.take(600),
                 )
             }
 
-            val actionOk = executeAction(step.action)
+            val actionOk = executeAction(effectiveStep.action)
             if (actionOk && step.once) {
                 used += step.id
             }
@@ -93,10 +100,34 @@ class UiFlowExecutor @Inject constructor(
         )
     }
 
-    private fun matches(step: FlowStep, text: String): Boolean {
-        if (step.whenContains.isNotEmpty() && step.whenContains.none { text.contains(it, ignoreCase = true) }) return false
-        if (step.whenNotContains.any { text.contains(it, ignoreCase = true) }) return false
+    private fun matches(step: FlowStep, text: String, params: Map<String, String>): Boolean {
+        val whenContains = step.whenContains.map { expandTemplate(it, params) }
+        val whenNotContains = step.whenNotContains.map { expandTemplate(it, params) }
+        if (whenContains.isNotEmpty() && whenContains.none { text.contains(it, ignoreCase = true) }) return false
+        if (whenNotContains.any { text.contains(it, ignoreCase = true) }) return false
         return true
+    }
+
+    private fun expandStep(step: FlowStep, params: Map<String, String>): FlowStep = step.copy(
+        whenContains = step.whenContains.map { expandTemplate(it, params) },
+        whenNotContains = step.whenNotContains.map { expandTemplate(it, params) },
+        action = expandAction(step.action, params),
+    )
+
+    private fun expandAction(action: FlowAction, params: Map<String, String>): FlowAction = when (action) {
+        is FlowAction.TapText -> FlowAction.TapText(action.candidates.map { expandTemplate(it, params) })
+        is FlowAction.TapId -> FlowAction.TapId(action.resourceIds.map { expandTemplate(it, params) })
+        FlowAction.Back -> FlowAction.Back
+        FlowAction.DismissPopups -> FlowAction.DismissPopups
+        is FlowAction.TapTextOrBack -> FlowAction.TapTextOrBack(action.candidates.map { expandTemplate(it, params) })
+    }
+
+    private fun expandTemplate(text: String, params: Map<String, String>): String {
+        var result = text
+        params.forEach { (key, value) ->
+            result = result.replace("{${key}}", value)
+        }
+        return result
     }
 
     private fun isTerminal(text: String, markers: List<String>): Boolean {

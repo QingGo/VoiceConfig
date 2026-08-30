@@ -21,6 +21,7 @@ class FlowScriptCodecTest {
         assertEquals(original.steps.size, decoded.steps.size)
         assertEquals(original.terminalMarkers, decoded.terminalMarkers)
         assertEquals(original.forbiddenActionTokens, decoded.forbiddenActionTokens)
+        assertEquals(original.parameters, decoded.parameters)
         assertEquals(original.maxIterations, decoded.maxIterations)
         assertEquals(original.steps.map { it.id }, decoded.steps.map { it.id })
         assertEquals(original.steps.map { it.label }, decoded.steps.map { it.label })
@@ -80,4 +81,27 @@ class FlowScriptCodecTest {
         assertEquals(FlowScriptStatus.PENDING, decoded!!.status)
         assertEquals("import", decoded.source)
     }
+    @Test
+    fun `parameters roundtrip and template expansion data is preserved`() {
+        val script = FlowScript(
+            id = "param_test",
+            name = "参数测试",
+            parameters = mapOf("drink" to "标准美式", "temperature" to "冰"),
+            steps = listOf(
+                FlowStep(
+                    id = "drink",
+                    whenContains = listOf("{drink}"),
+                    action = FlowAction.TapText(listOf("{drink}")),
+                ),
+            ),
+        )
+        val decoded = FlowScriptCodec.parse(FlowScriptCodec.toJsonString(script))
+        assertNotNull(decoded)
+        assertEquals(script.parameters, decoded!!.parameters)
+        assertEquals(listOf("{drink}"), decoded.steps.first().whenContains)
+        val tap = decoded.steps.first().action as FlowAction.TapText
+        assertEquals(listOf("{drink}"), tap.candidates)
+    }
+
+
 }

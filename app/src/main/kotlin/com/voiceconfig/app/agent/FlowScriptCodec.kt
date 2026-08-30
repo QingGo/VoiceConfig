@@ -29,6 +29,7 @@ object FlowScriptCodec {
             .put("id", script.id)
             .put("name", script.name)
             .put("description", script.description)
+            .put("parameters", parametersToJson(script.parameters))
             .put("openPackage", script.openPackage ?: JSONObject.NULL)
             .put("status", script.status.name)
             .put("enabled", script.enabled)
@@ -72,6 +73,7 @@ object FlowScriptCodec {
             id = id,
             name = name,
             description = obj.optString("description"),
+            parameters = optStringMap(obj, "parameters"),
             openPackage = obj.optString("openPackage").takeIf { it.isNotBlank() },
             steps = steps,
             terminalMarkers = optStringList(obj, "terminalMarkers").ifEmpty {
@@ -152,6 +154,17 @@ object FlowScriptCodec {
         "dismiss_popups" -> FlowAction.DismissPopups
         "tap_text_or_back" -> FlowAction.TapTextOrBack(optStringList(obj, "candidates"))
         else -> null
+    }
+
+    private fun parametersToJson(parameters: Map<String, String>): JSONObject = JSONObject().apply {
+        parameters.forEach { (k, v) -> put(k, v) }
+    }
+
+    private fun optStringMap(obj: JSONObject, key: String): Map<String, String> {
+        val mapObj = obj.optJSONObject(key) ?: return emptyMap()
+        return buildMap {
+            mapObj.keys().forEach { k -> put(k, mapObj.optString(k)) }
+        }
     }
 
     private fun stringsToArray(values: List<String>): JSONArray = JSONArray().apply {
