@@ -146,6 +146,57 @@ class ApiKeyStore @Inject constructor(
             prefs.edit().putString(KEY_THEME_MODE, value).apply()
         }
 
+    var agentAdvancedToolsEnabled: Boolean
+        get() = prefs.getBoolean(KEY_AGENT_ADVANCED_TOOLS, false)
+        set(value) { prefs.edit().putBoolean(KEY_AGENT_ADVANCED_TOOLS, value).apply() }
+
+    var agentRemoteNodeEnabled: Boolean
+        get() = prefs.getBoolean(KEY_AGENT_REMOTE_NODE, false)
+        set(value) { prefs.edit().putBoolean(KEY_AGENT_REMOTE_NODE, value).apply() }
+
+    var asrProvider: String
+        get() = prefs.getString(KEY_ASR_PROVIDER, "LOCAL") ?: "LOCAL"
+        set(value) { prefs.edit().putString(KEY_ASR_PROVIDER, value).apply() }
+
+    var deepSeekAsrModel: String
+        get() = prefs.getString(KEY_DEEPSEEK_ASR_MODEL, "") ?: ""
+        set(value) { prefs.edit().putString(KEY_DEEPSEEK_ASR_MODEL, value.trim()).apply() }
+
+    var deepSeekAsrLanguage: String
+        get() = prefs.getString(KEY_DEEPSEEK_ASR_LANGUAGE, "zh") ?: "zh"
+        set(value) { prefs.edit().putString(KEY_DEEPSEEK_ASR_LANGUAGE, value.trim()).apply() }
+
+    var ttsProvider: String
+        get() = prefs.getString(KEY_TTS_PROVIDER, "SYSTEM") ?: "SYSTEM"
+        set(value) { prefs.edit().putString(KEY_TTS_PROVIDER, value).apply() }
+
+    var deepSeekTtsModel: String
+        get() = prefs.getString(KEY_DEEPSEEK_TTS_MODEL, "") ?: ""
+        set(value) { prefs.edit().putString(KEY_DEEPSEEK_TTS_MODEL, value.trim()).apply() }
+
+    var deepSeekTtsVoice: String
+        get() = prefs.getString(KEY_DEEPSEEK_TTS_VOICE, "") ?: ""
+        set(value) { prefs.edit().putString(KEY_DEEPSEEK_TTS_VOICE, value.trim()).apply() }
+
+    var deepSeekTtsFormat: String
+        get() = prefs.getString(KEY_DEEPSEEK_TTS_FORMAT, "wav") ?: "wav"
+        set(value) { prefs.edit().putString(KEY_DEEPSEEK_TTS_FORMAT, value.trim()).apply() }
+
+    var deepSeekTtsStreamingEnabled: Boolean
+        get() = prefs.getBoolean(KEY_DEEPSEEK_TTS_STREAMING, true)
+        set(value) { prefs.edit().putBoolean(KEY_DEEPSEEK_TTS_STREAMING, value).apply() }
+
+    var deepSeekTtsSpeed: Float
+        get() = prefs.getFloat(KEY_DEEPSEEK_TTS_SPEED, 1.0f)
+        set(value) { prefs.edit().putFloat(KEY_DEEPSEEK_TTS_SPEED, value.coerceIn(0.5f, 2.0f)).apply() }
+
+    var speechFallbackToSystem: Boolean
+        get() = prefs.getBoolean(KEY_SPEECH_FALLBACK_SYSTEM, true)
+        set(value) { prefs.edit().putBoolean(KEY_SPEECH_FALLBACK_SYSTEM, value).apply() }
+
+    var speechCloudConsent: Boolean
+        get() = prefs.getBoolean(KEY_SPEECH_CLOUD_CONSENT, false)
+        set(value) { prefs.edit().putBoolean(KEY_SPEECH_CLOUD_CONSENT, value).apply() }
     private fun readApiKey(): String {
         val encrypted = prefs.getString(KEY_API_KEY_ENCRYPTED, null)
         if (!encrypted.isNullOrBlank()) {
@@ -246,12 +297,25 @@ class ApiKeyStore @Inject constructor(
         private const val KEY_WAKE_WORD_ENABLED = "wake_word_enabled"
         private const val KEY_OVERLAY_BALL_ENABLED = "overlay_ball_enabled"
         private const val KEY_THEME_MODE = "theme_mode"
+        private const val KEY_AGENT_ADVANCED_TOOLS = "agent_advanced_tools_enabled"
+        private const val KEY_AGENT_REMOTE_NODE = "agent_remote_node_enabled"
+        private const val KEY_ASR_PROVIDER = "asr_provider"
+        private const val KEY_DEEPSEEK_ASR_MODEL = "deepseek_asr_model"
+        private const val KEY_DEEPSEEK_ASR_LANGUAGE = "deepseek_asr_language"
+        private const val KEY_TTS_PROVIDER = "tts_provider"
+        private const val KEY_DEEPSEEK_TTS_MODEL = "deepseek_tts_model"
+        private const val KEY_DEEPSEEK_TTS_VOICE = "deepseek_tts_voice"
+        private const val KEY_DEEPSEEK_TTS_FORMAT = "deepseek_tts_format"
+        private const val KEY_DEEPSEEK_TTS_SPEED = "deepseek_tts_speed"
+        private const val KEY_DEEPSEEK_TTS_STREAMING = "deepseek_tts_streaming"
+        private const val KEY_SPEECH_FALLBACK_SYSTEM = "speech_fallback_to_system"
+        private const val KEY_SPEECH_CLOUD_CONSENT = "speech_cloud_consent"
         const val DEFAULT_MAX_AUTO_VERIFY = 2
-        const val DEFAULT_MODEL = "deepseek-v4-flash-vision-exp"
+        const val DEFAULT_MODEL = "deepseek-flash"
 
         fun normalizeModel(value: String?): String {
             val trimmed = value?.trim().orEmpty()
-            return if (trimmed.isBlank() || trimmed == LEGACY_MODEL || trimmed == LEGACY_FLASH_MODEL) {
+            return if (trimmed.isBlank() || trimmed == LEGACY_MODEL || trimmed == LEGACY_FLASH_MODEL || trimmed == LEGACY_VISION_MODEL) {
                 DEFAULT_MODEL
             } else {
                 trimmed
@@ -261,5 +325,6 @@ class ApiKeyStore @Inject constructor(
         const val DEFAULT_AGENT_REASONING_EFFORT = "medium"
         private const val LEGACY_MODEL = "deepseek-chat"
         private const val LEGACY_FLASH_MODEL = "deepseek-v4-flash"
+        private const val LEGACY_VISION_MODEL = "deepseek-v4-flash-vision-exp"
     }
 }

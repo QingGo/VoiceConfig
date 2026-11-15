@@ -173,6 +173,12 @@ class TaskAlarmReceiver : BroadcastReceiver() {
         }
         val skills = agentSkillStore.relevant(prompt)
         val capabilitySummary = capability.summary()
+        agentSession.visibilityPolicy = com.voiceconfig.app.agent.ToolVisibilityPolicy(
+            includeAdvanced = apiKeyStore.agentAdvancedToolsEnabled,
+            enabledOptInTools = buildSet {
+                if (apiKeyStore.agentRemoteNodeEnabled) add("remote_node")
+            },
+        )
         val result = agentSession.sendIsolated(
             userText = prompt,
             skills = skills,
@@ -190,8 +196,9 @@ class TaskAlarmReceiver : BroadcastReceiver() {
             onSensitiveAction = {
                 apiKeyStore.agentAutoConfirmSensitiveActions
             },
+            interactiveConfirmations = false,
         )
-        if (result.ok) {
+        if (result.ok && result.state != AgentRunState.WAITING_CONFIRM) {
             agentSkillStore.recordFromTurn(
                 text = prompt,
                 result = result,
@@ -199,16 +206,16 @@ class TaskAlarmReceiver : BroadcastReceiver() {
             )
         }
         return when {
-            !result.ok -> ExecutionResult.failure(
-                mode = ExecutionMode.AGENT,
-                errorCode = "AGENT_FAILED",
-                message = result.message,
-            )
             result.state == AgentRunState.WAITING_CONFIRM -> ExecutionResult(
                 status = ExecutionStatus.WAITING_HUMAN,
                 usedMode = ExecutionMode.AGENT,
                 message = result.message,
                 errorCode = "WAITING_HUMAN",
+            )
+            !result.ok -> ExecutionResult.failure(
+                mode = ExecutionMode.AGENT,
+                errorCode = "AGENT_FAILED",
+                message = result.message,
             )
             else -> ExecutionResult.success(ExecutionMode.AGENT).copy(message = result.message)
         }

@@ -30,6 +30,9 @@ class ProfileViewModel @Inject constructor(
     private val wecomSendMessageTool: WecomSendMessageTool,
     private val agentSkillStore: AgentSkillStore,
     private val flowScriptStore: FlowScriptStore,
+    private val externalToolManager: com.voiceconfig.app.agent.ExternalToolManager,
+    private val agentChatClient: com.voiceconfig.app.agent.AgentChatClient,
+    private val toolRegistry: com.voiceconfig.app.agent.ToolRegistry,
 ) : ViewModel() {
 
 
@@ -40,6 +43,28 @@ class ProfileViewModel @Inject constructor(
             initialValue = emptyList(),
         )
 
+    private val _modelValidationMessage = MutableStateFlow<String?>(null)
+    val modelValidationMessage: StateFlow<String?> = _modelValidationMessage.asStateFlow()
+
+    private fun currentVisibilityPolicy() = com.voiceconfig.app.agent.ToolVisibilityPolicy(
+        includeAdvanced = apiKeyStore.agentAdvancedToolsEnabled,
+        enabledOptInTools = buildSet {
+            if (apiKeyStore.agentRemoteNodeEnabled) add("remote_node")
+        },
+    )
+
+    private val _visibleModelTools = MutableStateFlow(
+        toolRegistry.modelTools(currentVisibilityPolicy()).map { it.name }
+    )
+    val visibleModelTools: StateFlow<List<String>> = _visibleModelTools.asStateFlow()
+
+    fun refreshVisibleModelTools() {
+        _visibleModelTools.value = toolRegistry.modelTools(currentVisibilityPolicy()).map { it.name }
+    }
+    private val _externalToolMessage = MutableStateFlow<String?>(null)
+    val externalToolMessage: StateFlow<String?> = _externalToolMessage.asStateFlow()
+    private val _externalToolSummaries = MutableStateFlow(externalToolManager.summaries())
+    val externalToolSummaries: StateFlow<List<com.voiceconfig.app.agent.ExternalToolSummary>> = _externalToolSummaries.asStateFlow()
     private val _agentVoiceAutoSend = MutableStateFlow(apiKeyStore.agentVoiceAutoSend)
     val agentVoiceAutoSend: StateFlow<Boolean> = _agentVoiceAutoSend.asStateFlow()
 
@@ -82,6 +107,43 @@ class ProfileViewModel @Inject constructor(
     private val _agentAutoConfirmSensitiveActions = MutableStateFlow(apiKeyStore.agentAutoConfirmSensitiveActions)
     val agentAutoConfirmSensitiveActions: StateFlow<Boolean> = _agentAutoConfirmSensitiveActions.asStateFlow()
 
+    private val _agentAdvancedToolsEnabled = MutableStateFlow(apiKeyStore.agentAdvancedToolsEnabled)
+    val agentAdvancedToolsEnabled: StateFlow<Boolean> = _agentAdvancedToolsEnabled.asStateFlow()
+
+    private val _agentRemoteNodeEnabled = MutableStateFlow(apiKeyStore.agentRemoteNodeEnabled)
+    val agentRemoteNodeEnabled: StateFlow<Boolean> = _agentRemoteNodeEnabled.asStateFlow()
+
+    private val _asrProvider = MutableStateFlow(apiKeyStore.asrProvider)
+    val asrProvider: StateFlow<String> = _asrProvider.asStateFlow()
+
+    private val _deepSeekAsrModel = MutableStateFlow(apiKeyStore.deepSeekAsrModel)
+    val deepSeekAsrModel: StateFlow<String> = _deepSeekAsrModel.asStateFlow()
+
+    private val _deepSeekAsrLanguage = MutableStateFlow(apiKeyStore.deepSeekAsrLanguage)
+    val deepSeekAsrLanguage: StateFlow<String> = _deepSeekAsrLanguage.asStateFlow()
+
+    private val _ttsProvider = MutableStateFlow(apiKeyStore.ttsProvider)
+    val ttsProvider: StateFlow<String> = _ttsProvider.asStateFlow()
+
+    private val _deepSeekTtsModel = MutableStateFlow(apiKeyStore.deepSeekTtsModel)
+    val deepSeekTtsModel: StateFlow<String> = _deepSeekTtsModel.asStateFlow()
+
+    private val _deepSeekTtsVoice = MutableStateFlow(apiKeyStore.deepSeekTtsVoice)
+    val deepSeekTtsVoice: StateFlow<String> = _deepSeekTtsVoice.asStateFlow()
+
+    private val _deepSeekTtsFormat = MutableStateFlow(apiKeyStore.deepSeekTtsFormat)
+    val deepSeekTtsFormat: StateFlow<String> = _deepSeekTtsFormat.asStateFlow()
+
+    private val _deepSeekTtsStreamingEnabled = MutableStateFlow(apiKeyStore.deepSeekTtsStreamingEnabled)
+    val deepSeekTtsStreamingEnabled: StateFlow<Boolean> = _deepSeekTtsStreamingEnabled.asStateFlow()
+
+    private val _speechFallbackToSystem = MutableStateFlow(apiKeyStore.speechFallbackToSystem)
+    val speechFallbackToSystem: StateFlow<Boolean> = _speechFallbackToSystem.asStateFlow()
+
+    private val _speechCloudConsent = MutableStateFlow(apiKeyStore.speechCloudConsent)
+    val speechCloudConsent: StateFlow<Boolean> = _speechCloudConsent.asStateFlow()
+
+
     private val _wechatUiAutomationEnabled = MutableStateFlow(apiKeyStore.wechatUiAutomationEnabled)
     val wechatUiAutomationEnabled: StateFlow<Boolean> = _wechatUiAutomationEnabled.asStateFlow()
 
@@ -105,6 +167,55 @@ class ProfileViewModel @Inject constructor(
 
     private val _agentMaxAutoVerifies = MutableStateFlow(apiKeyStore.agentMaxAutoVerifies)
     val agentMaxAutoVerifies: StateFlow<Int> = _agentMaxAutoVerifies.asStateFlow()
+    fun importExternalToolPack(json: String) {
+        val result = externalToolManager.importPack(json)
+        _externalToolMessage.value = result.getOrElse { "导入失败：${it.message}" }
+        viewModelScope.launch {
+            externalToolManager.refresh()
+            _externalToolSummaries.value = externalToolManager.summaries()
+            refreshVisibleModelTools()
+        }
+    }
+
+    fun configureMcp(url: String, token: String, allowedTools: String, tlsPin: String = "") {
+        val result = externalToolManager.configureMcp(
+            url = url,
+            token = token,
+            allowedTools = allowedTools.split(',', ';', '\n').map { it.trim() }.filter { it.isNotBlank() }.toSet(),
+            enabled = true,
+            tlsPin = tlsPin,
+        )
+        _externalToolMessage.value = result.fold(
+            { "MCP 配置已保存" },
+            { "MCP 配置失败：${it.message}" },
+        )
+        viewModelScope.launch {
+            val refreshed = externalToolManager.refresh()
+            _externalToolMessage.value = refreshed.fold(
+                { "MCP 已连接，发现 $it 个外部工具" },
+                { "MCP 刷新失败：${it.message}" },
+            )
+            _externalToolSummaries.value = externalToolManager.summaries()
+        }
+    }
+
+    fun removeExternalToolPack(id: String) {
+        externalToolManager.removePack(id)
+        viewModelScope.launch {
+            externalToolManager.refresh()
+            _externalToolSummaries.value = externalToolManager.summaries()
+            refreshVisibleModelTools()
+        }
+    }
+
+    fun clearExternalMcp() {
+        externalToolManager.clearMcp()
+        viewModelScope.launch {
+            externalToolManager.refresh()
+            _externalToolSummaries.value = externalToolManager.summaries()
+            refreshVisibleModelTools()
+        }
+    }
     fun setAgentVoiceAutoSend(enabled: Boolean) {
         apiKeyStore.agentVoiceAutoSend = enabled
         _agentVoiceAutoSend.value = enabled
@@ -168,6 +279,15 @@ class ProfileViewModel @Inject constructor(
         apiKeyStore.deepSeekModel = trimmed
         _deepSeekModel.value = trimmed
     }
+    fun validateModelConfiguration() {
+        viewModelScope.launch {
+            _modelValidationMessage.value = "正在校验模型配置…"
+            _modelValidationMessage.value = agentChatClient.validateModelConfiguration().fold(
+                { it },
+                { "校验失败：${it.message}" },
+            )
+        }
+    }
 
     fun setDeepSeekThinkingEnabled(enabled: Boolean) {
         apiKeyStore.deepSeekThinkingEnabled = enabled
@@ -192,6 +312,67 @@ class ProfileViewModel @Inject constructor(
     fun setAgentAutoConfirmSensitiveActions(enabled: Boolean) {
         apiKeyStore.agentAutoConfirmSensitiveActions = enabled
         _agentAutoConfirmSensitiveActions.value = enabled
+    }
+    fun setAgentAdvancedToolsEnabled(enabled: Boolean) {
+        apiKeyStore.agentAdvancedToolsEnabled = enabled
+        _agentAdvancedToolsEnabled.value = enabled
+        refreshVisibleModelTools()
+    }
+
+    fun setAgentRemoteNodeEnabled(enabled: Boolean) {
+        apiKeyStore.agentRemoteNodeEnabled = enabled
+        _agentRemoteNodeEnabled.value = enabled
+        refreshVisibleModelTools()
+    }
+
+    fun setAsrProvider(provider: String) {
+        apiKeyStore.asrProvider = provider
+        _asrProvider.value = provider
+    }
+
+    fun setDeepSeekAsrModel(value: String) {
+        apiKeyStore.deepSeekAsrModel = value
+        _deepSeekAsrModel.value = apiKeyStore.deepSeekAsrModel
+    }
+
+    fun setDeepSeekAsrLanguage(value: String) {
+        apiKeyStore.deepSeekAsrLanguage = value
+        _deepSeekAsrLanguage.value = apiKeyStore.deepSeekAsrLanguage
+    }
+
+    fun setTtsProvider(provider: String) {
+        apiKeyStore.ttsProvider = provider
+        _ttsProvider.value = provider
+    }
+
+    fun setDeepSeekTtsModel(value: String) {
+        apiKeyStore.deepSeekTtsModel = value
+        _deepSeekTtsModel.value = apiKeyStore.deepSeekTtsModel
+    }
+
+    fun setDeepSeekTtsVoice(value: String) {
+        apiKeyStore.deepSeekTtsVoice = value
+        _deepSeekTtsVoice.value = apiKeyStore.deepSeekTtsVoice
+    }
+
+    fun setDeepSeekTtsFormat(value: String) {
+        apiKeyStore.deepSeekTtsFormat = value
+        _deepSeekTtsFormat.value = apiKeyStore.deepSeekTtsFormat
+    }
+
+    fun setDeepSeekTtsStreamingEnabled(enabled: Boolean) {
+        apiKeyStore.deepSeekTtsStreamingEnabled = enabled
+        _deepSeekTtsStreamingEnabled.value = enabled
+    }
+
+    fun setSpeechFallbackToSystem(enabled: Boolean) {
+        apiKeyStore.speechFallbackToSystem = enabled
+        _speechFallbackToSystem.value = enabled
+    }
+
+    fun setSpeechCloudConsent(enabled: Boolean) {
+        apiKeyStore.speechCloudConsent = enabled
+        _speechCloudConsent.value = enabled
     }
 
     fun setWechatUiAutomationEnabled(enabled: Boolean) {

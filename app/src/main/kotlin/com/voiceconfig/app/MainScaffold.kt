@@ -718,7 +718,10 @@ fun MainScreen(viewModel: MainViewModel, voiceCommandCenter: VoiceCommandCenter)
             title = { Text("敏感操作确认") },
             text = {
                 Text(
-                    "Agent 请求执行：\n${pending.request.toolName}(${pending.request.args})\n\n是否允许？",
+                    pending.request.humanSummary.ifBlank { "Agent 请求执行：${pending.request.toolName}" } +
+                        "\n\n风险级别：${pending.request.confirmationMode.name}" +
+                        (if (pending.request.actionDigest.isNotBlank()) "\n动作摘要：${pending.request.actionDigest}" else "") +
+                        "\n\n是否允许？",
                     style = MaterialTheme.typography.bodyMedium,
                 )
             },

@@ -7,7 +7,11 @@ import android.net.Uri
 import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.platform.LocalContext
@@ -24,6 +28,20 @@ internal fun VoiceSettingsSection(
     onWakeWordEnabledChange: (Boolean) -> Unit,
     overlayBallEnabled: Boolean = false,
     onOverlayBallEnabledChange: (Boolean) -> Unit = {},
+    ttsProvider: String = "SYSTEM",
+    onTtsProviderChange: (String) -> Unit = {},
+    deepSeekTtsModel: String = "",
+    onDeepSeekTtsModelChange: (String) -> Unit = {},
+    deepSeekTtsVoice: String = "",
+    onDeepSeekTtsVoiceChange: (String) -> Unit = {},
+    deepSeekTtsFormat: String = "wav",
+    onDeepSeekTtsFormatChange: (String) -> Unit = {},
+    deepSeekTtsStreamingEnabled: Boolean = true,
+    onDeepSeekTtsStreamingChange: (Boolean) -> Unit = {},
+    fallbackToSystem: Boolean = true,
+    onFallbackToSystemChange: (Boolean) -> Unit = {},
+    cloudConsent: Boolean = false,
+    onCloudConsentChange: (Boolean) -> Unit = {},
 ) {
     val context = LocalContext.current
     val audioPermissionLauncher = rememberLauncherForActivityResult(
@@ -39,6 +57,58 @@ internal fun VoiceSettingsSection(
             subtitle = "语音识别完成后直接发送给智能助手，不需要再点发送",
             checked = agentVoiceAutoSend,
             onCheckedChange = onAgentVoiceAutoSendChange,
+        )
+        Text("语音播报引擎", style = MaterialTheme.typography.titleSmall)
+        Row(horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(8.dp)) {
+            listOf("SYSTEM" to "Android 系统", "DEEPSEEK" to "DeepSeek").forEach { (id, label) ->
+                androidx.compose.material3.TextButton(onClick = { onTtsProviderChange(id) }) {
+                    Text(if (ttsProvider == id) "✓ $label" else label)
+                }
+            }
+        }
+        if (ttsProvider == "DEEPSEEK") {
+            Text(
+                text = "DeepSeek TTS 会把待播报文本发送到云端。",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Text(
+                text = "DeepSeek TTS 不需要模型 ID；默认音色 stella，可选 tide；输出 wav 或 pcm；不支持调节语速。",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            androidx.compose.material3.OutlinedTextField(
+                value = deepSeekTtsVoice,
+                onValueChange = onDeepSeekTtsVoiceChange,
+                modifier = Modifier.fillMaxWidth(),
+                label = { Text("voice_id：stella（默认）或 tide") },
+                singleLine = true,
+            )
+            androidx.compose.material3.OutlinedTextField(
+                value = deepSeekTtsFormat,
+                onValueChange = onDeepSeekTtsFormatChange,
+                modifier = Modifier.fillMaxWidth(),
+                label = { Text("格式：wav（默认）或 pcm") },
+                singleLine = true,
+            )
+        }
+        SwitchRow(
+            title = "DeepSeek TTS 流式播放",
+            subtitle = "使用 WebSocket 边合成边播放，降低首字延迟；关闭后使用整段 HTTP 合成",
+            checked = deepSeekTtsStreamingEnabled,
+            onCheckedChange = onDeepSeekTtsStreamingChange,
+        )
+        SwitchRow(
+            title = "语音服务失败时回退系统能力",
+            subtitle = "云端 ASR/TTS 失败时回退到 Android 系统识别/播报",
+            checked = fallbackToSystem,
+            onCheckedChange = onFallbackToSystemChange,
+        )
+        SwitchRow(
+            title = "允许云端语音处理",
+            subtitle = "选择 DeepSeek 语音时，录音或播报文本会发送到 DeepSeek；默认关闭",
+            checked = cloudConsent,
+            onCheckedChange = onCloudConsentChange,
         )
         SwitchRow(
             title = "Agent 结果语音播报",

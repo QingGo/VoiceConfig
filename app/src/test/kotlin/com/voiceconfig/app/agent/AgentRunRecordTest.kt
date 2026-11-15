@@ -201,7 +201,7 @@ class AgentRunRecordTest {
     }
 
     @Test
-    fun `run record counts hard blocked irreversible action even when auto approved`() = runBlocking {
+    fun `run record counts explicitly approved irreversible action without hard block`() = runBlocking {
         val ledger = InMemoryAgentRunLedger()
         val tool = object : AgentTool {
             override val name: String = "tap_text"
@@ -225,6 +225,7 @@ class AgentRunRecordTest {
                         AgentToolCall("call1", "tap_text", """{"text":"确认支付"}"""),
                     ),
                 ),
+                AgentChatResponse(content = "已执行", reasoningContent = null, toolCalls = emptyList()),
             ),
             ledger,
         ).apply { argumentParser = { mapOf("text" to "确认支付") } }
@@ -232,12 +233,11 @@ class AgentRunRecordTest {
             "确认支付",
             onSensitiveAction = { true },
         )
-        assertFalse(result.ok)
-        assertTrue(result.message.contains("安全拦截"))
+        assertTrue(result.ok)
         val record = ledger.latest()
         assertEquals(1, record?.safetyConfirmations)
         assertEquals(1, record?.safetyApprovals)
         assertEquals(0, record?.safetyDenials)
-        assertEquals(1, record?.safetyBlocks)
+        assertEquals(0, record?.safetyBlocks)
     }
 }

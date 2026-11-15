@@ -528,7 +528,7 @@ Step 4 完成
 ```text
 AI 模型
   状态：已配置
-  模型：deepseek-v4-flash-vision-exp
+  模型：deepseek-flash
   [更换模型]
 ```
 

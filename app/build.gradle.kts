@@ -14,8 +14,8 @@ android {
         applicationId = "com.voiceconfig.app"
         minSdk = 26
         targetSdk = 34
-        versionCode = 3
-        versionName = "0.1.2"
+        versionCode = 4
+        versionName = "0.1.3"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -26,6 +26,18 @@ android {
         }
     }
 
+    val releaseStoreFile = System.getenv("VOICECONFIG_KEYSTORE_FILE")
+    signingConfigs {
+        if (!releaseStoreFile.isNullOrBlank()) {
+            create("release") {
+                storeFile = file(releaseStoreFile)
+                storePassword = System.getenv("VOICECONFIG_KEYSTORE_PASSWORD")
+                keyAlias = System.getenv("VOICECONFIG_KEY_ALIAS")
+                keyPassword = System.getenv("VOICECONFIG_KEY_PASSWORD")
+            }
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = true
@@ -33,6 +45,7 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro",
             )
+            signingConfigs.findByName("release")?.let { signingConfig = it }
         }
     }
 
@@ -68,6 +81,7 @@ dependencies {
     implementation(libs.lib.sherpa.onnx)
 
     implementation(libs.jsch)
+    implementation(files("libs/okhttp-4.12.0.jar", "libs/okio-jvm-3.6.0.jar"))
     implementation(libs.room.runtime)
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)

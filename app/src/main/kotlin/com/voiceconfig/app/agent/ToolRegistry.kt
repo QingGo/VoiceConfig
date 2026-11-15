@@ -6,14 +6,6 @@ package com.voiceconfig.app.agent
 class ToolRegistry {
 
     companion object {
-        /**
-         * 默认给模型看的工具分组。
-         *
-         * CORE 是计划/等待/感知/确定性单步工具；
-         * PHONE 是手机 UI 操作工具；
-         * REMOTE 是远程设备与代码工具。
-         * 其他分组（HOME/RESEARCH/APP_SKILL/DEBUG）按产品阶段逐步展开。
-         */
         val DEFAULT_MODEL_GROUPS: Set<ToolGroup> = setOf(
             ToolGroup.CORE,
             ToolGroup.PHONE,
@@ -36,11 +28,15 @@ class ToolRegistry {
         return this
     }
 
+    fun unregister(name: String) {
+        tools.remove(name)
+    }
+
     fun clear() {
         tools.clear()
     }
 
-    fun get(name: String): AgentTool? = tools[name]
+    fun get(name: String): AgentTool? = tools.get(name)
 
     fun names(): List<String> = tools.keys.toList()
 
@@ -51,8 +47,21 @@ class ToolRegistry {
 
     fun coreTools(): List<AgentTool> = tools(ToolGroup.CORE)
 
-    fun modelTools(): List<AgentTool> =
-        tools.values.filter { it.metadata.group in DEFAULT_MODEL_GROUPS }
+    fun modelTools(policy: ToolVisibilityPolicy = ToolVisibilityPolicy()): List<AgentTool> {
+        var externalCount = 0
+        return tools.values
+            .filter { it.metadata.group in DEFAULT_MODEL_GROUPS || (policy.includeAdvanced && it.metadata.group == ToolGroup.ADVANCED) }
+            .filter { !it.metadata.requiresOptIn || it.name in policy.enabledOptInTools }
+            .filter { policy.includeDebugTools || it.metadata.group != ToolGroup.DEBUG }
+            .sortedWith(compareBy<AgentTool>({ it.metadata.requiresOptIn }, { it.name }))
+            .mapNotNull { tool ->
+                val external = tool.name.startsWith("ext_") || tool.name.startsWith("mcp_")
+                if (external) {
+                    if (externalCount >= policy.maxExternalTools) null else { externalCount++; tool }
+                } else tool
+            }
+    }
+    fun modelTools(): List<AgentTool> = modelTools(ToolVisibilityPolicy())
 
     fun descriptions(): String = tools.values.joinToString("\n") {
         "- ${it.name}: ${it.description}"
@@ -63,8 +72,15 @@ class ToolRegistry {
 
     fun coreDescriptions(): String = descriptions(ToolGroup.CORE)
 
-    fun modelDescriptions(): String =
-        modelTools().joinToString("\n") { "- ${it.name}: ${it.description}" }
+    fun modelDescriptions(policy: ToolVisibilityPolicy = ToolVisibilityPolicy()): String =
+        modelTools(policy).joinToString("\n") { "- ${it.name}: ${it.description}" }
 
     fun size(): Int = tools.size
 }
+
+data class ToolVisibilityPolicy(
+    val includeAdvanced: Boolean = false,
+    val enabledOptInTools: Set<String> = emptySet(),
+    val includeDebugTools: Boolean = false,
+    val maxExternalTools: Int = 12,
+)

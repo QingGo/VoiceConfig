@@ -155,6 +155,7 @@ class MainActivity : ComponentActivity() {
     @Inject lateinit var agentSession: AgentSession
     @Inject lateinit var shizukuCommandRunner: ShizukuCommandRunner
     @Inject lateinit var apiKeyStore: ApiKeyStore
+    @Inject lateinit var externalToolManager: com.voiceconfig.app.agent.ExternalToolManager
     @Inject lateinit var accessibilityKeepAlive: AccessibilityKeepAlive
     @Inject lateinit var voiceCommandCenter: VoiceCommandCenter
 
@@ -291,6 +292,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        lifecycleScope.launch { externalToolManager.refresh() }
         enableEdgeToEdge()
         val isDebuggable = (applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE) != 0
         if (isDebuggable) {

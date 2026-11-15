@@ -50,7 +50,8 @@ open class AgentChatClient @Inject constructor(
     private val aiDebugLogRepository: AiDebugLogRepository,
 ) : AgentChat, AgentToolChat, AgentModelBackend {
     override val modelId: String get() = apiKeyStore.deepSeekModel
-    override val supportsVision: Boolean get() = modelId.contains("vision", ignoreCase = true)
+    override val supportsVision: Boolean
+        get() = modelId == "deepseek-flash" || modelId.contains("vision", ignoreCase = true)
 
 
     @Volatile
@@ -84,6 +85,39 @@ open class AgentChatClient @Inject constructor(
         }
     }
 
+    suspend fun validateModelConfiguration(): Result<String> = withContext(Dispatchers.IO) {
+        val key = apiKeyStore.deepSeekApiKey
+        if (key.isBlank()) return@withContext Result.failure(IllegalStateException("未配置 DeepSeek API Key"))
+        val model = apiKeyStore.deepSeekModel
+        val conn = (URL("https://api.deepseek.com/models").openConnection() as HttpURLConnection)
+        try {
+            conn.requestMethod = "GET"
+            conn.connectTimeout = 15_000
+            conn.readTimeout = 30_000
+            conn.setRequestProperty("Authorization", "Bearer $key")
+            val code = conn.responseCode
+            val body = (if (code in 200..299) conn.inputStream else conn.errorStream)
+                ?.bufferedReader()?.use { it.readText() }.orEmpty()
+            if (code !in 200..299) {
+                return@withContext Result.failure(IllegalStateException("模型校验失败 HTTP $code：${body.take(300)}"))
+            }
+            val root = runCatching { JSONObject(body) }.getOrElse {
+                return@withContext Result.failure(IllegalStateException("模型列表响应格式异常"))
+            }
+            val ids = root.optJSONArray("data")?.let { arr ->
+                (0 until arr.length()).mapNotNull { i -> arr.optJSONObject(i)?.optString("id")?.takeIf { it.isNotBlank() } }
+            }.orEmpty()
+            if (ids.isNotEmpty() && model !in ids) {
+                Result.failure(IllegalStateException("模型 $model 不在当前 API Key 可用列表中：${ids.joinToString().take(300)}"))
+            } else {
+                Result.success("模型配置可用：$model")
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        } finally {
+            conn.disconnect()
+        }
+    }
     override suspend fun complete(
         systemPrompt: String,
         messages: List<AgentMessage>,
@@ -205,7 +239,7 @@ open class AgentChatClient @Inject constructor(
         tools: List<AgentTool>,
         onEvent: (AgentStreamEvent) -> Unit,
     ): AgentChatResponse? = withContext(Dispatchers.IO) {
-        if (apiKeyStore.agentMockLlmEnabled) {
+        if (com.voiceconfig.app.BuildConfig.DEBUG && apiKeyStore.agentMockLlmEnabled) {
             val mock = mockAgentResponse(messages)
             onEvent(AgentStreamEvent.Done(mock))
             return@withContext mock

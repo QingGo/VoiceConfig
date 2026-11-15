@@ -20,6 +20,7 @@ import com.voiceconfig.app.agent.AgentVerificationPolicy
 import com.voiceconfig.app.agent.SensitiveActionRequest
 import com.voiceconfig.app.agent.TaskPlan
 import com.voiceconfig.app.agent.TaskPlanStore
+import com.voiceconfig.app.agent.ToolVisibilityPolicy
 import com.voiceconfig.app.agent.VoiceSession
 import com.voiceconfig.app.agent.VoiceSessionManager
 import com.voiceconfig.app.agent.WechatRiskGuard
@@ -398,6 +399,12 @@ class AgentViewModel @Inject constructor(
                 val capabilitySnapshot = agentCapabilityInspector.snapshot()
                 val capabilitySummary = capabilitySnapshot.summary()
                 val preflight = AgentPreflight.evaluate(capabilitySnapshot, text)
+                agentSession.visibilityPolicy = ToolVisibilityPolicy(
+                    includeAdvanced = apiKeyStore.agentAdvancedToolsEnabled,
+                    enabledOptInTools = buildSet {
+                        if (apiKeyStore.agentRemoteNodeEnabled) add("remote_node")
+                    },
+                )
                 val result = agentSession.send(
                     text,
                     skills = relevantSkills,
@@ -540,7 +547,7 @@ class AgentViewModel @Inject constructor(
         agentSkillStore.importSkill(json, source)
 
     suspend fun confirmSensitiveAction(request: SensitiveActionRequest): Boolean {
-        if (apiKeyStore.agentAutoConfirmSensitiveActions) return true
+        if (request.autoConfirmable && apiKeyStore.agentAutoConfirmSensitiveActions) return true
         val deferred = CompletableDeferred<Boolean>()
         _pendingAgentConfirmation.value = PendingAgentConfirmation(
             request = request,

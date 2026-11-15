@@ -24,6 +24,8 @@ enum class AsrEngineStatus {
 class LocalAsrManager @Inject constructor(
     @ApplicationContext private val context: Context,
     private val modelManager: AsrModelManager,
+    private val apiKeyStore: ApiKeyStore,
+    private val deepSeekAsrEngine: DeepSeekAsrEngine,
 ) {
     @Volatile
     private var engine: AsrEngine? = null
@@ -126,7 +128,11 @@ class LocalAsrManager @Inject constructor(
         }
     }
 
-    fun isModelAvailable(): Boolean = engine?.isModelAvailable() == true
+    fun isModelAvailable(): Boolean = when (apiKeyStore.asrProvider) {
+        "SYSTEM" -> false
+        "DEEPSEEK" -> deepSeekAsrEngine.isModelAvailable()
+        else -> currentEngine().isModelAvailable()
+    }
 
     fun cancel() {
         currentEngine().cancel()
@@ -169,6 +175,9 @@ class LocalAsrManager @Inject constructor(
         threadsOverride: Int? = null,
         providerOverride: String? = null,
     ): AsrEngine {
+        if (apiKeyStore.asrProvider == "DEEPSEEK") {
+            return deepSeekAsrEngine
+        }
         val dir = modelManager.modelDir(model)
         val threads = threadsOverride ?: model.threads
         val provider = providerOverride ?: model.provider

@@ -6,26 +6,22 @@ import org.junit.Test
 class ApiKeyStoreTest {
 
     @Test
-    fun `legacy flash model is normalized to vision model`() {
-        assertEquals(
-            "deepseek-v4-flash-vision-exp",
-            ApiKeyStore.normalizeModel("deepseek-v4-flash"),
-        )
+    fun `legacy flash model is normalized to deepseek flash`() {
+        assertEquals("deepseek-flash", ApiKeyStore.normalizeModel("deepseek-v4-flash"))
     }
 
     @Test
-    fun `blank model is normalized to vision model`() {
-        assertEquals(
-            "deepseek-v4-flash-vision-exp",
-            ApiKeyStore.normalizeModel(""),
-        )
+    fun `legacy vision model is normalized to deepseek flash`() {
+        assertEquals("deepseek-flash", ApiKeyStore.normalizeModel("deepseek-v4-flash-vision-exp"))
     }
 
     @Test
-    fun `vision model stays unchanged`() {
-        assertEquals(
-            "deepseek-v4-flash-vision-exp",
-            ApiKeyStore.normalizeModel("deepseek-v4-flash-vision-exp"),
-        )
+    fun `blank model is normalized to deepseek flash`() {
+        assertEquals("deepseek-flash", ApiKeyStore.normalizeModel(""))
+    }
+
+    @Test
+    fun `custom model stays unchanged`() {
+        assertEquals("my-model", ApiKeyStore.normalizeModel("my-model"))
     }
 }

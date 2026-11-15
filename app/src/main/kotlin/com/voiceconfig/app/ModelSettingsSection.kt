@@ -26,6 +26,8 @@ internal fun ModelSettingsSection(
     onShowEditorChange: (Boolean) -> Unit,
     showKey: Boolean,
     onShowKeyChange: (Boolean) -> Unit,
+    validationMessage: String? = null,
+    onValidate: () -> Unit = {},
 ) {
     VoiceSectionCard(title = "模型与密钥", defaultExpanded = true) {
         Row(
@@ -44,7 +46,7 @@ internal fun ModelSettingsSection(
                 )
                 if (isConfigured) {
                     Text(
-                        text = currentModel.ifBlank { "deepseek-v4-flash-vision-exp" },
+                        text = currentModel.ifBlank { "deepseek-flash" },
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -72,9 +74,11 @@ internal fun ModelSettingsSection(
                 value = draftModel,
                 onValueChange = onDraftModelChange,
                 modifier = Modifier.fillMaxWidth(),
-                label = { Text("模型（默认 deepseek-v4-flash-vision-exp）") },
+                label = { Text("模型（默认 deepseek-flash，多模态）") },
                 singleLine = true,
             )
+            TextButton(onClick = onValidate) { Text("校验 Key 和模型") }
+            validationMessage?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
         }
     }
 }

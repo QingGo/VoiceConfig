@@ -28,6 +28,12 @@ import kotlinx.coroutines.launch
 @Composable
 internal fun AsrSettingsSection(
     localAsrManager: LocalAsrManager?,
+    provider: String = "LOCAL",
+    onProviderChange: (String) -> Unit = {},
+    deepSeekModel: String = "",
+    onDeepSeekModelChange: (String) -> Unit = {},
+    deepSeekLanguage: String = "zh",
+    onDeepSeekLanguageChange: (String) -> Unit = {},
 ) {
     val scope = rememberCoroutineScope()
     var showExperimentalAsr by remember { mutableStateOf(false) }
@@ -37,7 +43,30 @@ internal fun AsrSettingsSection(
     var asrErrors by remember { mutableStateOf<Map<String, String>>(emptyMap()) }
 
     VoiceSectionCard(title = "语音识别", defaultExpanded = false) {
-        if (localAsrManager != null) {
+        Text("识别引擎", style = MaterialTheme.typography.titleSmall)
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            listOf("LOCAL" to "本地", "DEEPSEEK" to "DeepSeek", "SYSTEM" to "系统").forEach { (id, label) ->
+                TextButton(onClick = {
+                    onProviderChange(id)
+                    scope.launch { localAsrManager?.warmUp() }
+                }) {
+                    Text(if (provider == id) "✓ $label" else label)
+                }
+            }
+        }
+        if (provider == "DEEPSEEK") {
+            Text(
+                text = "云端识别会上传录音音频。模型和语言字段以 DeepSeek 文档为准。",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Text(
+                text = "DeepSeek ASR 不需要模型 ID，也不传语言参数；自动识别语种。\n支持 16-bit PCM WAV 或 Ogg Opus，最大 8 MiB、120 秒。",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        if (localAsrManager != null && provider == "LOCAL") {
             Text(
                 text = "推荐：${localAsrManager.recommendedModel().displayName}（性能最佳，需下载）\n默认内置：${localAsrManager.defaultModel().displayName}（安装包小，开箱可用）",
                 style = MaterialTheme.typography.bodySmall,

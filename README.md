@@ -122,6 +122,7 @@ VoiceConfig 不是“只会聊天”的助手，而是把语言理解、手机�
 - 本地 ASR：支持离线语音识别模型
   - sherpa-onnx：日常流式识别（默认内置 Zipformer 14M，APK 体积小、开箱可用）
   - Sherpa Paraformer 中英流式：性能推荐模型，需额外下载（约 237MB）
+- 可选云端语音：DeepSeek ASR（16-bit PCM WAV / Ogg Opus，最大 8 MiB、120 秒）与 DeepSeek TTS（stella/tide 音色，WebSocket 流式播放）
   - transcribe.cpp / Qwen3-ASR GGUF：高质量离线识别，支持 arm64-v8a 与 x86_64
 - API Key 仅保存在应用本地
 - 构建产物、本地调试数据、内部文档默认不进入 Git
@@ -185,7 +186,7 @@ core:
 
 ## 模型与可扩展性
 
-- 当前默认模型：`deepseek-v4-flash-vision-exp`
+- 当前默认模型：`deepseek-flash`（多模态）
 - 通过 `AgentToolChat` / `AgentModelBackend` 抽象，后续可接入：
   - 本地 GUI grounding 模型
   - 专用 UI 定位模型
@@ -317,12 +318,12 @@ Shizuku 用于提供 shell 级能力，让“打开 App、读取 UI、输入点�
 
 ## 版本与发布
 
-- 当前版本：`0.1.2`
+- 当前版本：`0.1.3`
 - 构建产物：`app/build/outputs/apk/debug/app-debug.apk`
 - 打 Tag 自动发布：在 GitHub 推送 `v0.1.2` 格式的 tag 后，CI 会自动构建并在 GitHub Release 中附上 APK。
   ```bash
-  git tag v0.1.2
-  git push origin v0.1.2
+  git tag v0.1.3
+  git push origin v0.1.3
   ```
 
 ## 开发与测试

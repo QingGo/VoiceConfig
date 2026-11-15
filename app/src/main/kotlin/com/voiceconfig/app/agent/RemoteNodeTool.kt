@@ -29,9 +29,15 @@ class RemoteNodeTool @Inject constructor(
 
     override val metadata: AgentToolMetadata = AgentToolMetadata(
         category = "远程",
-        group = ToolGroup.ADVANCED,
+        group = ToolGroup.REMOTE,
         risk = ToolRisk.SENSITIVE,
         sensitive = true,
+        requiresOptIn = true,
+        executionTimeoutMs = 120_000L,
+        autoConfirmable = false,
+        effect = ToolEffect.SYSTEM,
+        reversibility = ToolReversibility.IRREVERSIBLE,
+        confirmationMode = ConfirmationMode.PER_ACTION,
     )
 
     override suspend fun execute(args: Map<String, Any?>): ToolResult = withContext(Dispatchers.IO) {
@@ -55,14 +61,22 @@ class RemoteNodeTool @Inject constructor(
 
     private suspend fun health(args: Map<String, Any?>): ToolResult {
         val node = resolveNode(args) ?: return ToolResult.failure("未找到可用的远程节点")
-        val health = httpGet(node, "/health") ?: return ToolResult.failure("节点健康检查失败")
+        val response = httpGet(node, "/health")
+        val health = response.body ?: return ToolResult.failed(
+            "节点 ${node.name} 健康检查失败：${response.error ?: "HTTP ${response.code}"}",
+            code = "remote_node.http_${response.code}",
+            retryable = response.code == 0 || response.code >= 500,
+        )
         val ok = health.optBoolean("ok", false)
         val nodeId = health.optString("node", "")
         val version = health.optString("version", "")
         return if (ok) {
-            ToolResult.success("节点 ${node.name} 在线：version=$version node=$nodeId", mapOf("health" to health.toString()))
+            ToolResult.success(
+                "节点 ${node.name} 在线：version=$version node=$nodeId",
+                mapOf("node" to nodeId, "version" to version, "health" to jsonToMap(health)),
+            )
         } else {
-            ToolResult.failure("节点 ${node.name} 返回异常")
+            ToolResult.failed("节点 ${node.name} 返回异常", code = "remote_node.health_failed")
         }
     }
 
@@ -73,19 +87,49 @@ class RemoteNodeTool @Inject constructor(
         if (command !in node.allowedCommands) {
             return ToolResult.failure("命令 $command 不在节点 ${node.name} 的允许列表中：${node.allowedCommands.joinToString("/")}")
         }
-        val body = JSONObject().put("command", command)
-        val result = httpPost(node, "/api/exec", body) ?: return ToolResult.failure("远程执行请求失败")
+        val body = JSONObject().apply {
+            put("command", command)
+            args["idempotency_key"]?.toString()?.takeIf { it.isNotBlank() }?.let { put("idempotency_key", it) }
+            args["trace_id"]?.toString()?.takeIf { it.isNotBlank() }?.let { put("trace_id", it) }
+        }
+        val response = httpPost(node, "/api/exec", body)
+        val result = response.body ?: return ToolResult.failed(
+            "远程执行请求失败：${response.error ?: "HTTP ${response.code}"}",
+            code = "remote_node.http_${response.code}",
+            retryable = response.code == 0 || response.code >= 500,
+        )
         val ok = result.optBoolean("ok", false)
-        val stdout = result.optString("stdout", "").take(2000)
-        val stderr = result.optString("stderr", "").take(500)
+        val stdout = result.optString("stdout", "").take(8_000)
+        val stderr = result.optString("stderr", "").take(2_000)
         val nodeId = result.optString("node", node.nodeId)
+        val data = mapOf(
+            "node" to nodeId,
+            "command" to command,
+            "stdout" to stdout,
+            "stderr" to stderr,
+            "exit_code" to result.optInt("exit_code", 0),
+            "duration_ms" to result.optLong("duration_ms", 0L),
+            "argv" to result.optJSONArray("argv")?.let { arr -> (0 until arr.length()).map { arr.optString(it) } }.orEmpty(),
+            "raw" to jsonToMap(result),
+        )
+        val taskId = result.optString("task_id")
+        if (taskId.isNotBlank() || result.optString("status") == "accepted") {
+            return ToolResult.accepted("节点 ${node.name} 已接受任务", taskId, data)
+        }
         return if (ok) {
-            ToolResult.success("节点 ${node.name} 执行 $command 成功", mapOf("node" to nodeId, "command" to command, "stdout" to stdout))
+            ToolResult.success("节点 ${node.name} 执行 $command 成功", data)
         } else {
-            ToolResult.failure("节点 ${node.name} 执行 $command 失败：${result.optString("error", stderr)}", mapOf("node" to nodeId, "command" to command))
+            ToolResult.failed(
+                "节点 ${node.name} 执行 $command 失败：${result.optString("error", stderr)}",
+                code = result.optString("error", "remote_node.exec_failed"),
+                retryable = result.optBoolean("retryable", false),
+                data = data,
+            )
         }
     }
 
+    private fun jsonToMap(obj: JSONObject): Map<String, Any?> =
+        obj.keys().asSequence().associateWith { key -> obj.opt(key) }
     private suspend fun resolveNode(args: Map<String, Any?>): RemoteNode? {
         val name = args["node"]?.toString()?.trim().orEmpty()
         val all = runCatching { repository.getNodes() }.getOrElse { emptyList() }
@@ -97,21 +141,28 @@ class RemoteNodeTool @Inject constructor(
         }
     }
 
-    private fun httpGet(node: RemoteNode, path: String): JSONObject? =
+    private data class NodeResponse(
+        val body: JSONObject?,
+        val code: Int,
+        val error: String?,
+    )
+
+    private fun httpGet(node: RemoteNode, path: String): NodeResponse =
         request("GET", node, path, null)
 
-    private fun httpPost(node: RemoteNode, path: String, body: JSONObject): JSONObject? =
+    private fun httpPost(node: RemoteNode, path: String, body: JSONObject): NodeResponse =
         request("POST", node, path, body)
 
-    private fun request(method: String, node: RemoteNode, path: String, body: JSONObject?): JSONObject? {
-        val token = node.token ?: return null
+    private fun request(method: String, node: RemoteNode, path: String, body: JSONObject?): NodeResponse {
+        val token = node.token ?: return NodeResponse(null, 0, "节点未配置 token")
         val url = URL("${node.scheme}://${node.host}:${node.port}$path")
         val conn = url.openConnection() as HttpURLConnection
         return try {
             conn.requestMethod = method
             conn.connectTimeout = 5_000
-            conn.readTimeout = 10_000
+            conn.readTimeout = 120_000
             conn.setRequestProperty("Authorization", "Bearer $token")
+            conn.setRequestProperty("Accept", "application/json")
             if (body != null) {
                 conn.doOutput = true
                 conn.setRequestProperty("Content-Type", "application/json; charset=utf-8")
@@ -120,9 +171,14 @@ class RemoteNodeTool @Inject constructor(
             val code = conn.responseCode
             val stream = if (code in 200..299) conn.inputStream else conn.errorStream
             val text = stream?.bufferedReader()?.use { it.readText() }.orEmpty()
-            if (text.isBlank()) null else JSONObject(text)
+            val parsed = runCatching { if (text.isBlank()) null else JSONObject(text) }.getOrNull()
+            if (code in 200..299) {
+                NodeResponse(parsed, code, if (parsed == null) "响应不是 JSON" else null)
+            } else {
+                NodeResponse(parsed, code, "HTTP $code ${text.take(300)}")
+            }
         } catch (e: Exception) {
-            null
+            NodeResponse(null, 0, e.message ?: e.javaClass.simpleName)
         } finally {
             conn.disconnect()
         }

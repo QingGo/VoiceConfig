@@ -40,11 +40,12 @@ class AgentSafetyTest {
 
 
     @Test
-    fun `hard safety gate blocks final pay and delete even with auto confirm`() {
-        assertTrue(safety.isAlwaysBlocked("tap_text", mapOf("text" to "确认支付")))
-        assertTrue(safety.isAlwaysBlocked("tap_text", mapOf("text" to "立即支付")))
-        assertTrue(safety.isAlwaysBlocked("input_text", mapOf("text" to "发送")))
-        assertTrue(safety.isAlwaysBlocked("tap_text", mapOf("text" to "删除")))
+    fun `final actions require strong confirmation but are not unreachable`() {
+        assertTrue(safety.requiresConfirmation("tap_text", mapOf("text" to "确认支付")))
+        assertTrue(safety.requiresConfirmation("tap_text", mapOf("text" to "立即支付")))
+        assertTrue(safety.requiresConfirmation("tap_text", mapOf("text" to "删除")))
+        assertFalse(safety.requiresConfirmation("input_text", mapOf("text" to "发送")))
+        assertFalse(safety.isAlwaysBlocked("input_text", mapOf("text" to "发送")))
     }
 
     @Test
@@ -58,18 +59,18 @@ class AgentSafetyTest {
     fun `safety levels classify read prepare confirm and irreversible`() {
         assertEquals(SafetyLevel.READ_ONLY, safety.decide("read_ui", emptyMap()).level)
         assertEquals(SafetyLevel.PREPARE, safety.decide("tap", mapOf("x" to 100, "y" to 200)).level)
-        assertEquals(SafetyLevel.CONFIRM, safety.decide("run_shell", mapOf("command" to "getprop")).level)
-        assertEquals(SafetyLevel.CONFIRM, safety.decide("file_write", mapOf("path" to "a.txt")).level)
+        assertEquals(SafetyLevel.IRREVERSIBLE, safety.decide("run_shell", mapOf("command" to "getprop")).level)
+        assertEquals(SafetyLevel.IRREVERSIBLE, safety.decide("file_write", mapOf("path" to "a.txt")).level)
         assertEquals(SafetyLevel.IRREVERSIBLE, safety.decide("tap_text", mapOf("text" to "确认支付")).level)
     }
 
     @Test
-    fun `hard blocked decisions cannot be bypassed by auto confirm`() {
+    fun `strong confirmations cannot be auto confirmed`() {
         val decision = safety.decide("tap_text", mapOf("text" to "确认支付"))
-        assertTrue(decision.blocked)
+        assertFalse(decision.blocked)
         assertTrue(decision.requiresConfirmation)
-        assertTrue(safety.isAlwaysBlocked("tap_text", mapOf("text" to "确认支付")))
-        assertTrue(safety.isAlwaysBlocked("input_text", mapOf("text" to "发送")))
+        assertFalse(decision.autoConfirmable)
+        assertEquals(ConfirmationMode.STRONG, decision.confirmationMode)
     }
 
     @Test

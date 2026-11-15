@@ -17,7 +17,7 @@ object AgentToolSchemas {
                     put("function", JSONObject().apply {
                         put("name", tool.name)
                         put("description", tool.description)
-                        put("parameters", parametersFor(tool.name))
+                        put("parameters", tool.inputSchema ?: parametersFor(tool.name))
                     })
                 },
             )

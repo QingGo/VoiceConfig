@@ -1,5 +1,7 @@
 package com.voiceconfig.app.agent
 
+import org.json.JSONObject
+
 /**
  * 一个可被 LLM 调用的自动化工具。
  *
@@ -16,6 +18,9 @@ interface AgentTool {
     /** 工具元数据，用于安全策略、自动验证、分类和日志。 */
     val metadata: AgentToolMetadata
         get() = AgentToolMetadataRegistry.of(name)
+
+    /** 可选动态参数 Schema；外部/MCP 工具必须提供，内置工具缺省使用集中注册表。 */
+    val inputSchema: JSONObject? get() = null
 
     /** 执行工具。参数由 LLM 提供，必须是简单 JSON 可序列化类型。 */
     suspend fun execute(args: Map<String, Any?>): ToolResult
@@ -48,6 +53,12 @@ data class AgentToolMetadata(
     val requiresAutoVerify: Boolean = false,
     val needsShizuku: Boolean = false,
     val sensitive: Boolean = false,
+    val requiresOptIn: Boolean = false,
+    val executionTimeoutMs: Long? = null,
+    val autoConfirmable: Boolean = true,
+    val effect: ToolEffect = ToolEffect.READ,
+    val reversibility: ToolReversibility = ToolReversibility.REVERSIBLE,
+    val confirmationMode: ConfirmationMode = ConfirmationMode.AUTO,
 )
 
 /**
@@ -79,18 +90,32 @@ object AgentToolMetadataRegistry {
             requiresAutoVerify = true,
             needsShizuku = true,
             sensitive = true,
+            autoConfirmable = false,
+            effect = ToolEffect.SYSTEM,
+            reversibility = ToolReversibility.IRREVERSIBLE,
+            confirmationMode = ConfirmationMode.STRONG,
         ),
         "remote_node" to AgentToolMetadata(
             category = "远程",
             group = ToolGroup.REMOTE,
             risk = ToolRisk.SENSITIVE,
             sensitive = true,
+            requiresOptIn = true,
+            executionTimeoutMs = 120_000L,
+            autoConfirmable = false,
+            effect = ToolEffect.SYSTEM,
+            reversibility = ToolReversibility.IRREVERSIBLE,
+            confirmationMode = ConfirmationMode.PER_ACTION,
         ),
         "remote_ssh_exec" to AgentToolMetadata(
             category = "远程开发",
             group = ToolGroup.REMOTE,
             risk = ToolRisk.SENSITIVE,
             sensitive = true,
+            autoConfirmable = false,
+            effect = ToolEffect.SYSTEM,
+            reversibility = ToolReversibility.IRREVERSIBLE,
+            confirmationMode = ConfirmationMode.PER_ACTION,
         ),
         "remote_ssh_read" to AgentToolMetadata(
             category = "远程开发",
@@ -102,6 +127,10 @@ object AgentToolMetadataRegistry {
             group = ToolGroup.REMOTE,
             risk = ToolRisk.HIGH,
             sensitive = true,
+            autoConfirmable = false,
+            effect = ToolEffect.DESTRUCTIVE,
+            reversibility = ToolReversibility.IRREVERSIBLE,
+            confirmationMode = ConfirmationMode.STRONG,
         ),
         "remote_ssh_list" to AgentToolMetadata(
             category = "远程开发",
@@ -133,6 +162,10 @@ object AgentToolMetadataRegistry {
             group = ToolGroup.REMOTE,
             risk = ToolRisk.HIGH,
             sensitive = true,
+            autoConfirmable = false,
+            effect = ToolEffect.SYSTEM,
+            reversibility = ToolReversibility.IRREVERSIBLE,
+            confirmationMode = ConfirmationMode.STRONG,
         ),
         "remote_project_verify" to AgentToolMetadata(
             category = "远程开发",
@@ -370,6 +403,10 @@ object AgentToolMetadataRegistry {
             risk = ToolRisk.HIGH,
             mutatesUi = true,
             sensitive = true,
+            autoConfirmable = false,
+            effect = ToolEffect.COMMIT,
+            reversibility = ToolReversibility.IRREVERSIBLE,
+            confirmationMode = ConfirmationMode.PER_ACTION,
         ),
         "wework_open" to AgentToolMetadata(
             category = "通信技能",
@@ -383,12 +420,20 @@ object AgentToolMetadataRegistry {
             group = ToolGroup.APP_SKILL,
             risk = ToolRisk.HIGH,
             sensitive = true,
+            autoConfirmable = false,
+            effect = ToolEffect.COMMIT,
+            reversibility = ToolReversibility.IRREVERSIBLE,
+            confirmationMode = ConfirmationMode.PER_ACTION,
         ),
         "file_write" to AgentToolMetadata(
             category = "文件",
             group = ToolGroup.DEBUG,
             risk = ToolRisk.HIGH,
             sensitive = true,
+            autoConfirmable = false,
+            effect = ToolEffect.DESTRUCTIVE,
+            reversibility = ToolReversibility.IRREVERSIBLE,
+            confirmationMode = ConfirmationMode.STRONG,
         ),
         "file_read" to AgentToolMetadata(
             category = "文件",
@@ -416,3 +461,11 @@ object AgentToolMetadataRegistry {
 
     fun of(name: String): AgentToolMetadata = byName[name] ?: AgentToolMetadata()
 }
+/** 动作效果，用于把工具风险与是否需要人工确认解耦。 */
+enum class ToolEffect { READ, NAVIGATE, PREPARE, COMMIT, DESTRUCTIVE, SYSTEM }
+
+enum class ToolReversibility { REVERSIBLE, COMPENSATABLE, IRREVERSIBLE }
+
+/** 审批策略。 */
+enum class ConfirmationMode { AUTO, TASK_SCOPE, PER_ACTION, STRONG, BLOCKED }
+

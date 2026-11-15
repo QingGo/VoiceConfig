@@ -97,6 +97,22 @@ fun SettingsScreen(
     val deepSeekApiKey by profileViewModel.deepSeekApiKey.collectAsState()
     val deepSeekModel by profileViewModel.deepSeekModel.collectAsState()
     val agentAutoConfirmSensitiveActions by profileViewModel.agentAutoConfirmSensitiveActions.collectAsState()
+    val agentAdvancedToolsEnabled by profileViewModel.agentAdvancedToolsEnabled.collectAsState()
+    val agentRemoteNodeEnabled by profileViewModel.agentRemoteNodeEnabled.collectAsState()
+    val asrProvider by profileViewModel.asrProvider.collectAsState()
+    val deepSeekAsrModel by profileViewModel.deepSeekAsrModel.collectAsState()
+    val deepSeekAsrLanguage by profileViewModel.deepSeekAsrLanguage.collectAsState()
+    val ttsProvider by profileViewModel.ttsProvider.collectAsState()
+    val deepSeekTtsModel by profileViewModel.deepSeekTtsModel.collectAsState()
+    val deepSeekTtsVoice by profileViewModel.deepSeekTtsVoice.collectAsState()
+    val deepSeekTtsFormat by profileViewModel.deepSeekTtsFormat.collectAsState()
+    val deepSeekTtsStreamingEnabled by profileViewModel.deepSeekTtsStreamingEnabled.collectAsState()
+    val speechFallbackToSystem by profileViewModel.speechFallbackToSystem.collectAsState()
+    val speechCloudConsent by profileViewModel.speechCloudConsent.collectAsState()
+    val modelValidationMessage by profileViewModel.modelValidationMessage.collectAsState()
+    val visibleModelTools by profileViewModel.visibleModelTools.collectAsState()
+    val externalToolSummaries by profileViewModel.externalToolSummaries.collectAsState()
+    val externalToolMessage by profileViewModel.externalToolMessage.collectAsState()
     val agentAutoVerifyEnabled by profileViewModel.agentAutoVerifyEnabled.collectAsState()
     val agentMaxAutoVerifies by profileViewModel.agentMaxAutoVerifies.collectAsState()
     val wechatUiAutomationEnabled by profileViewModel.wechatUiAutomationEnabled.collectAsState()
@@ -269,6 +285,8 @@ fun SettingsScreen(
                         onShowEditorChange = { showModelEditor = it },
                         showKey = showApiKey,
                         onShowKeyChange = { showApiKey = it },
+                        validationMessage = modelValidationMessage,
+                        onValidate = profileViewModel::validateModelConfiguration,
                     )
                 }
 
@@ -280,6 +298,22 @@ fun SettingsScreen(
                         onAutoVerifyChange = profileViewModel::setAgentAutoVerifyEnabled,
                         maxAutoVerifies = agentMaxAutoVerifies,
                         onMaxAutoVerifiesChange = profileViewModel::setAgentMaxAutoVerifies,
+                        advancedToolsEnabled = agentAdvancedToolsEnabled,
+                        onAdvancedToolsChange = profileViewModel::setAgentAdvancedToolsEnabled,
+                        remoteNodeEnabled = agentRemoteNodeEnabled,
+                        onRemoteNodeChange = profileViewModel::setAgentRemoteNodeEnabled,
+                        visibleModelTools = visibleModelTools,
+                    )
+                }
+
+                item {
+                    ExternalToolsSettingsSection(
+                        summaries = externalToolSummaries,
+                        message = externalToolMessage,
+                        onImportPack = profileViewModel::importExternalToolPack,
+                        onConfigureMcp = profileViewModel::configureMcp,
+                        onRemovePack = profileViewModel::removeExternalToolPack,
+                        onClearMcp = profileViewModel::clearExternalMcp,
                     )
                 }
 
@@ -337,11 +371,33 @@ fun SettingsScreen(
                         onWakeWordEnabledChange = profileViewModel::setWakeWordEnabled,
                         overlayBallEnabled = overlayBallEnabled,
                         onOverlayBallEnabledChange = profileViewModel::setOverlayBallEnabled,
+                        ttsProvider = ttsProvider,
+                        onTtsProviderChange = profileViewModel::setTtsProvider,
+                        deepSeekTtsModel = deepSeekTtsModel,
+                        onDeepSeekTtsModelChange = profileViewModel::setDeepSeekTtsModel,
+                        deepSeekTtsVoice = deepSeekTtsVoice,
+                        onDeepSeekTtsVoiceChange = profileViewModel::setDeepSeekTtsVoice,
+                        deepSeekTtsFormat = deepSeekTtsFormat,
+                        onDeepSeekTtsFormatChange = profileViewModel::setDeepSeekTtsFormat,
+                        deepSeekTtsStreamingEnabled = deepSeekTtsStreamingEnabled,
+                        onDeepSeekTtsStreamingChange = profileViewModel::setDeepSeekTtsStreamingEnabled,
+                        fallbackToSystem = speechFallbackToSystem,
+                        onFallbackToSystemChange = profileViewModel::setSpeechFallbackToSystem,
+                        cloudConsent = speechCloudConsent,
+                        onCloudConsentChange = profileViewModel::setSpeechCloudConsent,
                     )
                 }
 
                 item {
-                    AsrSettingsSection(localAsrManager = localAsrManager)
+                    AsrSettingsSection(
+                        localAsrManager = localAsrManager,
+                        provider = asrProvider,
+                        onProviderChange = profileViewModel::setAsrProvider,
+                        deepSeekModel = deepSeekAsrModel,
+                        onDeepSeekModelChange = profileViewModel::setDeepSeekAsrModel,
+                        deepSeekLanguage = deepSeekAsrLanguage,
+                        onDeepSeekLanguageChange = profileViewModel::setDeepSeekAsrLanguage,
+                    )
                 }
 
                 item {

@@ -46,6 +46,10 @@ class AgentSession @Inject constructor(
     private val runLedger: AgentRunLedger,
 ) {
     private val safety = AgentSafety()
+
+    /** 由设置页/外部工具管理器更新；每次 run 开始时读取一次。 */
+    @Volatile
+    var visibilityPolicy: ToolVisibilityPolicy = ToolVisibilityPolicy()
     private val stopVerifier = StopVerifier()
     private val runMutex = Mutex()
 
@@ -125,6 +129,7 @@ class AgentSession @Inject constructor(
         onSensitiveAction: suspend (SensitiveActionRequest) -> Boolean = { false },
         origin: VoiceCommandOrigin? = null,
         preflight: AgentPreflightResult? = null,
+        interactiveConfirmations: Boolean = true,
     ): AgentTurnResult = runMutex.withLock {
         val saved = history.toList()
         history.clear()
@@ -142,6 +147,7 @@ class AgentSession @Inject constructor(
                 onSensitiveAction = onSensitiveAction,
                 origin = origin,
                 preflight = preflight,
+                interactiveConfirmations = interactiveConfirmations,
             )
             val stats = safetyStatsByRun.remove(rawResult.runId) ?: SafetyRunStats()
             val result = rawResult.withSafetyStats(stats)
@@ -170,6 +176,7 @@ class AgentSession @Inject constructor(
         onStep: (AgentStepUi) -> Unit = {},
         origin: VoiceCommandOrigin? = null,
         preflight: AgentPreflightResult? = null,
+        interactiveConfirmations: Boolean = true,
     ): AgentTurnResult = runMutex.withLock {
         val rawResult = sendLocked(
             userText = userText,
@@ -186,6 +193,7 @@ class AgentSession @Inject constructor(
             onStep = onStep,
             origin = origin,
             preflight = preflight,
+            interactiveConfirmations = interactiveConfirmations,
         )
         val stats = safetyStatsByRun.remove(rawResult.runId) ?: SafetyRunStats()
         val result = rawResult.withSafetyStats(stats)
@@ -209,6 +217,7 @@ class AgentSession @Inject constructor(
         onStep: (AgentStepUi) -> Unit = {},
         origin: VoiceCommandOrigin? = null,
         preflight: AgentPreflightResult? = null,
+        interactiveConfirmations: Boolean = true,
     ): AgentTurnResult {
         if (userText.isBlank()) return AgentTurnResult(ok = false, message = "输入为空", toolCalls = emptyList(), history = historySnapshot(), runId = "")
         val runId = trace.startRun(userText)
@@ -383,7 +392,7 @@ class AgentSession @Inject constructor(
                             systemPrompt,
                             // 为最大化 DeepSeek 前缀缓存，保持天然追加前缀；仅裁剪旧截图避免上下文膨胀。
                             historyForLlm(),
-                            toolRegistry.modelTools(),
+                            toolRegistry.modelTools(visibilityPolicy),
                             onStreamEvent,
                         )
                     }
@@ -564,7 +573,7 @@ class AgentSession @Inject constructor(
                     }
                     StopDecision.DONE -> {
                         val failedSteps = allSteps.filter { step ->
-                    !step.result.ok &&
+                    step.result.isTerminalFailure &&
                         step.call in allToolCalls &&
                         !step.result.message.contains("用户未确认敏感操作") &&
                         !step.result.message.contains("系统安全拦截")
@@ -693,7 +702,7 @@ class AgentSession @Inject constructor(
                     )
                 }
                         val failedSteps = allSteps.filter { step ->
-                    !step.result.ok &&
+                    step.result.isTerminalFailure &&
                         step.call in allToolCalls &&
                         !step.result.message.contains("用户未确认敏感操作") &&
                         !step.result.message.contains("系统安全拦截")
@@ -867,7 +876,49 @@ class AgentSession @Inject constructor(
                     "blocked" to decision.blocked,
                     "reason" to decision.reason,
                 ))
-                val sensitiveRequest = SensitiveActionRequest(tool.name, args)
+                val sensitiveRequest = SensitiveActionRequest(
+                    toolName = tool.name,
+                    args = args,
+                    humanSummary = decision.humanSummary,
+                    actionDigest = decision.actionDigest,
+                    autoConfirmable = decision.autoConfirmable,
+                    confirmationMode = decision.confirmationMode,
+                )
+                if (decision.requiresConfirmation && !interactiveConfirmations) {
+                    safetyStatsByRun[runId]?.let { it.confirmations++ }
+                    setState(AgentRunState.WAITING_CONFIRM)
+                    val waiting = "需要人工确认：${decision.humanSummary}"
+                    onStep(
+                        AgentStepUi(
+                            index = stepIndex,
+                            runId = runId,
+                            toolName = toolCall.name,
+                            argsText = args.toString(),
+                            status = AgentStepStatus.DECLINED,
+                            message = waiting,
+                        ),
+                    )
+                    history += AgentMessage(
+                        role = "tool",
+                        content = waiting,
+                        toolCallId = toolCall.id,
+                        toolName = toolCall.name,
+                        toolArgs = toolCall.arguments,
+                        toolResultOk = false,
+                    )
+                    onMessage(history.last())
+                    allToolCalls += ToolCall(toolCall.name, args)
+                    return AgentTurnResult(
+                        ok = true,
+                        message = waiting,
+                        toolCalls = allToolCalls,
+                        toolResults = allToolResults.toList(),
+                        history = historySnapshot(),
+                        runId = runId,
+                        durationMs = System.currentTimeMillis() - startedAtMs,
+                        state = AgentRunState.WAITING_CONFIRM,
+                    )
+                }
                 if (decision.requiresConfirmation) {
                     safetyStatsByRun[runId]?.let { it.confirmations++ }
                     setState(AgentRunState.WAITING_CONFIRM)
@@ -984,7 +1035,7 @@ class AgentSession @Inject constructor(
                     "start_elapsed_ms" to toolStartMs - startedAtMs,
                 ))
                 var result = try {
-                    withTimeout(runPolicy.toolTimeoutMs) { tool.execute(args) }
+                    withTimeout(tool.metadata.executionTimeoutMs ?: runPolicy.toolTimeoutMs) { tool.execute(args) }
                 } catch (e: TimeoutCancellationException) {
                     ToolResult.failure("工具 ${toolCall.name} 执行超时（${runPolicy.toolTimeoutMs / 1000}s）")
                 } catch (e: Exception) {
@@ -1028,14 +1079,18 @@ class AgentSession @Inject constructor(
                         runId = runId,
                         toolName = toolCall.name,
                         argsText = args.toString(),
-                        status = if (result.ok) AgentStepStatus.SUCCESS else AgentStepStatus.FAILED,
+                        status = when {
+                            result.status == ToolCallStatus.CONFIRMATION_REQUIRED -> AgentStepStatus.DECLINED
+                            result.ok -> AgentStepStatus.SUCCESS
+                            else -> AgentStepStatus.FAILED
+                        },
                         message = result.message,
                         durationMs = toolDurationMs,
                         gapBeforeMs = gapBeforeMs,
                         startedAtElapsedMs = toolStartElapsedMs,
                     ),
                 )
-                if (result.ok) consecutiveFailures = 0 else consecutiveFailures++
+                if (!result.isTerminalFailure) consecutiveFailures = 0 else consecutiveFailures++
                 trace.log(
                 runId,
                     "tool_result",
@@ -1059,7 +1114,7 @@ class AgentSession @Inject constructor(
                 )
                 history += AgentMessage(
                     role = "tool",
-                    content = result.message,
+                    content = result.toModelContent(),
                     toolCallId = toolCall.id,
                     toolName = toolCall.name,
                     toolArgs = toolCall.arguments,
@@ -1299,7 +1354,7 @@ class AgentSession @Inject constructor(
     }
 
     private fun buildSystemPrompt(skills: List<AgentSkill> = emptyList()): String {
-        val toolDesc = toolRegistry.modelDescriptions()
+        val toolDesc = toolRegistry.modelDescriptions(visibilityPolicy)
         val skillText = if (skills.isEmpty()) {
             ""
         } else {
@@ -1341,6 +1396,9 @@ class AgentSession @Inject constructor(
             - 需要确认关键页面元素存在/消失时，使用 ui_assert（支持 resourceId/text/desc，action=visible/not_visible/wait_for）。只对关键步骤和终端停止点做断言，不要每步都调用。
             - 输入、点击、发送等关键操作完成后，至少用 read_ui/read_screen/ui_assert 之一留下可见证据，不能仅凭工具自身的“成功”字样判断完成。
             - 执行完工具后，根据工具结果继续判断是否需要更多工具，直到目标完成。
+            - 工具结果为 status=accepted 时，表示任务已提交但尚未完成；如存在任务查询工具，应继续查询状态，否则如实告诉用户任务仍在进行中。
+            - 工具结果为 status=confirmation_required 时，不是失败；应告知用户需要审批，并按返回的 human_summary/approval_id 说明下一步，禁止自行批准。
+            - 外部工具只能调用工具表中列出的工具；不得猜测、伪造审批结果或绕过本地确认。
             
             【单步快路径】
             - 单步、明确、可直接执行的指令（打开某个 App、打开搜索、创建提醒、打开链接）必须只调用一个对应的工具就结束，不要创建 task_plan，不要写计划步骤。

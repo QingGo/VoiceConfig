@@ -425,6 +425,12 @@ class AutomationViewModel @Inject constructor(
                         )
                     } else {
                         val capabilitySummary = capability.summary()
+                        agentSession.visibilityPolicy = com.voiceconfig.app.agent.ToolVisibilityPolicy(
+                            includeAdvanced = apiKeyStore.agentAdvancedToolsEnabled,
+                            enabledOptInTools = buildSet {
+                                if (apiKeyStore.agentRemoteNodeEnabled) add("remote_node")
+                            },
+                        )
                         val agentResult = agentSession.sendIsolated(
                             userText = prompt,
                             skills = agentSkillStore.relevant(prompt),
@@ -437,8 +443,9 @@ class AutomationViewModel @Inject constructor(
                             onSensitiveAction = {
                                 apiKeyStore.agentAutoConfirmSensitiveActions
                             },
+                            interactiveConfirmations = false,
                         )
-                        if (agentResult.ok) {
+                        if (agentResult.ok && agentResult.state != AgentRunState.WAITING_CONFIRM) {
                             agentSkillStore.recordFromTurn(
                                 text = prompt,
                                 result = agentResult,
@@ -446,15 +453,15 @@ class AutomationViewModel @Inject constructor(
                             )
                         }
                         when {
-                            !agentResult.ok -> ExecutionResult.failure(
-                                mode = ExecutionMode.AGENT,
-                                errorCode = "AGENT_FAILED",
-                                message = agentResult.message,
-                            )
                             agentResult.state == AgentRunState.WAITING_CONFIRM -> ExecutionResult(
                                 status = ExecutionStatus.WAITING_HUMAN,
                                 usedMode = ExecutionMode.AGENT,
                                 errorCode = "WAITING_HUMAN",
+                                message = agentResult.message,
+                            )
+                            !agentResult.ok -> ExecutionResult.failure(
+                                mode = ExecutionMode.AGENT,
+                                errorCode = "AGENT_FAILED",
                                 message = agentResult.message,
                             )
                             else -> ExecutionResult.success(ExecutionMode.AGENT).copy(message = agentResult.message)
