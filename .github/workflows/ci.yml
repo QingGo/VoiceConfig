@@ -22,6 +22,10 @@ jobs:
           gradle-version: '8.9'
 
       - uses: android-actions/setup-android@v3
+        with:
+          # The obsolete "tools" package was removed from the SDK repository.
+          # setup-android still tries to install it by default and fails.
+          packages: 'platform-tools'
 
       - name: Install NDK and CMake
         run: |
@@ -41,7 +45,6 @@ jobs:
 
       - name: Build native ASR libraries
         env:
-          ANDROID_HOME: ${{ env.ANDROID_SDK_ROOT }}
           TRANSCRIBE_REPO_REF: v0.2.1
         run: ./scripts/build_transcribe_cpp_android.sh
 
@@ -58,6 +61,13 @@ jobs:
           path: app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
 
+      - name: Upload native ASR libraries
+        uses: actions/upload-artifact@v4
+        with:
+          name: native-asr-libs
+          path: app/src/main/jniLibs
+          if-no-files-found: error
+
   release:
     if: startsWith(github.ref, 'refs/tags/v')
     needs: build
@@ -66,14 +76,30 @@ jobs:
       contents: write
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '17'
+
       - uses: gradle/actions/setup-gradle@v3
         with:
           gradle-version: '8.9'
+
       - uses: android-actions/setup-android@v3
+        with:
+          # Avoid the removed "tools" package that setup-android v3 installs
+          # by default. See the matching comment in the build job.
+          packages: 'platform-tools'
+
+      - name: Make scripts executable
+        run: chmod +x gradlew
+
+      - name: Download native ASR libraries
+        uses: actions/download-artifact@v4
+        with:
+          name: native-asr-libs
+          path: app/src/main/jniLibs
 
       - name: Decode release keystore
         env:
